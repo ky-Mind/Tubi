@@ -1,13 +1,327 @@
 <!doctype html>
 <html lang="id">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#ef233c" />
-    <title>Tubi — Makanan Favoritmu</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ed1b2f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tubi">
+<link rel="icon" type="image/png" href="/tubi-icon.png">
+<link rel="apple-touch-icon" href="/tubi-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>Tubi — Makanan favoritmu</title>
+<style>
+:root{--red:#ed1b2f;--red2:#c90f24;--ink:#17171a;--muted:#777;--soft:#f6f6f7;--card:#fff;--line:#ececef;--green:#20a05a;--gold:#b47b19;--shadow:0 14px 40px rgba(20,20,20,.08)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f3f3f4;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.55}
+#app{min-height:100vh}.shell{max-width:1180px;margin:auto;min-height:100vh;background:#fff}.page{padding:0 22px 105px}.topbar{height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:25px;letter-spacing:-1px}.brand img{width:38px;height:38px;border-radius:12px;object-fit:cover}.top-actions{display:flex;gap:9px;align-items:center}.icon-btn,.ghost-btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:14px;min-width:44px;height:44px;padding:0 12px;box-shadow:0 3px 12px #00000008}.icon-btn{font-size:20px}.cart-badge{position:relative}.cart-badge i{position:absolute;right:-3px;top:-5px;background:#111;color:#fff;border-radius:20px;min-width:19px;height:19px;font-size:10px;font-style:normal;display:grid;place-items:center;padding:0 4px}
+.hero{background:linear-gradient(135deg,var(--red),#ff233a);border-radius:0 0 34px 34px;color:#fff;padding:24px 28px 30px;position:relative;overflow:hidden;min-height:285px}.hero:after{content:"";position:absolute;width:360px;height:360px;border:2px solid #ffffff25;border-radius:50%;right:-120px;top:-210px}.hero-copy{position:relative;z-index:2;max-width:620px}.eyebrow{opacity:.9;font-size:14px}.hero h1{font-size:clamp(42px,7vw,68px);line-height:.95;margin:8px 0 10px;letter-spacing:-3px}.hero p{margin:0;font-size:18px;opacity:.95}.hero-art{position:absolute;right:28px;bottom:14px;font-size:clamp(55px,9vw,100px);transform:rotate(-5deg);white-space:nowrap;filter:drop-shadow(0 12px 8px #0002)}
+.search-wrap{margin-top:-27px;position:relative;z-index:5}.search{display:flex;align-items:center;gap:10px;background:#fff;border-radius:22px;padding:5px 18px;box-shadow:var(--shadow);border:1px solid #eee}.search span{font-size:25px}.search input{width:100%;border:0;outline:0;padding:15px 0;background:transparent;font-size:16px}
+.section{margin-top:30px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:14px}.section-head h2{margin:0;font-size:23px;letter-spacing:-.5px}.muted{color:var(--muted);font-size:14px}.pill{border:0;border-radius:999px;background:#e9fbf0;color:#16884a;padding:9px 14px;font-weight:800}.cats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.cat{border:1px solid var(--line);background:#fafafa;border-radius:20px;min-height:112px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;transition:.2s}.cat:hover,.cat.active{transform:translateY(-2px);background:#fff0f2;border-color:#ffb4bd;box-shadow:0 8px 20px #ed1b2f12}.cat em{font-style:normal;font-size:34px}.cat strong{font-size:14px}
+.products{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.product{border:1px solid var(--line);border-radius:24px;padding:11px;background:#fff;display:flex;gap:13px;min-width:0;position:relative;box-shadow:0 2px 10px #00000003}.product-img{width:128px;height:128px;min-width:128px;border-radius:18px;background:#fff0df;display:grid;place-items:center;overflow:hidden}.product-img img{width:100%;height:100%;object-fit:cover}.product-emoji{font-size:61px}.product-body{flex:1;min-width:0;padding:2px 1px}.product-body h3{margin:3px 0 7px;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rating{font-size:13px;color:var(--gold);display:block;margin-bottom:10px}.price{font-size:18px;font-weight:900;display:block}.product-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:11px}.add{border:0;background:var(--red);color:#fff;border-radius:13px;padding:9px 13px;font-weight:900}.heart{border:1px solid var(--line);background:#fff;border-radius:50%;width:38px;height:38px;font-size:18px}.heart.active{color:var(--red);background:#fff0f2}
+.bottom-nav{position:fixed;z-index:50;bottom:0;left:50%;transform:translateX(-50%);width:min(1180px,100%);display:grid;grid-template-columns:repeat(4,1fr);background:#fffffff4;backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:8px max(8px,env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 25px #0000000a}.nav-btn{border:0;background:transparent;color:#8a8a8f;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;border-radius:12px}.nav-btn span:first-child{font-size:21px}.nav-btn small{font-size:11px}.nav-btn.active{color:var(--red);font-weight:900}
+.view{display:none}.view.active{display:block}.login-card{margin-top:25px;border:1px solid var(--line);border-radius:24px;padding:18px;display:flex;align-items:center;justify-content:space-between;gap:15px;background:#fff;box-shadow:var(--shadow)}.user-mini{display:flex;align-items:center;gap:12px;min-width:0}.avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#eee}.user-mini strong,.user-mini small{display:block}.user-mini small{color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.google{border:0;background:#111;color:#fff;border-radius:14px;padding:12px 15px;font-weight:800}.outline{border:1px solid var(--line);background:#fff;border-radius:13px;padding:10px 14px;font-weight:800}.empty{padding:45px 15px;text-align:center;color:var(--muted);border:1px dashed #ddd;border-radius:20px}.drawer-backdrop,.modal-backdrop{position:fixed;inset:0;background:#0007;z-index:90;display:none}.drawer-backdrop.open,.modal-backdrop.open{display:block}.drawer{position:fixed;z-index:91;left:0;top:0;bottom:0;width:min(390px,92vw);background:#fff;padding:20px;transform:translateX(-105%);transition:.25s;overflow:auto}.drawer.open{transform:none}.drawer-head{display:flex;align-items:center;justify-content:space-between}.drawer-links{display:grid;gap:8px;margin-top:20px}.drawer-links button{border:0;background:#f7f7f8;border-radius:15px;padding:14px;text-align:left;font-weight:800}.drawer-links button.active{background:#fff0f2;color:var(--red)}
+.modal{position:fixed;z-index:101;left:50%;top:50%;transform:translate(-50%,-50%) scale(.98);width:min(700px,calc(100% - 26px));max-height:min(88vh,850px);overflow:auto;background:#fff;border-radius:25px;padding:20px;box-shadow:0 30px 90px #0004}.modal-backdrop.open .modal{transform:translate(-50%,-50%) scale(1)}.modal-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.modal-head h2{margin:0}.close{border:0;background:#f2f2f3;border-radius:50%;width:38px;height:38px}.cart-list{display:grid;gap:10px;margin:18px 0}.cart-row{display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:17px;padding:9px}.cart-row img,.cart-row .cart-emoji{width:60px;height:60px;border-radius:13px;background:#fff0df;object-fit:cover;display:grid;place-items:center;font-size:32px}.cart-row-main{flex:1}.cart-row-main strong,.cart-row-main small{display:block}.cart-row-main small{color:var(--muted);margin-top:4px}.qty{display:flex;align-items:center;gap:7px}.qty button{border:1px solid var(--line);background:#fff;border-radius:9px;width:28px;height:28px}.total-line{display:flex;justify-content:space-between;font-weight:900;font-size:18px;padding-top:14px;border-top:1px solid var(--line)}.primary{border:0;background:var(--red);color:#fff;border-radius:14px;padding:13px 17px;font-weight:900;width:100%;margin-top:13px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:13px;font-weight:800}.field input,.field select,.field textarea{width:100%;border:1px solid #ddd;border-radius:13px;padding:11px;outline:none;background:#fff}.field textarea{min-height:90px;resize:vertical}.preview{width:100%;height:180px;border-radius:16px;object-fit:cover;background:#fff0df;display:grid;place-items:center;font-size:65px;overflow:hidden}.preview img{width:100%;height:100%;object-fit:cover}
+.admin-wrap{background:#f7f7f8;min-height:calc(100vh - 72px);padding:22px}.admin-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}.panel{background:#fff;border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:0 4px 20px #00000005}.panel h3{margin:0 0 15px}.admin-products{display:grid;gap:10px}.admin-product{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:9px}.admin-product .thumb{width:58px;height:58px;border-radius:12px;background:#fff0df;object-fit:cover;display:grid;place-items:center;font-size:28px;overflow:hidden}.admin-product .thumb img{width:100%;height:100%;object-fit:cover}.admin-product-main{flex:1;min-width:0}.admin-product-main strong,.admin-product-main small{display:block}.admin-product-main small{color:var(--muted);margin-top:3px}.admin-product-actions{display:flex;gap:6px}.small-btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 9px}.danger{color:#b30d1e}.orders{display:grid;gap:12px}.order{border:1px solid var(--line);border-radius:17px;padding:13px}.order-top{display:flex;justify-content:space-between;gap:10px}.status{border:0;border-radius:999px;padding:7px 10px;font-size:12px;font-weight:900}.status.baru{background:#fff1d9;color:#9a6500}.status.diproses{background:#e8f0ff;color:#315ea8}.status.selesai{background:#e8faef;color:#16884a}.status.dibatalkan{background:#fbe7e9;color:#b51b2b}.order-items{margin:10px 0;color:#555;font-size:13px}.profile{display:grid;grid-template-columns:140px 1fr;gap:18px;align-items:center}.profile-card{border:1px solid var(--line);border-radius:24px;padding:20px;background:#fff}.profile-avatar{width:120px;height:120px;border-radius:30px;object-fit:cover;background:#eee}.toast{position:fixed;z-index:200;left:50%;bottom:90px;transform:translate(-50%,20px);background:#111;color:#fff;border-radius:13px;padding:11px 15px;opacity:0;pointer-events:none;transition:.25s;max-width:calc(100% - 30px);text-align:center}.toast.show{opacity:1;transform:translate(-50%,0)}.spinner{display:inline-block;width:17px;height:17px;border:2px solid #ffffff66;border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px}@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:850px){.products{grid-template-columns:1fr}.admin-grid{grid-template-columns:1fr}.hero-art{right:10px;opacity:.75}.page{padding-left:18px;padding-right:18px}}
+@media(max-width:560px){.topbar{height:64px}.hero{margin:0 -18px;border-radius:0 0 28px 28px;padding:22px 20px 30px;min-height:275px}.page{padding-left:18px;padding-right:18px}.hero h1{font-size:50px}.hero p{font-size:16px}.hero-art{font-size:57px;right:4px}.cats{gap:8px}.cat{min-height:92px;border-radius:17px}.cat em{font-size:28px}.cat strong{font-size:12px}.product{padding:9px;border-radius:20px}.product-img{width:112px;height:112px;min-width:112px}.product-body h3{font-size:15px}.price{font-size:16px}.add{padding:8px 10px;font-size:13px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.profile{grid-template-columns:1fr;text-align:center}.profile-avatar{margin:auto}.login-card{align-items:flex-start;flex-direction:column}.login-card .google,.login-card .outline{width:100%}.admin-wrap{padding:12px}.panel{padding:14px}}
+@media(min-width:900px){.shell{box-shadow:0 0 60px #0000000d}.bottom-nav{border-left:1px solid var(--line);border-right:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head"><div class="brand"><img src="/tubi-icon.png" alt="">tubi</div><button class="close" id="closeDrawer">×</button></div>
+  <div class="drawer-links">
+    <button data-view="home">⌂ &nbsp; Beranda</button>
+    <button data-view="orders">▣ &nbsp; Pesanan saya</button>
+    <button data-view="favorites">♡ &nbsp; Favorit</button>
+    <button data-view="profile">◉ &nbsp; Profil</button>
+    <button data-view="admin" id="drawerAdmin" style="display:none">⚙ &nbsp; Dashboard Admin</button>
+  </div>
+</aside>
+<div class="modal-backdrop" id="cartBackdrop"><div class="modal" id="cartModal"></div></div>
+<div class="modal-backdrop" id="productBackdrop"><div class="modal" id="productModal"></div></div>
+<div class="modal-backdrop" id="loginBackdrop"><div class="modal" id="loginModal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:"AIzaSyBX6gj6mboRztlrF9ILRXD1gnHHIB94Bqo",
+  authDomain:"tubi-app.firebaseapp.com",
+  projectId:"tubi-app",
+  storageBucket:"tubi-app.firebasestorage.app",
+  messagingSenderId:"492656969625",
+  appId:"1:492656969625:web:3bdcd40350d28241b53508",
+  measurementId:"G-311K0RXQDF"
+};
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const google = new GoogleAuthProvider();
+google.setCustomParameters({prompt:"select_account"});
+
+const ADMIN_EMAIL = "Hilmykia@gmail.com";
+const FALLBACK_PRODUCTS = [
+  {id:"default-ayam",name:"Ayam Crispy Special",price:18000,rating:4.8,category:"Ayam",emoji:"🍗",image:""},
+  {id:"default-paket",name:"Paket Hemat 1",price:22000,rating:4.9,category:"Paket",emoji:"🍱",image:""},
+  {id:"default-mie",name:"Mie Pedas Level",price:15000,rating:4.7,category:"Mie",emoji:"🍜",image:""},
+  {id:"default-teh",name:"Es Teh Jumbo",price:7000,rating:4.8,category:"Minuman",emoji:"🥤",image:""}
+];
+const CATS = [["🍗","Ayam"],["🍱","Paket"],["🍜","Mie"],["🥤","Minuman"]];
+
+const state = {
+  user:null, profile:null, isAdmin:false, view:"home", q:"", cat:"Semua",
+  products:[], orders:[], favorites:JSON.parse(localStorage.getItem("tubi_favorites")||"[]"),
+  cart:JSON.parse(localStorage.getItem("tubi_cart")||"[]"), productsUnsub:null, ordersUnsub:null, adminOrdersUnsub:null,
+  editingProduct:null
+};
+const $=s=>document.querySelector(s);
+const rupiah=n=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(Number(n)||0);
+const escapeHtml=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));
+const isAdmin=()=>state.user && (state.user.email||"").toLowerCase()===ADMIN_EMAIL.toLowerCase() || state.profile?.role==="admin";
+function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove("show"),2500)}
+function saveLocal(){localStorage.setItem("tubi_cart",JSON.stringify(state.cart));localStorage.setItem("tubi_favorites",JSON.stringify(state.favorites))}
+function productById(id){return state.products.find(p=>p.id===id)||FALLBACK_PRODUCTS.find(p=>p.id===id)}
+function imageHtml(p,cls="product-img"){return p?.image?`<div class="${cls}"><img src="${p.image}" alt="${escapeHtml(p.name)}"></div>`:`<div class="${cls}"><span class="product-emoji">${p?.emoji||"🍽️"}</span></div>`}
+function statusClass(s){return String(s||"baru").toLowerCase().replace(/\s/g,"-")}
+function timeText(ts){if(!ts)return "Baru saja";try{return new Intl.DateTimeFormat("id-ID",{dateStyle:"medium",timeStyle:"short"}).format(ts.toDate())}catch{return "Baru saja"}}
+
+function render(){
+  const admin=!!isAdmin();
+  const drawerAdmin=document.getElementById("drawerAdmin");
+  if(drawerAdmin) drawerAdmin.style.display=admin?"block":"none";
+  const visible=state.products.length?state.products:FALLBACK_PRODUCTS;
+  const filtered=visible.filter(p=>(state.cat==="Semua"||p.category===state.cat)&&p.name.toLowerCase().includes(state.q.toLowerCase()));
+  const root=$("#app");
+  root.innerHTML=`
+  <div class="shell">
+    <div class="page">
+      <div class="topbar">
+        <button class="icon-btn" id="menuBtn">☰</button>
+        <div class="brand"><img src="/tubi-icon.png" alt="Tubi">tubi</div>
+        <div class="top-actions">
+          <button class="icon-btn cart-badge" id="cartBtn">🛒<i>${state.cart.reduce((a,x)=>a+x.qty,0)}</i></button>
+        </div>
+      </div>
+      <div class="view ${state.view==="home"?"active":""}">
+        <div class="hero"><div class="hero-copy"><div class="eyebrow">Selamat datang di</div><h1>Tubi</h1><p>Temukan makanan favoritmu.</p></div><div class="hero-art">🍗 🍜 🥤</div></div>
+        <main>
+          <div class="search-wrap"><div class="search"><span>⌕</span><input id="searchInput" value="${escapeHtml(state.q)}" placeholder="Lagi ngidam apa?"></div></div>
+          <section class="section">
+            <div class="section-head"><h2>Kategori</h2><button class="pill" id="allCats">Lihat semua</button></div>
+            <div class="cats"><button class="cat ${state.cat==="Semua"?"active":""}" data-cat="Semua"><em>✨</em><strong>Semua</strong></button>${CATS.map(c=>`<button class="cat ${state.cat===c[1]?"active":""}" data-cat="${c[1]}"><em>${c[0]}</em><strong>${c[1]}</strong></button>`).join("")}</div>
+          </section>
+          <section class="section">
+            <div class="section-head"><h2>Produk pilihan</h2><span class="muted">${filtered.length} produk</span></div>
+            ${filtered.length?`<div class="products">${filtered.map(productCard).join("")}</div>`:`<div class="empty">Produk tidak ditemukan.<br><button class="outline" style="margin-top:12px" id="resetSearch">Reset pencarian</button></div>`}
+          </section>
+          <section class="section">${loginCard()}</section>
+        </main>
+      </div>
+      <div class="view ${state.view==="orders"?"active":""}">${ordersView()}</div>
+      <div class="view ${state.view==="favorites"?"active":""}">${favoritesView()}</div>
+      <div class="view ${state.view==="profile"?"active":""}">${profileView()}</div>
+      ${admin&&state.view==="admin"?adminView():""}
+    </div>
+    <nav class="bottom-nav">
+      ${nav("home","⌂","Beranda")}
+      ${nav("orders","▣","Pesanan")}
+      ${nav("favorites","♡","Favorit")}
+      ${nav("profile","◉","Akun")}
+    </nav>
+  </div>`;
+  bind();
+}
+function nav(v,icon,label){return `<button class="nav-btn ${state.view===v?"active":""}" data-view="${v}"><span>${icon}</span><small>${label}</small></button>`}
+function loginCard(){
+  if(state.user)return `<div class="login-card"><div class="user-mini"><img class="avatar" src="${state.user.photoURL||"/tubi-icon.png"}" alt=""><div><strong>${escapeHtml(state.user.displayName||"Pengguna Tubi")}</strong><small>${escapeHtml(state.user.email||"")}${isAdmin()?" · Admin":""}</small></div></div><button class="outline" id="profileBtn">Buka profil</button></div>`;
+  return `<div class="login-card"><div><strong>Sudah punya akun?</strong><small class="muted" style="display:block;margin-top:5px">Masuk untuk menyimpan pesanan dan favorit.</small></div><button class="google" id="googleBtn">G&nbsp; Masuk dengan Google</button></div>`;
+}
+function productCard(p){
+  const fav=state.favorites.includes(p.id);
+  return `<article class="product">${imageHtml(p)}<div class="product-body"><h3 title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</h3><small class="rating">★ ${p.rating||"5.0"} · Siap dipesan</small><strong class="price">${rupiah(p.price)}</strong><div class="product-actions"><button class="heart ${fav?"active":""}" data-fav="${p.id}">${fav?"♥":"♡"}</button><button class="add" data-add="${p.id}">+ Tambah</button></div></div></article>`;
+}
+function ordersView(){
+  return `<section class="section"><div class="section-head"><div><h2>Pesanan saya</h2><span class="muted">${state.user?"Riwayat pesanan akun ini":"Masuk untuk melihat pesanan"}</span></div><button class="outline" id="homeFromOrders">Beranda</button></div>${!state.user?`<div class="empty">Silakan masuk dengan Google untuk membuat dan melihat pesanan.<br><button class="google" id="googleBtn2" style="margin-top:13px">G&nbsp; Masuk dengan Google</button></div>`:state.orders.length?`<div class="orders">${state.orders.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(orderCard).join("")}</div>`:`<div class="empty">Belum ada pesanan.<br><button class="outline" id="shopNow" style="margin-top:12px">Mulai belanja</button></div>`}</section>`;
+}
+function orderCard(o){
+  return `<div class="order"><div class="order-top"><div><strong>${escapeHtml(o.customerName||o.email||"Pesanan")}</strong><small class="muted" style="display:block;margin-top:4px">${timeText(o.createdAt)}</small></div><span class="status ${statusClass(o.status)}">${escapeHtml(o.status||"baru")}</span></div><div class="order-items">${(o.items||[]).map(i=>`${i.qty}× ${escapeHtml(i.name)} — ${rupiah(i.price*i.qty)}`).join("<br>")}</div><strong>Total ${rupiah(o.total)}</strong></div>`;
+}
+function favoritesView(){
+  const favs=(state.products.length?state.products:FALLBACK_PRODUCTS).filter(p=>state.favorites.includes(p.id));
+  return `<section class="section"><div class="section-head"><div><h2>Favorit</h2><span class="muted">Simpan makanan yang kamu suka.</span></div></div>${favs.length?`<div class="products">${favs.map(productCard).join("")}</div>`:`<div class="empty">Belum ada favorit.<br>Tekan ♡ pada produk untuk menyimpannya.</div>`}</section>`;
+}
+function profileView(){
+  if(!state.user)return `<section class="section"><div class="profile-card"><div style="text-align:center"><img class="profile-avatar" src="/tubi-icon.png" alt=""><h2>Profil Tubi</h2><p class="muted">Masuk dengan Google untuk mengakses profil, pesanan, dan fitur akun.</p><button class="google" id="googleBtn3">G&nbsp; Masuk dengan Google</button></div></div></section>`;
+  return `<section class="section"><div class="profile-card"><div class="profile"><img class="profile-avatar" src="${state.user.photoURL||"/tubi-icon.png"}" alt=""><div><h2 style="margin:0">${escapeHtml(state.user.displayName||"Pengguna Tubi")}</h2><p class="muted">${escapeHtml(state.user.email||"")}</p><p><strong>${isAdmin()?"Admin Tubi":"Customer Tubi"}</strong></p><button class="outline" id="logoutBtn">Keluar</button>${isAdmin()?`<button class="primary" id="adminBtn">Buka Dashboard Admin</button>`:""}</div></div></div></section>`;
+}
+function adminView(){
+  return `<div class="admin-wrap"><div class="section-head"><div><h2>Dashboard Admin</h2><span class="muted">Kelola produk dan pantau pesanan masuk.</span></div><button class="outline" id="adminHome">Beranda</button></div>
+    <div class="admin-grid">
+      <div class="panel"><h3>${state.editingProduct?"Edit produk":"Tambah produk"}</h3><form id="productForm"><div class="form-grid">
+        <div class="field full"><label>Nama produk</label><input name="name" required value="${escapeHtml(state.editingProduct?.name||"")}" placeholder="Contoh: Ayam Geprek"></div>
+        <div class="field"><label>Harga (rupiah)</label><input name="price" type="number" min="0" required value="${state.editingProduct?.price||""}" placeholder="18000"></div>
+        <div class="field"><label>Kategori</label><select name="category">${CATS.map(c=>`<option ${state.editingProduct?.category===c[1]?"selected":""}>${c[1]}</option>`).join("")}</select></div>
+        <div class="field"><label>Rating</label><input name="rating" type="number" min="0" max="5" step=".1" value="${state.editingProduct?.rating||5}"></div>
+        <div class="field"><label>Emoji cadangan</label><input name="emoji" value="${escapeHtml(state.editingProduct?.emoji||"🍽️")}"></div>
+        <div class="field full"><label>Foto produk</label><input id="productImage" name="image" type="file" accept="image/*"><small class="muted">Foto otomatis diperkecil agar aman disimpan.</small></div>
+        <div class="field full">${state.editingProduct?.image?`<div class="preview"><img src="${state.editingProduct.image}" alt=""></div>`:`<div class="preview">${escapeHtml(state.editingProduct?.emoji||"🍽️")}</div>`}</div>
+      </div><button class="primary" type="submit">${state.editingProduct?"Simpan perubahan":"Tambah produk"}</button>${state.editingProduct?`<button class="outline" type="button" id="cancelEdit" style="width:100%;margin-top:8px">Batal edit</button>`:""}</form></div>
+      <div class="panel"><h3>Produk aktif (${state.products.length})</h3><div class="admin-products">${state.products.length?state.products.map(adminProductCard).join(""):`<div class="empty">Belum ada produk di database.<br><button class="outline" id="seedBtn" style="margin-top:10px">Buat produk awal</button></div>`}</div></div>
+      <div class="panel" style="grid-column:1/-1"><h3>Pesanan masuk (${state.orders.length})</h3>${state.orders.length?`<div class="orders">${state.orders.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(adminOrderCard).join("")}</div>`:`<div class="empty">Belum ada pesanan dari customer.</div>`}</div>
+    </div></div>`;
+}
+function adminProductCard(p){
+  return `<div class="admin-product">${imageHtml(p,"thumb")}<div class="admin-product-main"><strong>${escapeHtml(p.name)}</strong><small>${rupiah(p.price)} · ${escapeHtml(p.category)}</small></div><div class="admin-product-actions"><button class="small-btn" data-edit="${p.id}">Edit</button><button class="small-btn danger" data-delete="${p.id}">Hapus</button></div></div>`;
+}
+function adminOrderCard(o){
+  return `<div class="order"><div class="order-top"><div><strong>${escapeHtml(o.customerName||"Customer")}</strong><small class="muted" style="display:block;margin-top:4px">${escapeHtml(o.email||"")} · ${timeText(o.createdAt)}</small></div><select class="status-select" data-status="${o.id}"><option ${o.status==="baru"?"selected":""}>baru</option><option ${o.status==="diproses"?"selected":""}>diproses</option><option ${o.status==="selesai"?"selected":""}>selesai</option><option ${o.status==="dibatalkan"?"selected":""}>dibatalkan</option></select></div><div class="order-items">${(o.items||[]).map(i=>`${i.qty}× ${escapeHtml(i.name)} — ${rupiah(i.price*i.qty)}`).join("<br>")}</div><strong>Total ${rupiah(o.total)}</strong></div>`;
+}
+
+async function login(){
+  try{
+    toast("Membuka Google…");
+    await signInWithPopup(auth,google);
+  }catch(e){
+    console.error(e);
+    if(["auth/popup-blocked","auth/popup-cancelled-by-user","auth/operation-not-supported-in-this-environment"].includes(e.code)){
+      try{await signInWithRedirect(auth,google);return}catch(er){console.error(er)}
+    }
+    toast(authMessage(e));
+  }
+}
+function authMessage(e){
+  const m=e?.code||"";
+  if(m==="auth/unauthorized-domain")return "Domain ini belum diizinkan Firebase. Tambahkan domain Vercel di Authentication → Settings → Authorized domains.";
+  if(m==="auth/popup-closed-by-user")return "Login dibatalkan.";
+  if(m==="auth/operation-not-allowed")return "Google Sign-In belum diaktifkan di Firebase Authentication.";
+  return "Login Google gagal. Cek konfigurasi Firebase.";
+}
+async function afterLogin(user){
+  state.user=user;
+  const ref=doc(db,"users",user.uid);
+  const snap=await getDoc(ref).catch(()=>null);
+  const role=(user.email||"").toLowerCase()===ADMIN_EMAIL.toLowerCase()?"admin":(snap?.data()?.role||"customer");
+  state.profile={...(snap?.data()||{}),role};
+  await setDoc(ref,{uid:user.uid,email:user.email||"",displayName:user.displayName||"",photoURL:user.photoURL||"",role,lastLogin:serverTimestamp()},{merge:true}).catch(()=>{});
+  state.isAdmin=role==="admin";
+  if(state.isAdmin)$("#drawerAdmin").style.display="block";
+  subscribeOrders();
+  render();
+  toast(state.isAdmin?"Login admin berhasil.":"Selamat datang di Tubi!");
+}
+function subscribeProducts(){
+  state.productsUnsub?.();
+  state.productsUnsub=onSnapshot(collection(db,"products"),snap=>{
+    state.products=snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!state.products.length)state.products=[];
+    render();
+  },err=>{console.error(err);state.products=[];render()});
+}
+function subscribeOrders(){
+  state.ordersUnsub?.();
+  if(!state.user)return;
+  if(isAdmin()){
+    state.adminOrdersUnsub?.();
+    state.adminOrdersUnsub=onSnapshot(collection(db,"orders"),snap=>{state.orders=snap.docs.map(d=>({id:d.id,...d.data()}));render()},err=>console.error(err));
+  }else{
+    const qy=query(collection(db,"orders"),where("userId","==",state.user.uid));
+    state.ordersUnsub=onSnapshot(qy,snap=>{state.orders=snap.docs.map(d=>({id:d.id,...d.data()}));render()},err=>console.error(err));
+  }
+}
+async function logout(){
+  await signOut(auth);state.user=null;state.profile=null;state.isAdmin=false;state.orders=[];state.view="home";state.adminOrdersUnsub?.();state.ordersUnsub?.();const da=document.getElementById("drawerAdmin");if(da)da.style.display="none";render();toast("Kamu sudah keluar.");
+}
+async function addToCart(id){
+  if(!state.user){openLogin();return}
+  const p=productById(id);if(!p)return;
+  const found=state.cart.find(x=>x.id===id);
+  if(found)found.qty++;else state.cart.push({id:p.id,name:p.name,price:Number(p.price),qty:1,image:p.image||"",emoji:p.emoji||"🍽️"});
+  saveLocal();render();toast(`${p.name} ditambahkan ke keranjang.`);
+}
+function toggleFav(id){const i=state.favorites.indexOf(id);if(i>=0)state.favorites.splice(i,1);else state.favorites.push(id);saveLocal();render();toast(i>=0?"Dihapus dari favorit.":"Ditambahkan ke favorit.")}
+function openLogin(){$("#loginBackdrop").classList.add("open");$("#loginModal").innerHTML=`<div class="modal-head"><h2>Masuk ke Tubi</h2><button class="close" id="closeLogin">×</button></div><p class="muted">Satu akun Google untuk pesanan, favorit, dan profil.</p><button class="google" id="modalGoogle" style="width:100%;margin-top:10px">G&nbsp; Masuk dengan Google</button>`;$("#closeLogin").onclick=()=>$("#loginBackdrop").classList.remove("open");$("#modalGoogle").onclick=()=>{ $("#loginBackdrop").classList.remove("open");login();}}
+function openCart(){
+  $("#cartBackdrop").classList.add("open");renderCartModal();
+}
+function renderCartModal(){
+  const total=state.cart.reduce((a,x)=>a+x.price*x.qty,0);
+  $("#cartModal").innerHTML=`<div class="modal-head"><h2>Keranjang</h2><button class="close" id="closeCart">×</button></div>${state.cart.length?`<div class="cart-list">${state.cart.map(x=>`<div class="cart-row">${x.image?`<img src="${x.image}" alt="">`:`<div class="cart-emoji">${x.emoji}</div>`}<div class="cart-row-main"><strong>${escapeHtml(x.name)}</strong><small>${rupiah(x.price)}</small></div><div class="qty"><button data-minus="${x.id}">−</button><strong>${x.qty}</strong><button data-plus="${x.id}">+</button></div></div>`).join("")}</div><div class="total-line"><span>Total</span><span>${rupiah(total)}</span></div><button class="primary" id="checkoutBtn">Buat pesanan</button><button class="outline" id="clearCart" style="width:100%;margin-top:8px">Kosongkan</button>`:`<div class="empty" style="margin-top:18px">Keranjang masih kosong.</div>`}`;
+  $("#closeCart").onclick=()=>$("#cartBackdrop").classList.remove("open");
+  $("#cartModal").querySelectorAll("[data-minus]").forEach(b=>b.onclick=()=>changeQty(b.dataset.minus,-1));
+  $("#cartModal").querySelectorAll("[data-plus]").forEach(b=>b.onclick=()=>changeQty(b.dataset.plus,1));
+  $("#clearCart")?.addEventListener("click",()=>{state.cart=[];saveLocal();renderCartModal();render()});
+  $("#checkoutBtn")?.addEventListener("click",checkout);
+}
+function changeQty(id,d){const x=state.cart.find(x=>x.id===id);if(!x)return;x.qty+=d;if(x.qty<=0)state.cart=state.cart.filter(x=>x.id!==id);saveLocal();renderCartModal();render()}
+async function checkout(){
+  if(!state.user){$("#cartBackdrop").classList.remove("open");openLogin();return}
+  if(!state.cart.length)return;
+  const total=state.cart.reduce((a,x)=>a+x.price*x.qty,0);
+  try{
+    await addDoc(collection(db,"orders"),{userId:state.user.uid,email:state.user.email||"",customerName:state.user.displayName||"Customer Tubi",items:state.cart.map(x=>({id:x.id,name:x.name,price:x.price,qty:x.qty})),total,status:"baru",createdAt:serverTimestamp()});
+    state.cart=[];saveLocal();$("#cartBackdrop").classList.remove("open");state.view="orders";render();toast("Pesanan berhasil dibuat. Admin akan melihatnya.");
+  }catch(e){console.error(e);toast("Pesanan gagal disimpan. Pastikan Firestore Rules mengizinkan order.");}
+}
+async function compressImage(file){
+  return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const max=900,scale=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);const ctx=c.getContext("2d");ctx.drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL("image/jpeg",.78))};img.onerror=reject;img.src=r.result};r.onerror=reject;r.readAsDataURL(file)});
+}
+async function saveProduct(form){
+  const fd=new FormData(form);const data={name:String(fd.get("name")).trim(),price:Number(fd.get("price")),category:String(fd.get("category")),rating:Number(fd.get("rating"))||5,emoji:String(fd.get("emoji")||"🍽️").trim()||"🍽️"};
+  const file=$("#productImage")?.files?.[0];
+  if(file)data.image=await compressImage(file);else if(state.editingProduct)data.image=state.editingProduct.image||"";
+  if(!data.name||data.price<0){toast("Lengkapi nama dan harga.");return}
+  try{
+    if(state.editingProduct)await updateDoc(doc(db,"products",state.editingProduct.id),data);
+    else await addDoc(collection(db,"products"),data);
+    state.editingProduct=null;render();toast("Produk berhasil disimpan.");
+  }catch(e){console.error(e);toast("Gagal menyimpan produk. Cek Firestore Rules.");}
+}
+async function seed(){
+  try{for(const p of FALLBACK_PRODUCTS){const {id,...data}=p;await setDoc(doc(db,"products",id),data)}toast("Produk awal berhasil dibuat.")}catch(e){console.error(e);toast("Gagal membuat produk awal.")}
+}
+async function removeProduct(id){
+  if(!confirm("Hapus produk ini?"))return;
+  try{await deleteDoc(doc(db,"products",id));toast("Produk dihapus.")}catch(e){console.error(e);toast("Gagal menghapus produk.")}
+}
+async function changeOrderStatus(id,status){
+  try{await updateDoc(doc(db,"orders",id),{status});toast("Status pesanan diperbarui.")}catch(e){console.error(e);toast("Gagal memperbarui status.")}
+}
+function setView(v){if(v==="admin"&&!isAdmin()){toast("Akses admin ditolak.");return}state.view=v;$("#drawer").classList.remove("open");$("#drawerBackdrop").classList.remove("open");render();window.scrollTo({top:0,behavior:"smooth"})}
+function bind(){
+  $("#menuBtn").onclick=()=>{$("#drawer").classList.add("open");$("#drawerBackdrop").classList.add("open")};
+  $("#closeDrawer").onclick=()=>{$("#drawer").classList.remove("open");$("#drawerBackdrop").classList.remove("open")};
+  $("#drawerBackdrop").onclick=()=>{$("#drawer").classList.remove("open");$("#drawerBackdrop").classList.remove("open")};
+  $("#cartBtn").onclick=openCart;
+  document.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>setView(b.dataset.view));
+  $("#searchInput")?.addEventListener("input",e=>{state.q=e.target.value;render();const input=$("#searchInput");input?.focus();input?.setSelectionRange(state.q.length,state.q.length)});
+  document.querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{state.cat=b.dataset.cat;render()});
+  $("#allCats")?.addEventListener("click",()=>{state.cat="Semua";render()});
+  $("#resetSearch")?.addEventListener("click",()=>{state.q="";render()});
+  document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>addToCart(b.dataset.add));
+  document.querySelectorAll("[data-fav]").forEach(b=>b.onclick=()=>toggleFav(b.dataset.fav));
+  $("#googleBtn")?.addEventListener("click",login);$("#googleBtn2")?.addEventListener("click",login);$("#googleBtn3")?.addEventListener("click",login);
+  $("#profileBtn")?.addEventListener("click",()=>setView("profile"));$("#homeFromOrders")?.addEventListener("click",()=>setView("home"));$("#shopNow")?.addEventListener("click",()=>setView("home"));
+  $("#logoutBtn")?.addEventListener("click",logout);$("#adminBtn")?.addEventListener("click",()=>setView("admin"));$("#adminHome")?.addEventListener("click",()=>setView("home"));
+  $("#productForm")?.addEventListener("submit",async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Menyimpan';await saveProduct(e.target);});
+  $("#cancelEdit")?.addEventListener("click",()=>{state.editingProduct=null;render()});
+  $("#seedBtn")?.addEventListener("click",seed);
+  document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{state.editingProduct=state.products.find(p=>p.id===b.dataset.edit);render();window.scrollTo({top:0,behavior:"smooth"})});
+  document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>removeProduct(b.dataset.delete));
+  document.querySelectorAll("[data-status]").forEach(s=>s.onchange=()=>changeOrderStatus(s.dataset.status,s.value));
+}
+onAuthStateChanged(auth,user=>{if(user){afterLogin(user).catch(e=>{console.error(e);state.user=user;state.isAdmin=(user.email||"").toLowerCase()===ADMIN_EMAIL.toLowerCase();subscribeOrders();render()})}else{state.user=null;state.profile=null;state.isAdmin=false;state.orders=[];render()}});
+getRedirectResult(auth).catch(e=>{if(e?.code)console.warn("Redirect:",e.code)});
+subscribeProducts();
+render();
+</script>
+</body>
 </html>
