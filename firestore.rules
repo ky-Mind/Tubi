@@ -1,29 +1,11 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function fixedAdmin() {
-      return signedIn() &&
-        (request.auth.token.email == "Hilmykia@gmail.com" ||
-         request.auth.token.email == "hilmykia@gmail.com");
-    }
-
-    function listedAdmin() {
-      return signedIn() &&
-        exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
-    }
-
+    function signedIn() { return request.auth != null; }
     function isAdmin() {
-      return fixedAdmin() || listedAdmin();
-    }
-
-    match /admins/{email} {
-      allow read: if signedIn();
-      allow create, update, delete: if isAdmin();
+      return signedIn() && request.auth.token.email in [
+        "Hilmykia@gmail.com"
+      ];
     }
 
     match /products/{productId} {
@@ -31,18 +13,11 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    match /users/{userId} {
-      allow read, create, update: if signedIn() &&
-        (request.auth.uid == userId || isAdmin());
-      allow delete: if isAdmin();
-    }
-
     match /orders/{orderId} {
-      allow create: if signedIn() &&
-        request.resource.data.userId == request.auth.uid;
-      allow read: if signedIn() &&
-        (resource.data.userId == request.auth.uid || isAdmin());
-      allow update, delete: if isAdmin();
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow read: if isAdmin() || (signedIn() && resource.data.uid == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
   }
 }

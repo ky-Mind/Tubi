@@ -1,33 +1,70 @@
-# Tubi — Final Rebuild
+# Tubi — Max Rebuild
 
-Paket ini dibuat dari proyek lama, tetapi disederhanakan menjadi aplikasi static/PWA agar lebih mudah dideploy ke Vercel.
+Ini adalah rebuild total dari ZIP lama. Versi ini sengaja memakai struktur yang jelas agar error seperti teks `$svg(...)`, ikon rusak, dan campuran dashboard customer/admin tidak muncul lagi.
 
-## File utama
-- `index.html` — seluruh UI, konfigurasi aplikasi, admin list, login, katalog, cart, checkout, profil, tema.
-- `manifest.webmanifest` — nama aplikasi Tubi + instalasi PWA.
-- `sw.js` — service worker/offline shell.
-- `icon.svg`, `icon-192.svg`, `icon-512.svg` — ikon Tubi.
+## Isi
+- `index.html` — shell UI
+- `app.js` — seluruh interaksi aplikasi
+- `firebase-config.js` — SATU tempat untuk Firebase Web App Config + daftar admin
+- `assets/` — logo/icon Tubi PNG + SVG
+- `manifest.webmanifest` — PWA install
+- `sw.js` — offline shell
+- `vercel.json` — konfigurasi static deployment
+- `firestore.rules` — aturan database
+- `storage.rules` — aturan foto
 
-## Firebase
-ZIP lama yang diberikan hanya berisi package.json, index.html, src/main.jsx, dan src/styles.css. Tidak ada Firebase config/API key di dalam ZIP lama tersebut, dan tidak ada dependency Firebase. Karena itu `index.html` menyediakan satu blok `TUBI_CONFIG` di bagian paling atas untuk menempelkan Web App Config Firebase yang benar.
+## Penting tentang API key
+ZIP lama yang diberikan **tidak berisi Firebase Web App Config asli**. Isinya hanya placeholder `PASTE_FIREBASE_*`. Jadi saya tidak mengarang API key atau project ID baru. Tempel Web App Config Firebase yang benar ke `firebase-config.js`.
 
-Setelah config diisi, aktifkan:
-1. Firebase Authentication > Google
-2. Authorized domains untuk domain Vercel
-3. Firestore Database
-4. Storage jika ingin menambahkan backend penyimpanan foto yang lebih permanen.
-
-Tanpa config Firebase, aplikasi tetap bisa dibuka dan diuji memakai localStorage, tetapi Google Login dan sinkronisasi antar perangkat belum aktif.
+Firebase Web API key memang boleh berada di frontend; yang tidak boleh dimasukkan ke frontend adalah service-account private key.
 
 ## Admin
-Default admin:
+Sudah disiapkan:
 `Hilmykia@gmail.com`
 
-Tambahkan admin lain nanti pada:
-`TUBI_CONFIG.admins`
+Tambahkan admin berikutnya di dua tempat:
+1. `firebase-config.js` -> `admins`
+2. `firestore.rules` dan `storage.rules` -> daftar email admin
+
+## Firebase yang harus aktif
+Authentication:
+- Google provider aktif
+- Authorized domains berisi domain Vercel yang dipakai
+
+Firestore:
+- buat database
+- publish `firestore.rules`
+
+Storage:
+- buat Storage
+- publish `storage.rules`
+
+## Fitur rebuild
+- Customer dan Admin dipisahkan berdasarkan email Google.
+- `Hilmykia@gmail.com` masuk Dashboard Admin.
+- Customer hanya melihat area customer.
+- Admin dapat tambah/edit/hapus produk.
+- Admin dapat upload foto produk.
+- Pesanan customer masuk ke koleksi `orders` dan tampil di dashboard admin bila Firebase aktif.
+- Konfirmasi pesanan menampilkan nama penerima + nomor telepon + alamat/catatan + titik GPS.
+- Titik GPS dibuka lewat Google Maps.
+- Status pesanan dapat diubah admin.
+- Profil dapat diedit.
+- Logout meminta konfirmasi.
+- Dark/light mode memakai variabel tema yang konsisten.
+- PWA install + ikon Tubi.
+- Mobile, tablet, desktop responsive.
+- Tanpa npm/build dependency; cocok untuk static deployment Vercel.
 
 ## Vercel
-Tidak membutuhkan `npm install` atau build command. Upload isi folder ini sebagai static site/repository dan gunakan `index.html` sebagai entry point.
+Tidak perlu `package.json`, Node server, atau folder `dist`.
+Untuk deployment static:
+- Framework Preset: Other
+- Build Command: kosong
+- Output Directory: `.`
 
-## Catatan
-API key Firebase Web bukan secret credential. Namun jangan memasukkan service-account private key atau password ke browser.
+Jika GitHub -> Vercel masih gagal, buka deployment yang merah dan lihat `Build Logs`. ZIP ini sendiri tidak membutuhkan proses build.
+
+## Catatan sinkronisasi
+Tanpa Firebase config, aplikasi tetap dapat diuji dengan localStorage di perangkat yang sama.
+Untuk login Google, sinkronisasi produk, foto cloud, dan pesanan antar perangkat, Firebase config + rules harus benar.
