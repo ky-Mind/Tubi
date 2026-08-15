@@ -1,8 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import {
-  initializeApp
-} from "firebase/app";
+
+import { initializeApp } from "firebase/app";
 
 import {
   getAuth,
@@ -12,11 +11,17 @@ import {
   onAuthStateChanged
 } from "firebase/auth";
 
+import {
+  getFirestore,
+  doc,
+  getDoc
+} from "firebase/firestore";
+
 import "./styles.css";
 
-// =========================
+// ========================================
 // FIREBASE
-// =========================
+// ========================================
 
 const firebaseConfig = {
   apiKey: "AIzaSyBX6gj6mboRztlrF9ILRXD1gnHHIB94Bqo",
@@ -32,18 +37,44 @@ const firebaseApp = initializeApp(firebaseConfig);
 
 const auth = getAuth(firebaseApp);
 
+const db = getFirestore(firebaseApp);
+
 const googleProvider = new GoogleAuthProvider();
 
 
-// =========================
-// DATA PRODUK
-// =========================
+// ========================================
+// DATA PRODUK SEMENTARA
+// ========================================
 
 const products = [
-  ["Ayam Crispy Special", 18000, 4.8, "Ayam", "🍗"],
-  ["Paket Hemat 1", 22000, 4.9, "Paket", "🍱"],
-  ["Mie Pedas Level", 15000, 4.7, "Mie", "🍜"],
-  ["Es Teh Jumbo", 7000, 4.8, "Minuman", "🥤"]
+  [
+    "Ayam Crispy Special",
+    18000,
+    4.8,
+    "Ayam",
+    "🍗"
+  ],
+  [
+    "Paket Hemat 1",
+    22000,
+    4.9,
+    "Paket",
+    "🍱"
+  ],
+  [
+    "Mie Pedas Level",
+    15000,
+    4.7,
+    "Mie",
+    "🍜"
+  ],
+  [
+    "Es Teh Jumbo",
+    7000,
+    4.8,
+    "Minuman",
+    "🥤"
+  ]
 ];
 
 const cats = [
@@ -53,6 +84,11 @@ const cats = [
   ["🥤", "Minuman"]
 ];
 
+
+// ========================================
+// FORMAT RUPIAH
+// ========================================
+
 const rupiah = (n) =>
   new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -61,42 +97,135 @@ const rupiah = (n) =>
   }).format(n);
 
 
-// =========================
+// ========================================
 // APP
-// =========================
+// ========================================
 
 function App() {
 
+  // --------------------------------------
+  // STATE
+  // --------------------------------------
+
   const [cart, setCart] = React.useState([]);
+
   const [q, setQ] = React.useState("");
+
   const [cat, setCat] = React.useState("Semua");
 
   const [user, setUser] = React.useState(null);
+
+  const [isAdmin, setIsAdmin] = React.useState(false);
+
   const [loading, setLoading] = React.useState(false);
 
+  const [checkingUser, setCheckingUser] = React.useState(true);
 
-  // =========================
-  // CEK LOGIN
-  // =========================
+
+  // --------------------------------------
+  // CEK LOGIN + ROLE ADMIN
+  // --------------------------------------
 
   React.useEffect(() => {
 
     const unsubscribe = onAuthStateChanged(
       auth,
-      (currentUser) => {
+      async (currentUser) => {
+
         setUser(currentUser);
-        setLoading(false);
+
+        setIsAdmin(false);
+
+        if (!currentUser) {
+
+          setCheckingUser(false);
+
+          return;
+        }
+
+
+        try {
+
+          // Ambil dokumen:
+          // users/admin
+
+          const adminRef = doc(
+            db,
+            "users",
+            "admin"
+          );
+
+          const adminSnapshot =
+            await getDoc(adminRef);
+
+
+          if (adminSnapshot.exists()) {
+
+            const adminData =
+              adminSnapshot.data();
+
+
+            const adminEmail =
+              String(
+                adminData.email || ""
+              )
+                .trim()
+                .toLowerCase();
+
+
+            const currentEmail =
+              String(
+                currentUser.email || ""
+              )
+                .trim()
+                .toLowerCase();
+
+
+            const role =
+              String(
+                adminData.role || ""
+              )
+                .trim()
+                .toLowerCase();
+
+
+            if (
+              adminEmail === currentEmail &&
+              role === "admin"
+            ) {
+
+              setIsAdmin(true);
+
+            }
+
+          }
+
+        } catch (error) {
+
+          console.error(
+            "Gagal mengecek role admin:",
+            error
+          );
+
+          setIsAdmin(false);
+
+        }
+
+
+        setCheckingUser(false);
+
       }
     );
+
 
     return () => unsubscribe();
 
   }, []);
 
 
-  // =========================
+  // --------------------------------------
   // LOGIN GOOGLE
-  // =========================
+  // --------------------------------------
 
   const loginGoogle = async () => {
 
@@ -111,21 +240,26 @@ function App() {
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        "Google Login Error:",
+        error
+      );
 
       alert(
-        "Login Google gagal: " +
+        "Login Google gagal.\n\n" +
         error.message
       );
 
       setLoading(false);
+
     }
+
   };
 
 
-  // =========================
+  // --------------------------------------
   // LOGOUT
-  // =========================
+  // --------------------------------------
 
   const logout = async () => {
 
@@ -133,50 +267,83 @@ function App() {
 
       await signOut(auth);
 
+      setUser(null);
+
+      setIsAdmin(false);
+
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        "Logout Error:",
+        error
+      );
 
-      alert("Gagal keluar dari akun.");
+      alert(
+        "Gagal keluar dari akun."
+      );
 
     }
+
   };
 
 
-  // =========================
+  // --------------------------------------
   // FILTER PRODUK
-  // =========================
+  // --------------------------------------
 
-  const list = products.filter((p) =>
+  const list = products.filter(
+    (p) =>
 
-    (cat === "Semua" || p[3] === cat) &&
+      (
+        cat === "Semua" ||
+        p[3] === cat
+      )
 
-    p[0]
-      .toLowerCase()
-      .includes(q.toLowerCase())
+      &&
 
+      p[0]
+        .toLowerCase()
+        .includes(
+          q.toLowerCase()
+        )
   );
 
 
-  // =========================
+  // --------------------------------------
   // TAMPILAN
-  // =========================
+  // --------------------------------------
 
   return (
 
     <div className="app">
 
+
+      {/* ==================================
+          HEADER
+      ================================== */}
+
       <header>
 
         <div className="top">
 
-          <button>☰</button>
+          <button>
+            ☰
+          </button>
 
-          <b>tubi</b>
+
+          <b>
+            tubi
+          </b>
+
 
           <button>
+
             🛒
-            <i>{cart.length}</i>
+
+            <i>
+              {cart.length}
+            </i>
+
           </button>
 
         </div>
@@ -184,9 +351,15 @@ function App() {
 
         <div className="copy">
 
-          <small>Selamat datang di</small>
+          <small>
+            Selamat datang di
+          </small>
 
-          <h1>Tubi</h1>
+
+          <h1>
+            Tubi
+          </h1>
+
 
           <span>
             Temukan makanan favoritmu.
@@ -204,6 +377,11 @@ function App() {
 
       <main>
 
+
+        {/* ==================================
+            SEARCH
+        ================================== */}
+
         <div className="search">
 
           ⌕
@@ -219,19 +397,28 @@ function App() {
         </div>
 
 
-        {/* =========================
-            LOGIN
-        ========================= */}
+        {/* ==================================
+            LOGIN / PROFILE
+        ================================== */}
 
         <section>
 
           <div className="login-box">
 
-            {user ? (
+
+            {checkingUser ? (
+
+              <p>
+                Memeriksa akun...
+              </p>
+
+            ) : user ? (
 
               <>
 
+
                 <div className="user-info">
+
 
                   {user.photoURL && (
 
@@ -242,20 +429,50 @@ function App() {
 
                   )}
 
+
                   <div>
 
                     <strong>
-                      {user.displayName ||
-                        "Pengguna Tubi"}
+                      {
+                        user.displayName ||
+                        "Pengguna Tubi"
+                      }
                     </strong>
+
 
                     <small>
                       {user.email}
                     </small>
 
+
+                    {isAdmin && (
+
+                      <small>
+                        👑 Admin Tubi
+                      </small>
+
+                    )}
+
                   </div>
 
+
                 </div>
+
+
+                {isAdmin && (
+
+                  <button
+                    className="admin-btn"
+                    onClick={() =>
+                      alert(
+                        "Dashboard Admin akan kita buat berikutnya."
+                      )
+                    }
+                  >
+                    👑 Dashboard Admin
+                  </button>
+
+                )}
 
 
                 <button
@@ -265,9 +482,11 @@ function App() {
                   Keluar
                 </button>
 
+
               </>
 
             ) : (
+
 
               <button
                 className="google-btn"
@@ -275,7 +494,10 @@ function App() {
                 disabled={loading}
               >
 
-                <span>G</span>
+                <span>
+                  G
+                </span>
+
 
                 {loading
                   ? "Memproses..."
@@ -285,20 +507,24 @@ function App() {
 
             )}
 
+
           </div>
 
         </section>
 
 
-        {/* =========================
+        {/* ==================================
             KATEGORI
-        ========================= */}
+        ================================== */}
 
         <section>
 
           <div className="title">
 
-            <h2>Kategori</h2>
+            <h2>
+              Kategori
+            </h2>
+
 
             <button
               onClick={() =>
@@ -312,6 +538,7 @@ function App() {
 
 
           <div className="cats">
+
 
             {cats.map((c) => (
 
@@ -327,28 +554,37 @@ function App() {
                 key={c[1]}
               >
 
-                <em>{c[0]}</em>
+                <em>
+                  {c[0]}
+                </em>
 
-                <strong>{c[1]}</strong>
+
+                <strong>
+                  {c[1]}
+                </strong>
 
               </button>
 
             ))}
+
 
           </div>
 
         </section>
 
 
-        {/* =========================
+        {/* ==================================
             PRODUK
-        ========================= */}
+        ================================== */}
 
         <section>
 
           <div className="title">
 
-            <h2>Produk pilihan</h2>
+            <h2>
+              Produk pilihan
+            </h2>
+
 
             <span>
               {list.length} produk
@@ -359,9 +595,13 @@ function App() {
 
           <div className="products">
 
+
             {list.map((p, i) => (
 
-              <article key={i}>
+              <article
+                key={i}
+              >
+
 
                 <div className="pic">
                   {p[4]}
@@ -370,11 +610,16 @@ function App() {
 
                 <div className="info">
 
-                  <h3>{p[0]}</h3>
+
+                  <h3>
+                    {p[0]}
+                  </h3>
+
 
                   <small>
                     ★ {p[2]} · Siap dipesan
                   </small>
+
 
                   <b>
                     {rupiah(p[1])}
@@ -392,11 +637,14 @@ function App() {
                     + Tambah
                   </button>
 
+
                 </div>
+
 
               </article>
 
             ))}
+
 
           </div>
 
@@ -409,16 +657,19 @@ function App() {
 
           )}
 
+
         </section>
+
 
       </main>
 
 
-      {/* =========================
+      {/* ==================================
           NAVIGATION
-      ========================= */}
+      ================================== */}
 
       <nav>
+
 
         <button className="sel">
 
@@ -463,7 +714,9 @@ function App() {
 
         </button>
 
+
       </nav>
+
 
     </div>
 
@@ -472,9 +725,9 @@ function App() {
 }
 
 
-// =========================
+// ========================================
 // START APP
-// =========================
+// ========================================
 
 createRoot(
   document.getElementById("root")
