@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "framework": null,
+  "buildCommand": "echo 'Tubi static build: no compilation required'",
+  "outputDirectory": ".",
+  "cleanUrls": true
+}
