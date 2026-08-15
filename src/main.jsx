@@ -1,61 +1,75 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import {
+  initializeApp
+} from "firebase/app";
+import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
   signOut,
-  onAuthStateChanged,
+  onAuthStateChanged
 } from "firebase/auth";
-import { initializeApp } from "firebase/app";
+
 import "./styles.css";
 
-// ===============================
+// =========================
 // FIREBASE
-// ===============================
-// COPY konfigurasi Firebase Web App
-// dari Firebase Console ke bagian ini.
+// =========================
+
 const firebaseConfig = {
-  apiKey: "ISI_API_KEY_DARI_FIREBASE",
+  apiKey: "AIzaSyBX6gj6mboRztlrF9ILRXD1gnHHIB94Bqo",
   authDomain: "tubi-app.firebaseapp.com",
   projectId: "tubi-app",
   storageBucket: "tubi-app.firebasestorage.app",
-  messagingSenderId: "ISI_MESSAGING_SENDER_ID",
-  appId: "ISI_APP_ID",
+  messagingSenderId: "492656969625",
+  appId: "1:492656969625:web:3bdcd40350d28241b53508"
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
+
 const auth = getAuth(firebaseApp);
-const provider = new GoogleAuthProvider();
+
+const googleProvider = new GoogleAuthProvider();
+
+// =========================
+// PRODUK
+// =========================
 
 const products = [
   ["Ayam Crispy Special", 18000, 4.8, "Ayam", "🍗"],
   ["Paket Hemat 1", 22000, 4.9, "Paket", "🍱"],
   ["Mie Pedas Level", 15000, 4.7, "Mie", "🍜"],
-  ["Es Teh Jumbo", 7000, 4.8, "Minuman", "🥤"],
+  ["Es Teh Jumbo", 7000, 4.8, "Minuman", "🥤"]
 ];
 
 const cats = [
   ["🍗", "Ayam"],
   ["🍱", "Paket"],
   ["🍜", "Mie"],
-  ["🥤", "Minuman"],
+  ["🥤", "Minuman"]
 ];
 
 const rupiah = (n) =>
   new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 0
   }).format(n);
+
+// =========================
+// APP
+// =========================
 
 function App() {
   const [cart, setCart] = React.useState([]);
   const [q, setQ] = React.useState("");
   const [cat, setCat] = React.useState("Semua");
-  const [user, setUser] = React.useState(null);
-  const [loading, setLoading] = React.useState(false);
 
+  const [user, setUser] = React.useState(null);
+  const [loginLoading, setLoginLoading] = React.useState(false);
+
+  // Cek status login
   React.useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -64,22 +78,34 @@ function App() {
     return () => unsubscribe();
   }, []);
 
+  // Login Google
   const loginGoogle = async () => {
     try {
-      setLoading(true);
-      await signInWithPopup(auth, provider);
+      setLoginLoading(true);
+
+      await signInWithPopup(auth, googleProvider);
+
     } catch (error) {
       console.error(error);
-      alert("Login Google gagal. Coba lagi.");
+
+      alert(
+        "Login gagal. Pastikan domain Tubi sudah diizinkan di Firebase."
+      );
     } finally {
-      setLoading(false);
+      setLoginLoading(false);
     }
   };
 
+  // Logout
   const logout = async () => {
-    await signOut(auth);
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
+  // Filter produk
   const list = products.filter(
     (p) =>
       (cat === "Semua" || p[3] === cat) &&
@@ -88,8 +114,12 @@ function App() {
 
   return (
     <div className="app">
+
+      {/* HEADER */}
+
       <header>
         <div className="top">
+
           <button>☰</button>
 
           <b>tubi</b>
@@ -98,18 +128,235 @@ function App() {
             🛒
             <i>{cart.length}</i>
           </button>
+
         </div>
 
         <div className="copy">
           <small>Selamat datang di</small>
+
           <h1>Tubi</h1>
-          <span>Temukan makanan favoritmu.</span>
+
+          <span>
+            Temukan makanan favoritmu.
+          </span>
         </div>
 
-        <div className="food">🍗 🍜 🥤</div>
+        <div className="food">
+          🍗 🍜 🥤
+        </div>
       </header>
 
       <main>
+
+        {/* SEARCH */}
+
+        <div className="search">
+          ⌕
+
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Lagi ngidam apa?"
+          />
+        </div>
+
+        {/* LOGIN */}
+
+        <section>
+
+          <div className="login-box">
+
+            {user ? (
+
+              <div>
+
+                <div className="user-info">
+
+                  {user.photoURL && (
+                    <img
+                      src={user.photoURL}
+                      alt="Foto profil"
+                    />
+                  )}
+
+                  <div>
+                    <strong>
+                      {user.displayName || "Pengguna Tubi"}
+                    </strong>
+
+                    <small>
+                      {user.email}
+                    </small>
+                  </div>
+
+                </div>
+
+                <button
+                  className="logout-btn"
+                  onClick={logout}
+                >
+                  Keluar
+                </button>
+
+              </div>
+
+            ) : (
+
+              <button
+                className="google-btn"
+                onClick={loginGoogle}
+                disabled={loginLoading}
+              >
+                <span>G</span>
+
+                {loginLoading
+                  ? "Memproses..."
+                  : "Masuk dengan Google"}
+              </button>
+
+            )}
+
+          </div>
+
+        </section>
+
+        {/* KATEGORI */}
+
+        <section>
+
+          <div className="title">
+
+            <h2>Kategori</h2>
+
+            <button
+              onClick={() => setCat("Semua")}
+            >
+              Lihat semua
+            </button>
+
+          </div>
+
+          <div className="cats">
+
+            {cats.map((c) => (
+
+              <button
+                className={
+                  cat === c[1]
+                    ? "active"
+                    : ""
+                }
+                onClick={() => setCat(c[1])}
+                key={c[1]}
+              >
+
+                <em>{c[0]}</em>
+
+                <strong>{c[1]}</strong>
+
+              </button>
+
+            ))}
+
+          </div>
+
+        </section>
+
+        {/* PRODUK */}
+
+        <section>
+
+          <div className="title">
+
+            <h2>Produk pilihan</h2>
+
+            <span>
+              {list.length} produk
+            </span>
+
+          </div>
+
+          <div className="products">
+
+            {list.map((p, i) => (
+
+              <article key={i}>
+
+                <div className="pic">
+                  {p[4]}
+                </div>
+
+                <div className="info">
+
+                  <h3>{p[0]}</h3>
+
+                  <small>
+                    ★ {p[2]} · Siap dipesan
+                  </small>
+
+                  <b>
+                    {rupiah(p[1])}
+                  </b>
+
+                  <button
+                    onClick={() =>
+                      setCart([...cart, p])
+                    }
+                  >
+                    + Tambah
+                  </button>
+
+                </div>
+
+              </article>
+
+            ))}
+
+          </div>
+
+          {!list.length && (
+            <p className="empty">
+              Produk tidak ditemukan.
+            </p>
+          )}
+
+        </section>
+
+      </main>
+
+      {/* NAVIGATION */}
+
+      <nav>
+
+        <button className="sel">
+          ⌂
+          <span>Beranda</span>
+        </button>
+
+        <button>
+          ▣
+          <span>Pesanan</span>
+        </button>
+
+        <button>
+          ♡
+          <span>Favorit</span>
+        </button>
+
+        <button>
+          ◉
+          <span>Akun</span>
+        </button>
+
+      </nav>
+
+    </div>
+  );
+}
+
+createRoot(
+  document.getElementById("root")
+).render(<App />);      <main>
         <div className="search">
           ⌕
           <input
