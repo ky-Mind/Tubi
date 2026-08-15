@@ -3,10 +3,11 @@ import { createRoot } from "react-dom/client";
 import {
   initializeApp
 } from "firebase/app";
+
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
   signOut,
   onAuthStateChanged
 } from "firebase/auth";
@@ -23,7 +24,8 @@ const firebaseConfig = {
   projectId: "tubi-app",
   storageBucket: "tubi-app.firebasestorage.app",
   messagingSenderId: "492656969625",
-  appId: "1:492656969625:web:3bdcd40350d28241b53508"
+  appId: "1:492656969625:web:3bdcd40350d28241b53508",
+  measurementId: "G-311K0RXQDF"
 };
 
 const firebaseApp = initializeApp(firebaseConfig);
@@ -32,8 +34,9 @@ const auth = getAuth(firebaseApp);
 
 const googleProvider = new GoogleAuthProvider();
 
+
 // =========================
-// PRODUK
+// DATA PRODUK
 // =========================
 
 const products = [
@@ -57,67 +60,114 @@ const rupiah = (n) =>
     maximumFractionDigits: 0
   }).format(n);
 
+
 // =========================
 // APP
 // =========================
 
 function App() {
+
   const [cart, setCart] = React.useState([]);
   const [q, setQ] = React.useState("");
   const [cat, setCat] = React.useState("Semua");
 
   const [user, setUser] = React.useState(null);
-  const [loginLoading, setLoginLoading] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
 
-  // Cek status login
+
+  // =========================
+  // CEK LOGIN
+  // =========================
+
   React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
+
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      (currentUser) => {
+        setUser(currentUser);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
+
   }, []);
 
-  // Login Google
-  const loginGoogle = async () => {
-    try {
-      setLoginLoading(true);
 
-      await signInWithPopup(auth, googleProvider);
+  // =========================
+  // LOGIN GOOGLE
+  // =========================
+
+  const loginGoogle = async () => {
+
+    try {
+
+      setLoading(true);
+
+      await signInWithRedirect(
+        auth,
+        googleProvider
+      );
 
     } catch (error) {
+
       console.error(error);
 
       alert(
-        "Login gagal. Pastikan domain Tubi sudah diizinkan di Firebase."
+        "Login Google gagal: " +
+        error.message
       );
-    } finally {
-      setLoginLoading(false);
+
+      setLoading(false);
     }
   };
 
-  // Logout
+
+  // =========================
+  // LOGOUT
+  // =========================
+
   const logout = async () => {
+
     try {
+
       await signOut(auth);
+
     } catch (error) {
+
       console.error(error);
+
+      alert("Gagal keluar dari akun.");
+
     }
   };
 
-  // Filter produk
-  const list = products.filter(
-    (p) =>
-      (cat === "Semua" || p[3] === cat) &&
-      p[0].toLowerCase().includes(q.toLowerCase())
+
+  // =========================
+  // FILTER PRODUK
+  // =========================
+
+  const list = products.filter((p) =>
+
+    (cat === "Semua" || p[3] === cat) &&
+
+    p[0]
+      .toLowerCase()
+      .includes(q.toLowerCase())
+
   );
 
+
+  // =========================
+  // TAMPILAN
+  // =========================
+
   return (
+
     <div className="app">
 
-      {/* HEADER */}
-
       <header>
+
         <div className="top">
 
           <button>☰</button>
@@ -131,7 +181,9 @@ function App() {
 
         </div>
 
+
         <div className="copy">
+
           <small>Selamat datang di</small>
 
           <h1>Tubi</h1>
@@ -139,28 +191,37 @@ function App() {
           <span>
             Temukan makanan favoritmu.
           </span>
+
         </div>
+
 
         <div className="food">
           🍗 🍜 🥤
         </div>
+
       </header>
+
 
       <main>
 
-        {/* SEARCH */}
-
         <div className="search">
+
           ⌕
 
           <input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) =>
+              setQ(e.target.value)
+            }
             placeholder="Lagi ngidam apa?"
           />
+
         </div>
 
-        {/* LOGIN */}
+
+        {/* =========================
+            LOGIN
+        ========================= */}
 
         <section>
 
@@ -168,28 +229,34 @@ function App() {
 
             {user ? (
 
-              <div>
+              <>
 
                 <div className="user-info">
 
                   {user.photoURL && (
+
                     <img
                       src={user.photoURL}
                       alt="Foto profil"
                     />
+
                   )}
 
                   <div>
+
                     <strong>
-                      {user.displayName || "Pengguna Tubi"}
+                      {user.displayName ||
+                        "Pengguna Tubi"}
                     </strong>
 
                     <small>
                       {user.email}
                     </small>
+
                   </div>
 
                 </div>
+
 
                 <button
                   className="logout-btn"
@@ -198,20 +265,22 @@ function App() {
                   Keluar
                 </button>
 
-              </div>
+              </>
 
             ) : (
 
               <button
                 className="google-btn"
                 onClick={loginGoogle}
-                disabled={loginLoading}
+                disabled={loading}
               >
+
                 <span>G</span>
 
-                {loginLoading
+                {loading
                   ? "Memproses..."
                   : "Masuk dengan Google"}
+
               </button>
 
             )}
@@ -220,7 +289,10 @@ function App() {
 
         </section>
 
-        {/* KATEGORI */}
+
+        {/* =========================
+            KATEGORI
+        ========================= */}
 
         <section>
 
@@ -229,12 +301,15 @@ function App() {
             <h2>Kategori</h2>
 
             <button
-              onClick={() => setCat("Semua")}
+              onClick={() =>
+                setCat("Semua")
+              }
             >
               Lihat semua
             </button>
 
           </div>
+
 
           <div className="cats">
 
@@ -246,7 +321,9 @@ function App() {
                     ? "active"
                     : ""
                 }
-                onClick={() => setCat(c[1])}
+                onClick={() =>
+                  setCat(c[1])
+                }
                 key={c[1]}
               >
 
@@ -262,7 +339,10 @@ function App() {
 
         </section>
 
-        {/* PRODUK */}
+
+        {/* =========================
+            PRODUK
+        ========================= */}
 
         <section>
 
@@ -276,6 +356,7 @@ function App() {
 
           </div>
 
+
           <div className="products">
 
             {list.map((p, i) => (
@@ -285,6 +366,7 @@ function App() {
                 <div className="pic">
                   {p[4]}
                 </div>
+
 
                 <div className="info">
 
@@ -298,9 +380,13 @@ function App() {
                     {rupiah(p[1])}
                   </b>
 
+
                   <button
                     onClick={() =>
-                      setCart([...cart, p])
+                      setCart([
+                        ...cart,
+                        p
+                      ])
                     }
                   >
                     + Tambah
@@ -314,165 +400,84 @@ function App() {
 
           </div>
 
+
           {!list.length && (
+
             <p className="empty">
               Produk tidak ditemukan.
             </p>
+
           )}
 
         </section>
 
       </main>
 
-      {/* NAVIGATION */}
+
+      {/* =========================
+          NAVIGATION
+      ========================= */}
 
       <nav>
 
         <button className="sel">
+
           ⌂
-          <span>Beranda</span>
+
+          <span>
+            Beranda
+          </span>
+
         </button>
 
+
         <button>
+
           ▣
-          <span>Pesanan</span>
+
+          <span>
+            Pesanan
+          </span>
+
         </button>
 
+
         <button>
+
           ♡
-          <span>Favorit</span>
+
+          <span>
+            Favorit
+          </span>
+
         </button>
 
+
         <button>
+
           ◉
-          <span>Akun</span>
+
+          <span>
+            Akun
+          </span>
+
         </button>
 
       </nav>
 
     </div>
+
   );
+
 }
+
+
+// =========================
+// START APP
+// =========================
 
 createRoot(
   document.getElementById("root")
-).render(<App />);      <main>
-        <div className="search">
-          ⌕
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Lagi ngidam apa?"
-          />
-        </div>
-
-        {/* LOGIN */}
-        <section>
-          <div className="login-box">
-            {user ? (
-              <>
-                <div className="user-info">
-                  {user.photoURL && (
-                    <img src={user.photoURL} alt="Foto profil" />
-                  )}
-
-                  <div>
-                    <strong>{user.displayName || "Pengguna Tubi"}</strong>
-                    <small>{user.email}</small>
-                  </div>
-                </div>
-
-                <button className="logout-btn" onClick={logout}>
-                  Keluar
-                </button>
-              </>
-            ) : (
-              <button className="google-btn" onClick={loginGoogle}>
-                <span>G</span>
-                {loading ? "Memproses..." : "Masuk dengan Google"}
-              </button>
-            )}
-          </div>
-        </section>
-
-        <section>
-          <div className="title">
-            <h2>Kategori</h2>
-
-            <button onClick={() => setCat("Semua")}>
-              Lihat semua
-            </button>
-          </div>
-
-          <div className="cats">
-            {cats.map((c) => (
-              <button
-                className={cat === c[1] ? "active" : ""}
-                onClick={() => setCat(c[1])}
-                key={c[1]}
-              >
-                <em>{c[0]}</em>
-                <strong>{c[1]}</strong>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="title">
-            <h2>Produk pilihan</h2>
-            <span>{list.length} produk</span>
-          </div>
-
-          <div className="products">
-            {list.map((p, i) => (
-              <article key={i}>
-                <div className="pic">{p[4]}</div>
-
-                <div className="info">
-                  <h3>{p[0]}</h3>
-
-                  <small>★ {p[2]} · Siap dipesan</small>
-
-                  <b>{rupiah(p[1])}</b>
-
-                  <button onClick={() => setCart([...cart, p])}>
-                    + Tambah
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          {!list.length && (
-            <p className="empty">Produk tidak ditemukan.</p>
-          )}
-        </section>
-      </main>
-
-      <nav>
-        <button className="sel">
-          ⌂
-          <span>Beranda</span>
-        </button>
-
-        <button>
-          ▣
-          <span>Pesanan</span>
-        </button>
-
-        <button>
-          ♡
-          <span>Favorit</span>
-        </button>
-
-        <button>
-          ◉
-          <span>Akun</span>
-        </button>
-      </nav>
-    </div>
-  );
-}
-
-createRoot(document.getElementById("root")).render(<App />);
+).render(
+  <App />
+);
