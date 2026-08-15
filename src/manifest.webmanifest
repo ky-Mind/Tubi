@@ -1,0 +1,17 @@
+{
+  "name": "Tubi",
+  "short_name": "Tubi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ed1b2f",
+  "description": "Tubi — Temukan makanan favoritmu",
+  "icons": [
+    {
+      "src": "/tubi-icon.png",
+      "sizes": "1536x1536",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
