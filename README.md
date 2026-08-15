@@ -1,1 +1,0 @@
-Tubi Vercel rebuild. IMPORTANT: run npm install/build. Firebase config should be added separately; never commit private service-account keys.
