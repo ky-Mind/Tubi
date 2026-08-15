@@ -1,0 +1,17 @@
+{
+  "name": "Tubi - Makanan Favoritmu",
+  "short_name": "Tubi",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ed1b2f",
+  "description": "Aplikasi pemesanan makanan Tubi",
+  "icons": [
+    {
+      "src": "/tubi-icon.png",
+      "sizes": "400x400",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
