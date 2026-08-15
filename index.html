@@ -77,6 +77,41 @@ body.dark .hero{color:#fff}
 .search-wrap.has-query .search{border-color:#ffadb6;box-shadow:0 10px 30px #ed1b2f12}
 .tag-row{display:flex;gap:5px;flex-wrap:wrap;margin:5px 0 7px}
 .tag{font-size:10px;font-weight:800;padding:5px 7px;border-radius:999px;background:var(--surface2);color:var(--muted)}
+
+
+/* Client revision: modal/drawer interaction, mobile polish, accessible contrast */
+.drawer-backdrop.open,.modal-backdrop.open{backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}
+.drawer{box-shadow:22px 0 60px rgba(0,0,0,.24);overscroll-behavior:contain;touch-action:pan-y}
+.drawer-links button,.drawer-tool,.nav-btn,.icon-btn,.cat,.product,.add,.heart,.primary,.outline,.small-btn{transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease}
+.drawer-links button:active,.drawer-tool:active,.nav-btn:active,.icon-btn:active,.cat:active,.add:active,.heart:active,.primary:active,.outline:active,.small-btn:active{transform:scale(.98)}
+body.ui-locked .bottom-nav,body.ui-locked .topbar{pointer-events:none}
+body.ui-locked .shell{user-select:none}
+.modal{overscroll-behavior:contain;scrollbar-gutter:stable;touch-action:pan-y}
+.modal::-webkit-scrollbar,.drawer::-webkit-scrollbar{width:7px}
+.modal::-webkit-scrollbar-thumb,.drawer::-webkit-scrollbar-thumb{background:#0003;border-radius:999px}
+body.dark .modal::-webkit-scrollbar-thumb,body.dark .drawer::-webkit-scrollbar-thumb{background:#fff3}
+body.dark .close{background:#252a30;color:var(--ink)}
+body.dark .google{background:#f4f5f7;color:#111}
+body.dark .pill{background:#183624;color:#8de2ae}
+body.dark .location-chip{background:#172d3f;color:#8fc9ff}
+body.dark .install-banner,.body.dark .admin-banner{background:#2b181b;border-color:#633039}
+body.dark .admin-banner{background:#2b181b;border-color:#633039}
+body.dark .preview{background:#20242a}
+.product-img img,.cart-row img,.detail-image img,.preview img{image-rendering:auto}
+.product-img img{transition:transform .25s ease}
+.product:hover .product-img img{transform:scale(1.035)}
+@media(max-width:560px){
+  .drawer{width:min(88vw,360px);padding:16px}
+  .drawer-head{min-height:48px}
+  .drawer-links button{min-height:54px}
+  .modal{width:calc(100% - 18px);max-height:calc(100dvh - 24px);border-radius:24px}
+  .modal-head{position:sticky;top:-16px;background:var(--surface);z-index:3;padding:2px 0 12px}
+  .cart-row{gap:8px}
+  .cart-row img,.cart-row .cart-emoji{width:54px;height:54px}
+  .qty{gap:5px}
+  .qty button{width:34px;height:34px}
+  .primary,.outline{min-height:46px}
+}
 </style>
 </head>
 <body>
@@ -149,32 +184,72 @@ const isAdmin=()=>!!state.user && state.isAdmin===true;
 function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove("show"),2500)}
 function saveLocal(){localStorage.setItem("tubi_cart",JSON.stringify(state.cart));localStorage.setItem("tubi_favorites",JSON.stringify(state.favorites))}
 function productById(id){return state.products.find(p=>p.id===id)||FALLBACK_PRODUCTS.find(p=>p.id===id)}
+const SEARCH_SYNONYMS={
+  pedas:["pedas","hot","spicy","cabe","cabai","chili","sambal","mercon"],
+  manis:["manis","sweet","coklat","cokelat","gula","matcha","stroberi","strawberry"],
+  gurih:["gurih","asin","umami","savory","goreng","pangsit"],
+  sambal:["sambal","chili","chili oil","cabe","cabai","saus pedas"],
+  creamy:["creamy","krim","keju","susu","saus lembut"],
+  segar:["segar","dingin","minuman","es","susu"],
+  ringan:["ringan","snack","camilan","cemilan"],
+  kenyang:["berat","mengenyangkan","makan","nasi","kwetiau","roti"]
+};
+function normalizeSearch(s){
+  return String(s||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"")
+    .replace(/[^a-z0-9\\s&-]/g," ").replace(/\\s+/g," ").trim();
+}
 function productSearchText(p){
   const tags=Array.isArray(p?.tags)?p.tags.join(" "):String(p?.tags||"");
-  return [p?.name,p?.description,p?.category,tags].filter(Boolean).join(" ").toLowerCase();
+  return normalizeSearch([p?.name,p?.description,p?.category,tags].filter(Boolean).join(" "));
+}
+function tokenSimilarity(a,b){
+  a=normalizeSearch(a);b=normalizeSearch(b);
+  if(!a||!b)return 0;if(a===b)return 1;if(a.includes(b)||b.includes(a))return .8;
+  const aa=a.split(/\\s+/),bb=b.split(/\\s+/);let hits=0;
+  aa.forEach(x=>bb.some(y=>y===x||x.startsWith(y)||y.startsWith(x))&&hits++);
+  return hits/Math.max(aa.length,bb.length);
+}
+function expandQuery(query){
+  const q=normalizeSearch(query);
+  const expanded=new Set(q.split(/\\s+/).filter(Boolean));
+  for(const [intent,words] of Object.entries(SEARCH_SYNONYMS)){
+    if(words.some(w=>q.includes(w)) || q.includes(intent)){
+      expanded.add(intent); words.forEach(w=>expanded.add(w));
+    }
+  }
+  return [...expanded];
 }
 function smartProducts(list,q,cat){
-  const query=String(q||"").trim().toLowerCase();
-  const base=list.filter(p=>cat==="Semua"||String(p.category||"").toLowerCase()===String(cat).toLowerCase());
+  const query=normalizeSearch(q);
+  const base=list.filter(p=>cat==="Semua"||normalizeSearch(p.category)===normalizeSearch(cat));
   if(!query)return base;
-  const terms=query.split(/\s+/).filter(Boolean);
+  const terms=expandQuery(query);
   return base.map(p=>{
-    const text=productSearchText(p), name=String(p.name||"").toLowerCase(), category=String(p.category||"").toLowerCase();
+    const text=productSearchText(p), name=normalizeSearch(p.name), category=normalizeSearch(p.category);
     let score=0;
-    if(name===query)score+=100;
-    if(name.includes(query))score+=55;
-    if(category.includes(query))score+=35;
+    if(name===query)score+=180;
+    if(name.includes(query))score+=80;
+    if(category.includes(query))score+=65;
+    score+=Math.round(tokenSimilarity(name,query)*45);
     for(const t of terms){
-      if(name.includes(t))score+=18;
-      if(text.includes(t))score+=9;
-      if(String(p.description||"").toLowerCase().includes(t))score+=7;
+      if(name.includes(t))score+=24;
+      if(category.includes(t))score+=20;
+      if(text.includes(t))score+=12;
+    }
+    // Natural-language intent boost: "makanan pedas", "yang manis", etc.
+    for(const [intent,words] of Object.entries(SEARCH_SYNONYMS)){
+      if(query.includes(intent) || words.some(w=>query.includes(w))){
+        const hay=text;
+        if(hay.includes(intent))score+=45;
+        if(words.some(w=>hay.includes(w)))score+=18;
+      }
     }
     return {p,score};
-  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).map(x=>x.p);
+  }).filter(x=>x.score>=12).sort((a,b)=>b.score-a.score).map(x=>x.p);
 }
 function searchHint(q){
   if(!q.trim())return "";
-  return "Hasil diurutkan berdasarkan kemiripan nama, deskripsi, kategori, dan rasa.";
+  return "Pencarian pintar Tubi membaca maksud, rasa, bahan, dan kata yang mirip.";
 }
 
 
@@ -207,9 +282,29 @@ function googleIcon(){
   return `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.23c0-.7-.06-1.37-.18-2H12v3.79h5.38a4.6 4.6 0 0 1-1.99 3.02v2.51h3.22c1.89-1.74 2.99-4.3 2.99-7.32Z"/><path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.61-2.45l-3.22-2.51c-.9.6-2.04.96-3.39.96-2.61 0-4.83-1.76-5.62-4.13H3.05v2.59A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.38 13.87A6 6 0 0 1 6.06 12c0-.65.11-1.28.32-1.87V7.54H3.05A10 10 0 0 0 2 12c0 1.61.38 3.13 1.05 4.46l3.33-2.59Z"/><path fill="#EA4335" d="M12 5.99c1.47 0 2.79.51 3.83 1.51l2.87-2.87C16.95 3.03 14.7 2 12 2a10 10 0 0 0-8.95 5.54l3.33 2.59C7.17 7.76 9.39 5.99 12 5.99Z"/></svg>`;
 }
 function categoryIcon(cat){ const item=CATS.find(c=>c[1]===cat); return svg(item?.[2]||"grid",28); }
+const IMAGE_FALLBACKS={
+  "roti kukus thailand":"./assets/roti-kukus.png",
+  "topokki sosis & odeng":"./assets/topokki.png",
+  "cilok dan tahu":"./assets/cilok.png",
+  "kwetiau goreng pangsit":"./assets/kwetiau.png",
+  "chili oil favorit":"./assets/dimsum-chili.png",
+  "es mambo susu":"./assets/es-mambo.png",
+  "creamy special tubi":"./assets/menu-poster.jpg",
+  "dimsum chili oil":"./assets/dimsum-chili.png",
+  "dimsum goreng":"./assets/dimsum-chili.png"
+};
+function resolveImageSrc(value,p){
+  let src=String(value||"").trim();
+  if(!src)src=IMAGE_FALLBACKS[normalizeSearch(p?.name)]||"";
+  if(src.startsWith("assets/"))src="./"+src;
+  if(src.startsWith("public/"))src="./"+src.slice(7);
+  return /^(data:image|https?:\/\/|\.\/|\/)/.test(src)?src:"";
+}
 function imageHtml(p,cls="product-img"){
-  const src=typeof p?.image==="string" && /^(data:image|https?:\/\/|\.\/|\/)/.test(p.image) ? p.image : "";
-  return src?`<div class="${cls}"><img src="${src}" alt="${escapeHtml(p.name)}" loading="lazy" onerror="this.parentElement.innerHTML='<span class="product-emoji">${svg("image",52)}</span>'"></div>`:`<div class="${cls}"><span class="product-emoji">${svg("image",52)}</span></div>`;
+  const src=resolveImageSrc(p?.image,p);
+  const fallback=IMAGE_FALLBACKS[normalizeSearch(p?.name)]||"";
+  const safeFallback=escapeHtml(fallback);
+  return `<div class="${cls}">${src?`<img src="${escapeHtml(src)}" alt="${escapeHtml(p.name)}" loading="lazy" data-fallback="${safeFallback}" onerror="if(this.dataset.fallback && this.src!==new URL(this.dataset.fallback,location.href).href){this.src=this.dataset.fallback;this.dataset.fallback=''}else{this.replaceWith(Object.assign(document.createElement('span'),{className:'product-emoji'}));this.parentElement.querySelector('.product-emoji').innerHTML='${svg("image",52)}'}">`:`<span class="product-emoji">${svg("image",52)}</span>`}</div>`;
 }
 function statusClass(s){return String(s||"baru").toLowerCase().replace(/\s/g,"-")}
 function timeText(ts){if(!ts)return "Baru saja";try{return new Intl.DateTimeFormat("id-ID",{dateStyle:"medium",timeStyle:"short"}).format(ts.toDate())}catch{return "Baru saja"}}
@@ -392,7 +487,7 @@ function adminView(){
         <div class="field"><label>Label singkat</label><input name="emoji" value="${escapeHtml(state.editingProduct?.emoji||"Tubi")}"></div>
         <div class="field full"><label>Deskripsi produk</label><textarea name="description" placeholder="Jelaskan rasa, isi, ukuran, atau keunggulan produk.">${escapeHtml(state.editingProduct?.description||"")}</textarea></div>
         <div class="field full"><label>Foto produk</label><input id="productImage" name="image" type="file" accept="image/*"><small class="muted">Foto akan dikompres otomatis agar ringan dan aman disimpan.</small></div>
-        <div class="field full">${state.editingProduct?.image?`<div class="preview"><img src="${state.editingProduct.image}" alt=""></div>`:`<div class="preview">${svg("image",46)}</div>`}</div>
+        <div class="field full">${resolveImageSrc(state.editingProduct?.image,state.editingProduct)?`<div class="preview"><img src="${escapeHtml(resolveImageSrc(state.editingProduct?.image,state.editingProduct))}" alt=""></div>`:`<div class="preview">${svg("image",46)}</div>`}</div>
       </div><button class="primary" type="submit">${state.editingProduct?svg("check",18)+" Simpan perubahan":svg("plus",18)+" Tambah produk"}</button>${state.editingProduct?`<button class="outline full-btn" type="button" id="cancelEdit">Batal edit</button>`:""}</form></div>
       <div class="panel"><div class="panel-title-row"><h3>Produk aktif (${state.products.length})</h3>${state.products.length?`<span class="muted">Tersinkron Firebase</span>`:""}</div><div class="admin-products">${state.products.length?state.products.map(adminProductCard).join(""):`<div class="empty">Belum ada produk di database.<br><button class="outline" id="seedBtn" style="margin-top:10px">Buat produk awal</button></div>`}</div></div>
       <div class="panel" style="grid-column:1/-1"><div class="panel-title-row"><h3>Pesanan masuk</h3><span class="pill">${newOrders} baru</span></div>${state.orders.length?`<div class="orders">${state.orders.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(adminOrderCard).join("")}</div>`:`<div class="empty">Belum ada pesanan dari customer.</div>`}</div>
@@ -480,14 +575,14 @@ async function logout(){
 async function addToCart(id){
   const p=productById(id);if(!p)return;
   const found=state.cart.find(x=>x.id===id);
-  if(found)found.qty++;else state.cart.push({id:p.id,name:p.name,price:Number(p.price),qty:1,image:p.image||"",emoji:p.emoji||"Tubi"});
+  if(found)found.qty++;else state.cart.push({id:p.id,name:p.name,price:Number(p.price),qty:1,image:resolveImageSrc(p.image,p),emoji:p.emoji||"Tubi"});
   saveLocal();render();toast(`${p.name} ditambahkan ke keranjang.`);
 }
 function toggleFav(id){const i=state.favorites.indexOf(id);if(i>=0)state.favorites.splice(i,1);else state.favorites.push(id);saveLocal();render();toast(i>=0?"Dihapus dari favorit.":"Ditambahkan ke favorit.")}
 
 function openProductDetail(id){
   const p=productById(id);if(!p)return;
-  const src=typeof p.image==="string" && /^(data:image|https?:\/\/)/.test(p.image)?p.image:"";
+  const src=resolveImageSrc(p?.image,p);
   openOverlay("productBackdrop");
   $("#productModal").innerHTML=`<div class="modal-head"><h2>Detail produk</h2><button class="close" id="closeProductDetail" aria-label="Tutup">×</button></div><div class="product-detail"><div class="detail-image">${src?`<img src="${src}" alt="${escapeHtml(p.name)}">`:`${svg("image",64)}`}</div><div><h2 style="margin:0 0 5px">${escapeHtml(p.name)}</h2><span class="rating">★ ${p.rating||"5.0"} · ${escapeHtml(p.category||"Pilihan Tubi")}</span><strong class="price">${rupiah(p.price)}</strong><p class="detail-desc">${escapeHtml(p.description||"Produk pilihan Tubi untuk menemani harimu.")}</p></div><div class="modal-actions"><button class="outline" id="detailFav">${state.favorites.includes(p.id)?"♥ Hapus favorit":"♡ Simpan favorit"}</button><button class="primary" id="detailAdd">${svg("plus",18)} Tambah ke keranjang</button></div></div>`;
   $("#closeProductDetail").onclick=()=>closeOverlay("productBackdrop");
@@ -500,7 +595,7 @@ function openCart(){
 }
 function renderCartModal(){
   const total=state.cart.reduce((a,x)=>a+x.price*x.qty,0);
-  $("#cartModal").innerHTML=`<div class="modal-head"><h2>Keranjang</h2><button class="close" id="closeCart">×</button></div>${state.cart.length?`<div class="cart-list">${state.cart.map(x=>`<div class="cart-row">${x.image?`<img src="${x.image}" alt="">`:`<div class="cart-emoji">${x.emoji}</div>`}<div class="cart-row-main"><strong>${escapeHtml(x.name)}</strong><small>${rupiah(x.price)}</small></div><div class="qty"><button data-minus="${x.id}">−</button><strong>${x.qty}</strong><button data-plus="${x.id}">+</button></div></div>`).join("")}</div><div class="total-line"><span>Total</span><span>${rupiah(total)}</span></div><button class="primary" id="checkoutBtn">Buat pesanan</button><button class="outline" id="clearCart" style="width:100%;margin-top:8px">Kosongkan</button>`:`<div class="empty" style="margin-top:18px">Keranjang masih kosong.</div>`}`;
+  $("#cartModal").innerHTML=`<div class="modal-head"><h2>Keranjang</h2><button class="close" id="closeCart">×</button></div>${state.cart.length?`<div class="cart-list">${state.cart.map(x=>`<div class="cart-row">${resolveImageSrc(x.image,x)?`<img src="${escapeHtml(resolveImageSrc(x.image,x))}" alt="${escapeHtml(x.name)}" loading="lazy">`:`<div class="cart-emoji">${x.emoji}</div>`}<div class="cart-row-main"><strong>${escapeHtml(x.name)}</strong><small>${rupiah(x.price)}</small></div><div class="qty"><button data-minus="${x.id}">−</button><strong>${x.qty}</strong><button data-plus="${x.id}">+</button></div></div>`).join("")}</div><div class="total-line"><span>Total</span><span>${rupiah(total)}</span></div><button class="primary" id="checkoutBtn">Buat pesanan</button><button class="outline" id="clearCart" style="width:100%;margin-top:8px">Kosongkan</button>`:`<div class="empty" style="margin-top:18px">Keranjang masih kosong.</div>`}`;
   $("#closeCart").onclick=()=>closeOverlay("cartBackdrop");
   $("#cartModal").querySelectorAll("[data-minus]").forEach(b=>b.onclick=()=>changeQty(b.dataset.minus,-1));
   $("#cartModal").querySelectorAll("[data-plus]").forEach(b=>b.onclick=()=>changeQty(b.dataset.plus,1));
@@ -610,8 +705,27 @@ async function saveProfilePhoto(file){
 }
 
 function setUiLock(locked){
-  document.documentElement.classList.toggle("ui-locked",!!locked);
-  document.body.classList.toggle("ui-locked",!!locked);
+  const shouldLock=!!locked;
+  const body=document.body, app=document.getElementById("app");
+  if(shouldLock && !body.classList.contains("ui-locked")){
+    window.__tubiScrollY=window.scrollY||window.pageYOffset||0;
+    body.style.position="fixed";
+    body.style.top=`-${window.__tubiScrollY}px`;
+    body.style.left="0";
+    body.style.right="0";
+    body.style.width="100%";
+  }
+  document.documentElement.classList.toggle("ui-locked",shouldLock);
+  body.classList.toggle("ui-locked",shouldLock);
+  if(app){
+    app.inert=shouldLock;
+    app.setAttribute("aria-hidden",shouldLock?"true":"false");
+  }
+  if(!shouldLock && body.style.position==="fixed"){
+    const y=window.__tubiScrollY||0;
+    body.style.position="";body.style.top="";body.style.left="";body.style.right="";body.style.width="";
+    window.scrollTo(0,y);
+  }
 }
 function closeDrawer(){
   $("#drawer")?.classList.remove("open"); $("#drawerBackdrop")?.classList.remove("open");

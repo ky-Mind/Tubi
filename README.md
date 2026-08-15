@@ -26,3 +26,17 @@ Semua UI utama tetap berada di `index.html`, sehingga perubahan tampilan/fitur k
 
 ## Tubi v4 client revision
 Static Vercel deployment. Firebase Authentication/Firestore remain configured in index.html. Firestore rules are in firestore.rules and must be published in Firebase Console if they have not been published yet.
+
+
+## Client revision — v4.1
+Perbaikan yang termasuk dalam revisi ini:
+- Modal/drawer mengunci scroll dan interaksi halaman belakang.
+- Dark mode contrast diperbaiki untuk modal, form, admin, drawer, dan navigasi.
+- Foto produk lebih tahan terhadap path lama (`assets/...`, `public/...`) dan memiliki fallback berdasarkan produk.
+- Pencarian diperluas dengan pencocokan rasa, sinonim, deskripsi, kategori, dan intent sederhana sehingga query natural seperti "makanan pedas gurih" menghasilkan beberapa kandidat terdekat.
+- Checkout dan tampilan pesanan diperjelas; error Firestore dibuat lebih spesifik.
+- Admin tetap mendukung tambah, upload foto, edit, hapus produk, serta pengelolaan order.
+- Profil customer tetap mendukung nama, telepon, alamat, lokasi, foto profil, dan Google Maps.
+
+### Penting untuk Firebase
+`firestore.rules` pada ZIP ini harus dipublish/deploy ke project Firebase `tubi-app`. ZIP tidak dapat mengubah Rules yang sudah tersimpan di Firebase Console secara otomatis. Jika checkout masih mendapat `permission-denied`, publish file `firestore.rules` terlebih dahulu.
