@@ -61,6 +61,12 @@ body.dark .admin-wrap{background:#101216}.theme-icon,.tool-icon{display:inline-g
 /* Final polish */
 .search>span{display:grid;place-items:center;color:#666}.product-name-btn{border:0;background:transparent;padding:0;text-align:left;color:inherit;width:100%}.product-short-desc{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:36px}.detail-image{height:300px;border-radius:20px;overflow:hidden;background:#f7f1e8;display:grid;place-items:center;margin:15px 0}.detail-image img{width:100%;height:100%;object-fit:cover}.detail-desc{color:var(--muted);line-height:1.65}.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}.map-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.install-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #ffd2d7;background:#fff5f6;padding:14px;border-radius:16px;margin-top:14px}.location-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#e9fbf0;color:#16884a;font-size:12px;font-weight:800}.order-map{display:inline-flex;align-items:center;gap:5px;color:var(--red);text-decoration:none;font-size:12px;font-weight:800;margin-top:8px}.order-map:hover{text-decoration:underline}.status-select{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:7px 9px;font-size:12px;font-weight:800}.product-detail{display:grid;grid-template-columns:1fr;gap:2px}.product-detail .price{margin-top:8px}.brand img{box-shadow:0 2px 10px rgba(0,0,0,.06)}
 @media(max-width:560px){.modal-actions{grid-template-columns:1fr}.install-banner{align-items:flex-start;flex-direction:column}.install-banner button{width:100%}.detail-image{height:240px}}
+
+/* Tubi v4 client polish */
+.search .ico{flex:0 0 auto}.search input{color:var(--ink)}body.dark .search input{color:#f4f5f7}body.dark .search input::placeholder{color:#8f969f}
+.section-head small{display:block;margin-top:3px}.cat{min-width:108px}.cat strong{color:var(--ink)}body.dark .cat strong{color:#f4f5f7}
+.product{transition:transform .18s ease,box-shadow .18s ease}.product:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(0,0,0,.09)}
+.preview img,.thumb img,.product-img img{object-fit:cover}
 </style>
 </head>
 <body>
@@ -104,15 +110,14 @@ const ADMIN_EMAIL = ADMIN_EMAILS[0];
 const normalizedEmail = value => String(value || "").trim().toLowerCase();
 const emailIsFixedAdmin = email => ADMIN_EMAILS.some(item => normalizedEmail(item) === normalizedEmail(email));
 const FALLBACK_PRODUCTS = [
-  {id:"default-roti",name:"Roti Kukus Thailand",price:5000,rating:4.9,category:"Roti",emoji:"Tubi",image:"./assets/roti-kukus.png",description:"Roti kukus lembut dengan pilihan rasa coklat crunchy, matcha, keju, blueberry, strawberry, dan abon."},
-  {id:"default-dimsum-chili",name:"Dimsum Chili Oil",price:15000,rating:4.9,category:"Dimsum",emoji:"Tubi",image:"./assets/dimsum-chili.png",description:"Dimsum 5 pcs dengan chili oil khas Tubi."},
-  {id:"default-dimsum-goreng",name:"Dimsum Goreng",price:10000,rating:4.8,category:"Dimsum",emoji:"Tubi",image:"./assets/dimsum-goreng.png",description:"Dimsum goreng 2 pcs, cocok untuk camilan gurih."},
-  {id:"default-topokki",name:"Topokki Sosis & Odeng",price:10000,rating:4.9,category:"Topokki",emoji:"Tubi",image:"./assets/topokki.png",description:"Topokki dengan pilihan sosis dan odeng, saus gurih pedas."},
-  {id:"default-kwetiau",name:"Kwetiau Goreng Pangsit",price:12000,rating:4.8,category:"Kwetiau",emoji:"Tubi",image:"./assets/kwetiau.png",description:"Kwetiau goreng lengkap dengan pangsit dan topping pilihan."},
-  {id:"default-cilok",name:"Cilok dan Tahu",price:10000,rating:4.8,category:"Cilok",emoji:"Tubi",image:"./assets/cilok.png",description:"Cilok dan tahu dalam porsi praktis, tersedia original atau mix."},
-  {id:"default-mambo",name:"Es Mambo Susu",price:2000,rating:4.9,category:"Minuman",emoji:"Tubi",image:"./assets/es-mambo.png",description:"Es mambo susu aneka rasa, segar dan cocok diminum kapan saja."}
+  {id:"default-roti",name:"Roti Kukus Thailand",price:5000,rating:4.9,category:"Manis",tags:["manis","coklat","matcha","keju","sarapan"],emoji:"Tubi",image:"./assets/roti-kukus.png",description:"Roti kukus lembut dengan pilihan rasa coklat crunchy, matcha, keju, blueberry, strawberry, dan abon."},
+  {id:"default-dimsum-chili",name:"Dimsum Chili Oil",price:15000,rating:4.9,category:"Sambal",tags:["pedas","sambal","gurih","chili oil","dimsum"],emoji:"Tubi",image:"./assets/dimsum-chili.png",description:"Dimsum 5 pcs dengan chili oil khas Tubi. Gurih dengan sensasi pedas."},
+  {id:"default-topokki",name:"Topokki Sosis & Odeng",price:10000,rating:4.9,category:"Pedas",tags:["pedas","gurih","tteokbokki","sosis","odeng"],emoji:"Tubi",image:"./assets/topokki.png",description:"Topokki dengan pilihan sosis dan odeng, saus gurih pedas."},
+  {id:"default-kwetiau",name:"Kwetiau Goreng Pangsit",price:12000,rating:4.8,category:"Gurih",tags:["gurih","asin","mie","pangsit","harian"],emoji:"Tubi",image:"./assets/kwetiau.png",description:"Kwetiau goreng lengkap dengan pangsit dan topping pilihan."},
+  {id:"default-cilok",name:"Cilok dan Tahu",price:10000,rating:4.8,category:"Gurih",tags:["gurih","sambal","camilan","pedas"],emoji:"Tubi",image:"./assets/cilok.png",description:"Cilok dan tahu dalam porsi praktis, tersedia original atau dengan sambal."},
+  {id:"default-mambo",name:"Es Mambo Susu",price:2000,rating:4.9,category:"Manis",tags:["manis","dingin","susu","segar","minuman"],emoji:"Tubi",image:"./assets/es-mambo.png",description:"Es mambo susu aneka rasa, segar dan cocok diminum kapan saja."}
 ];
-const CATS = [["Roti","Roti"],["Dimsum","Dimsum"],["Topokki","Topokki"],["Kwetiau","Kwetiau"],["Cilok","Cilok"],["Minuman","Minuman"]];
+const CATS = [["Pedas","Pedas"],["Manis","Manis"],["Gurih","Gurih"],["Sambal","Sambal"],["Creamy","Creamy"],["Segar","Segar"]];
 
 const state = {
   user:null, profile:null, isAdmin:false, view:"home", q:"", cat:"Semua",
@@ -237,13 +242,39 @@ function confirmLogout(){
 function confirmClearCart(){
   if(window.confirm("Kosongkan semua isi keranjang?")){state.cart=[];saveLocal();renderCartModal();render();toast("Keranjang dikosongkan.");}
 }
+function normalizeSearch(value){
+  return String(value||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").trim();
+}
+function scoreProduct(product, query){
+  const q=normalizeSearch(query);
+  if(!q)return 1;
+  const words=q.split(/\\s+/).filter(Boolean);
+  const hay=normalizeSearch([product.name,product.description,product.category,...(Array.isArray(product.tags)?product.tags:[])].join(" "));
+  let score=0;
+  for(const word of words){
+    if(hay.includes(word))score+=4;
+    if(normalizeSearch(product.name).includes(word))score+=5;
+    if(normalizeSearch(product.category).includes(word))score+=3;
+    if((product.tags||[]).some(t=>normalizeSearch(t).includes(word)))score+=4;
+  }
+  const compact=normalizeSearch(product.name);
+  if(compact===q)score+=12;
+  return score;
+}
+function smartFilter(products,query,category){
+  const list=products
+    .filter(p=>category==="Semua"||normalizeSearch(p.category)===normalizeSearch(category))
+    .map(p=>({...p,_score:scoreProduct(p,query)}));
+  if(!query)return list;
+  return list.filter(p=>p._score>0).sort((a,b)=>b._score-a._score);
+}
 function render(){
   document.body.classList.toggle("dark",state.theme==="dark");
   const admin=!!isAdmin();
   const drawerAdmin=document.getElementById("drawerAdmin");
   if(drawerAdmin) drawerAdmin.style.display=admin?"block":"none";
   const visible=state.products.length?state.products:FALLBACK_PRODUCTS;
-  const filtered=visible.filter(p=>(state.cat==="Semua"||p.category===state.cat)&&p.name.toLowerCase().includes(state.q.toLowerCase()));
+  const filtered=smartFilter(visible,state.q,state.cat);
   const root=$("#app");
   root.innerHTML=`
   <div class="shell">
@@ -258,13 +289,13 @@ function render(){
       <div class="view ${state.view==="home"?"active":""}">
         <div class="hero"><div class="hero-copy"><div class="eyebrow">Selamat datang di</div><h1>Tubi</h1><p>Pesan makanan favoritmu dengan mudah, cepat, dan nyaman.</p><div class="hero-points"><span>Restoran pilihan</span><span>Pesanan real-time</span><span>Profil personal</span></div></div><div class="hero-art" aria-hidden="true"><span></span><span></span><span></span></div></div>
         <main>
-          <div class="search-wrap"><div class="search"><span>${svg("search",21)}</span><input id="searchInput" value="${escapeHtml(state.q)}" placeholder="Lagi ngidam apa?"></div></div>
+          <div class="search-wrap"><div class="search"><span>${svg("search",21)}</span><input id="searchInput" value="${escapeHtml(state.q)}" placeholder="Cari makanan, rasa, bahan, atau yang lagi kamu mau..."></div></div>
           <section class="section">
             <div class="section-head"><h2>Kategori</h2><button class="pill" id="allCats">Lihat semua</button></div>
             <div class="cats"><button class="cat ${state.cat==="Semua"?"active":""}" data-cat="Semua"><em>${svg("grid",28)}</em><strong>Semua</strong></button>${CATS.map(c=>`<button class="cat ${state.cat===c[1]?"active":""}" data-cat="${c[1]}"><em>${categoryIcon(c[1])}</em><strong>${c[1]}</strong></button>`).join("")}</div>
           </section>
           <section class="section">
-            <div class="section-head"><h2>Produk pilihan</h2><span class="muted">${filtered.length} produk</span></div>
+            <div class="section-head"><div><h2>${state.q?"Hasil pencarian":"Produk pilihan"}</h2>${state.q?`<small class="muted">Pencarian pintar menemukan yang paling mendekati “${escapeHtml(state.q)}”.</small>`:""}</div><span class="muted">${filtered.length} produk</span></div>
             ${filtered.length?`<div class="products">${filtered.map(productCard).join("")}</div>`:`<div class="empty">Produk tidak ditemukan.<br><button class="outline" style="margin-top:12px" id="resetSearch">Reset pencarian</button></div>`}
           </section>
           
@@ -340,6 +371,7 @@ function adminView(){
         <div class="field"><label>Harga (rupiah)</label><input name="price" type="number" min="0" required value="${state.editingProduct?.price||""}" placeholder="18000"></div>
         <div class="field"><label>Kategori</label><select name="category">${CATS.map(c=>`<option ${state.editingProduct?.category===c[1]?"selected":""}>${c[1]}</option>`).join("")}</select></div>
         <div class="field"><label>Rating</label><input name="rating" type="number" min="0" max="5" step=".1" value="${state.editingProduct?.rating||5}"></div>
+        <div class="field"><label>Tag rasa / pencarian</label><input name="tags" value="${escapeHtml((state.editingProduct?.tags||[]).join(", "))}" placeholder="pedas, gurih, sambal"></div>
         <div class="field"><label>Label singkat</label><input name="emoji" value="${escapeHtml(state.editingProduct?.emoji||"Tubi")}"></div>
         <div class="field full"><label>Deskripsi produk</label><textarea name="description" placeholder="Jelaskan rasa, isi, ukuran, atau keunggulan produk.">${escapeHtml(state.editingProduct?.description||"")}</textarea></div>
         <div class="field full"><label>Foto produk</label><input id="productImage" name="image" type="file" accept="image/*"><small class="muted">Foto akan dikompres otomatis agar ringan dan aman disimpan.</small></div>
@@ -489,7 +521,7 @@ async function compressImage(file){
   return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const max=700,scale=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);const ctx=c.getContext("2d");ctx.drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL("image/jpeg",.68))};img.onerror=reject;img.src=r.result};r.onerror=reject;r.readAsDataURL(file)});
 }
 async function saveProduct(form){
-  const fd=new FormData(form);const data={name:String(fd.get("name")).trim(),price:Number(fd.get("price")),category:String(fd.get("category")),rating:Number(fd.get("rating"))||5,emoji:String(fd.get("emoji")||"Tubi").trim()||"Tubi",description:String(fd.get("description")||"").trim()};
+  const fd=new FormData(form);const data={name:String(fd.get("name")).trim(),price:Number(fd.get("price")),category:String(fd.get("category")),tags:String(fd.get("tags")||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean),rating:Number(fd.get("rating"))||5,emoji:String(fd.get("emoji")||"Tubi").trim()||"Tubi",description:String(fd.get("description")||"").trim()};
   const file=$("#productImage")?.files?.[0];
   if(file)data.image=await compressImage(file);else if(state.editingProduct)data.image=state.editingProduct.image||"";
   if(!data.name||data.price<0){toast("Lengkapi nama dan harga.");return}
