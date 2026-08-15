@@ -1,7 +1,8 @@
 {
   "version": 2,
   "framework": null,
-  "buildCommand": "echo 'Tubi static build: no compilation required'",
+  "buildCommand": "echo Tubi static build - no Vite compilation required",
   "outputDirectory": ".",
-  "cleanUrls": true
+  "cleanUrls": true,
+  "installCommand": "echo Tubi static app - dependencies not required"
 }

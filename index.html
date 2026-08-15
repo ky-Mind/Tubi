@@ -62,11 +62,21 @@ body.dark .admin-wrap{background:#101216}.theme-icon,.tool-icon{display:inline-g
 .search>span{display:grid;place-items:center;color:#666}.product-name-btn{border:0;background:transparent;padding:0;text-align:left;color:inherit;width:100%}.product-short-desc{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:36px}.detail-image{height:300px;border-radius:20px;overflow:hidden;background:#f7f1e8;display:grid;place-items:center;margin:15px 0}.detail-image img{width:100%;height:100%;object-fit:cover}.detail-desc{color:var(--muted);line-height:1.65}.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}.map-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.install-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid #ffd2d7;background:#fff5f6;padding:14px;border-radius:16px;margin-top:14px}.location-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:#e9fbf0;color:#16884a;font-size:12px;font-weight:800}.order-map{display:inline-flex;align-items:center;gap:5px;color:var(--red);text-decoration:none;font-size:12px;font-weight:800;margin-top:8px}.order-map:hover{text-decoration:underline}.status-select{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:7px 9px;font-size:12px;font-weight:800}.product-detail{display:grid;grid-template-columns:1fr;gap:2px}.product-detail .price{margin-top:8px}.brand img{box-shadow:0 2px 10px rgba(0,0,0,.06)}
 @media(max-width:560px){.modal-actions{grid-template-columns:1fr}.install-banner{align-items:flex-start;flex-direction:column}.install-banner button{width:100%}.detail-image{height:240px}}
 
-/* Tubi v4 client polish */
-.search .ico{flex:0 0 auto}.search input{color:var(--ink)}body.dark .search input{color:#f4f5f7}body.dark .search input::placeholder{color:#8f969f}
-.section-head small{display:block;margin-top:3px}.cat{min-width:108px}.cat strong{color:var(--ink)}body.dark .cat strong{color:#f4f5f7}
-.product{transition:transform .18s ease,box-shadow .18s ease}.product:hover{transform:translateY(-2px);box-shadow:0 12px 30px rgba(0,0,0,.09)}
-.preview img,.thumb img,.product-img img{object-fit:cover}
+/* Interaction safety */
+html.ui-locked, body.ui-locked{overflow:hidden!important;overscroll-behavior:none!important}
+body.ui-locked .shell{touch-action:none}
+.drawer,.modal{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.drawer-backdrop,.modal-backdrop{touch-action:none}
+.modal{touch-action:auto}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #ed1b2f44;outline-offset:2px}
+body.dark .field input::placeholder,body.dark .field textarea::placeholder{color:#8f969e}
+body.dark .muted{color:#aeb3ba}
+body.dark .section-head h2,body.dark .product-body h3,body.dark .price,body.dark .panel h3,body.dark .profile-main h2{color:var(--ink)}
+body.dark .hero{color:#fff}
+.smart-hint{margin-top:9px;color:var(--muted);font-size:12px}
+.search-wrap.has-query .search{border-color:#ffadb6;box-shadow:0 10px 30px #ed1b2f12}
+.tag-row{display:flex;gap:5px;flex-wrap:wrap;margin:5px 0 7px}
+.tag{font-size:10px;font-weight:800;padding:5px 7px;border-radius:999px;background:var(--surface2);color:var(--muted)}
 </style>
 </head>
 <body>
@@ -87,7 +97,7 @@ body.dark .admin-wrap{background:#101216}.theme-icon,.tool-icon{display:inline-g
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut, updateProfile } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut, updateProfile, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -101,6 +111,7 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+setPersistence(auth,browserLocalPersistence).catch(e=>console.warn("Auth persistence:",e));
 const db = getFirestore(app);
 const google = new GoogleAuthProvider();
 google.setCustomParameters({prompt:"select_account"});
@@ -110,14 +121,18 @@ const ADMIN_EMAIL = ADMIN_EMAILS[0];
 const normalizedEmail = value => String(value || "").trim().toLowerCase();
 const emailIsFixedAdmin = email => ADMIN_EMAILS.some(item => normalizedEmail(item) === normalizedEmail(email));
 const FALLBACK_PRODUCTS = [
-  {id:"default-roti",name:"Roti Kukus Thailand",price:5000,rating:4.9,category:"Manis",tags:["manis","coklat","matcha","keju","sarapan"],emoji:"Tubi",image:"./assets/roti-kukus.png",description:"Roti kukus lembut dengan pilihan rasa coklat crunchy, matcha, keju, blueberry, strawberry, dan abon."},
-  {id:"default-dimsum-chili",name:"Dimsum Chili Oil",price:15000,rating:4.9,category:"Sambal",tags:["pedas","sambal","gurih","chili oil","dimsum"],emoji:"Tubi",image:"./assets/dimsum-chili.png",description:"Dimsum 5 pcs dengan chili oil khas Tubi. Gurih dengan sensasi pedas."},
-  {id:"default-topokki",name:"Topokki Sosis & Odeng",price:10000,rating:4.9,category:"Pedas",tags:["pedas","gurih","tteokbokki","sosis","odeng"],emoji:"Tubi",image:"./assets/topokki.png",description:"Topokki dengan pilihan sosis dan odeng, saus gurih pedas."},
-  {id:"default-kwetiau",name:"Kwetiau Goreng Pangsit",price:12000,rating:4.8,category:"Gurih",tags:["gurih","asin","mie","pangsit","harian"],emoji:"Tubi",image:"./assets/kwetiau.png",description:"Kwetiau goreng lengkap dengan pangsit dan topping pilihan."},
-  {id:"default-cilok",name:"Cilok dan Tahu",price:10000,rating:4.8,category:"Gurih",tags:["gurih","sambal","camilan","pedas"],emoji:"Tubi",image:"./assets/cilok.png",description:"Cilok dan tahu dalam porsi praktis, tersedia original atau dengan sambal."},
-  {id:"default-mambo",name:"Es Mambo Susu",price:2000,rating:4.9,category:"Manis",tags:["manis","dingin","susu","segar","minuman"],emoji:"Tubi",image:"./assets/es-mambo.png",description:"Es mambo susu aneka rasa, segar dan cocok diminum kapan saja."}
+  {id:"default-roti",name:"Roti Kukus Thailand",price:5000,rating:4.9,category:"Manis",tags:["manis","coklat","matcha","keju"],emoji:"Tubi",image:"./assets/roti-kukus.png",description:"Roti kukus lembut dengan pilihan rasa manis seperti coklat, matcha, keju, blueberry, strawberry, dan abon."},
+  {id:"default-topokki",name:"Topokki Sosis & Odeng",price:10000,rating:4.9,category:"Pedas",tags:["pedas","gurih","sosis","odeng"],emoji:"Tubi",image:"./assets/topokki.png",description:"Topokki kenyal dengan saus pedas gurih, sosis, dan odeng."},
+  {id:"default-cilok",name:"Cilok dan Tahu",price:10000,rating:4.8,category:"Gurih",tags:["gurih","cilok","tahu","saus"],emoji:"Tubi",image:"./assets/cilok.png",description:"Cilok dan tahu dalam porsi praktis dengan pilihan saus gurih."},
+  {id:"default-kwetiau",name:"Kwetiau Goreng Pangsit",price:12000,rating:4.8,category:"Gurih",tags:["gurih","kwetiau","pangsit","goreng"],emoji:"Tubi",image:"./assets/kwetiau.png",description:"Kwetiau goreng gurih dengan pangsit dan topping pilihan."},
+  {id:"default-chili",name:"Chili Oil Favorit",price:15000,rating:4.9,category:"Sambal",tags:["sambal","pedas","chili oil","gurih"],emoji:"Tubi",image:"./assets/dimsum-chili.png",description:"Camilan dengan chili oil khas untuk pencinta rasa pedas dan gurih."},
+  {id:"default-mambo",name:"Es Mambo Susu",price:2000,rating:4.9,category:"Segar",tags:["segar","manis","susu","dingin"],emoji:"Tubi",image:"./assets/es-mambo.png",description:"Es mambo susu aneka rasa, segar dan cocok diminum kapan saja."},
+  {id:"default-creamy",name:"Creamy Special Tubi",price:13000,rating:4.8,category:"Creamy",tags:["creamy","gurih","saus"],emoji:"Tubi",image:"./assets/menu-poster.jpg",description:"Pilihan creamy dengan saus lembut dan gurih untuk teman makan."}
 ];
-const CATS = [["Pedas","Pedas"],["Manis","Manis"],["Gurih","Gurih"],["Sambal","Sambal"],["Creamy","Creamy"],["Segar","Segar"]];
+const CATS = [
+  ["Pedas","Pedas","star"],["Manis","Manis","sun"],["Gurih","Gurih","orders"],
+  ["Sambal","Sambal","heart"],["Creamy","Creamy","grid"],["Segar","Segar","map"]
+];
 
 const state = {
   user:null, profile:null, isAdmin:false, view:"home", q:"", cat:"Semua",
@@ -134,6 +149,34 @@ const isAdmin=()=>!!state.user && state.isAdmin===true;
 function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove("show"),2500)}
 function saveLocal(){localStorage.setItem("tubi_cart",JSON.stringify(state.cart));localStorage.setItem("tubi_favorites",JSON.stringify(state.favorites))}
 function productById(id){return state.products.find(p=>p.id===id)||FALLBACK_PRODUCTS.find(p=>p.id===id)}
+function productSearchText(p){
+  const tags=Array.isArray(p?.tags)?p.tags.join(" "):String(p?.tags||"");
+  return [p?.name,p?.description,p?.category,tags].filter(Boolean).join(" ").toLowerCase();
+}
+function smartProducts(list,q,cat){
+  const query=String(q||"").trim().toLowerCase();
+  const base=list.filter(p=>cat==="Semua"||String(p.category||"").toLowerCase()===String(cat).toLowerCase());
+  if(!query)return base;
+  const terms=query.split(/\s+/).filter(Boolean);
+  return base.map(p=>{
+    const text=productSearchText(p), name=String(p.name||"").toLowerCase(), category=String(p.category||"").toLowerCase();
+    let score=0;
+    if(name===query)score+=100;
+    if(name.includes(query))score+=55;
+    if(category.includes(query))score+=35;
+    for(const t of terms){
+      if(name.includes(t))score+=18;
+      if(text.includes(t))score+=9;
+      if(String(p.description||"").toLowerCase().includes(t))score+=7;
+    }
+    return {p,score};
+  }).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).map(x=>x.p);
+}
+function searchHint(q){
+  if(!q.trim())return "";
+  return "Hasil diurutkan berdasarkan kemiripan nama, deskripsi, kategori, dan rasa.";
+}
+
 
 function svg(name,size=24){
   const paths={
@@ -163,7 +206,7 @@ function svg(name,size=24){
 function googleIcon(){
   return `<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.23c0-.7-.06-1.37-.18-2H12v3.79h5.38a4.6 4.6 0 0 1-1.99 3.02v2.51h3.22c1.89-1.74 2.99-4.3 2.99-7.32Z"/><path fill="#34A853" d="M12 22c2.7 0 4.96-.9 6.61-2.45l-3.22-2.51c-.9.6-2.04.96-3.39.96-2.61 0-4.83-1.76-5.62-4.13H3.05v2.59A10 10 0 0 0 12 22Z"/><path fill="#FBBC05" d="M6.38 13.87A6 6 0 0 1 6.06 12c0-.65.11-1.28.32-1.87V7.54H3.05A10 10 0 0 0 2 12c0 1.61.38 3.13 1.05 4.46l3.33-2.59Z"/><path fill="#EA4335" d="M12 5.99c1.47 0 2.79.51 3.83 1.51l2.87-2.87C16.95 3.03 14.7 2 12 2a10 10 0 0 0-8.95 5.54l3.33 2.59C7.17 7.76 9.39 5.99 12 5.99Z"/></svg>`;
 }
-function categoryIcon(cat){ return cat==="Ayam"?svg("star",28):cat==="Paket"?svg("grid",28):cat==="Mie"?svg("orders",28):svg("grid",28); }
+function categoryIcon(cat){ const item=CATS.find(c=>c[1]===cat); return svg(item?.[2]||"grid",28); }
 function imageHtml(p,cls="product-img"){
   const src=typeof p?.image==="string" && /^(data:image|https?:\/\/|\.\/|\/)/.test(p.image) ? p.image : "";
   return src?`<div class="${cls}"><img src="${src}" alt="${escapeHtml(p.name)}" loading="lazy" onerror="this.parentElement.innerHTML='<span class="product-emoji">${svg("image",52)}</span>'"></div>`:`<div class="${cls}"><span class="product-emoji">${svg("image",52)}</span></div>`;
@@ -242,39 +285,13 @@ function confirmLogout(){
 function confirmClearCart(){
   if(window.confirm("Kosongkan semua isi keranjang?")){state.cart=[];saveLocal();renderCartModal();render();toast("Keranjang dikosongkan.");}
 }
-function normalizeSearch(value){
-  return String(value||"").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").trim();
-}
-function scoreProduct(product, query){
-  const q=normalizeSearch(query);
-  if(!q)return 1;
-  const words=q.split(/\\s+/).filter(Boolean);
-  const hay=normalizeSearch([product.name,product.description,product.category,...(Array.isArray(product.tags)?product.tags:[])].join(" "));
-  let score=0;
-  for(const word of words){
-    if(hay.includes(word))score+=4;
-    if(normalizeSearch(product.name).includes(word))score+=5;
-    if(normalizeSearch(product.category).includes(word))score+=3;
-    if((product.tags||[]).some(t=>normalizeSearch(t).includes(word)))score+=4;
-  }
-  const compact=normalizeSearch(product.name);
-  if(compact===q)score+=12;
-  return score;
-}
-function smartFilter(products,query,category){
-  const list=products
-    .filter(p=>category==="Semua"||normalizeSearch(p.category)===normalizeSearch(category))
-    .map(p=>({...p,_score:scoreProduct(p,query)}));
-  if(!query)return list;
-  return list.filter(p=>p._score>0).sort((a,b)=>b._score-a._score);
-}
 function render(){
   document.body.classList.toggle("dark",state.theme==="dark");
   const admin=!!isAdmin();
   const drawerAdmin=document.getElementById("drawerAdmin");
   if(drawerAdmin) drawerAdmin.style.display=admin?"block":"none";
   const visible=state.products.length?state.products:FALLBACK_PRODUCTS;
-  const filtered=smartFilter(visible,state.q,state.cat);
+  const filtered=smartProducts(visible,state.q,state.cat);
   const root=$("#app");
   root.innerHTML=`
   <div class="shell">
@@ -289,13 +306,13 @@ function render(){
       <div class="view ${state.view==="home"?"active":""}">
         <div class="hero"><div class="hero-copy"><div class="eyebrow">Selamat datang di</div><h1>Tubi</h1><p>Pesan makanan favoritmu dengan mudah, cepat, dan nyaman.</p><div class="hero-points"><span>Restoran pilihan</span><span>Pesanan real-time</span><span>Profil personal</span></div></div><div class="hero-art" aria-hidden="true"><span></span><span></span><span></span></div></div>
         <main>
-          <div class="search-wrap"><div class="search"><span>${svg("search",21)}</span><input id="searchInput" value="${escapeHtml(state.q)}" placeholder="Cari makanan, rasa, bahan, atau yang lagi kamu mau..."></div></div>
+          <div class="search-wrap ${state.q?"has-query":""}"><div class="search"><span>${svg("search",21)}</span><input id="searchInput" value="${escapeHtml(state.q)}" placeholder="Cari makanan, rasa, atau bahan…"></div>${state.q?`<div class="smart-hint">${escapeHtml(searchHint(state.q))}</div>`:""}</div>
           <section class="section">
             <div class="section-head"><h2>Kategori</h2><button class="pill" id="allCats">Lihat semua</button></div>
             <div class="cats"><button class="cat ${state.cat==="Semua"?"active":""}" data-cat="Semua"><em>${svg("grid",28)}</em><strong>Semua</strong></button>${CATS.map(c=>`<button class="cat ${state.cat===c[1]?"active":""}" data-cat="${c[1]}"><em>${categoryIcon(c[1])}</em><strong>${c[1]}</strong></button>`).join("")}</div>
           </section>
           <section class="section">
-            <div class="section-head"><div><h2>${state.q?"Hasil pencarian":"Produk pilihan"}</h2>${state.q?`<small class="muted">Pencarian pintar menemukan yang paling mendekati “${escapeHtml(state.q)}”.</small>`:""}</div><span class="muted">${filtered.length} produk</span></div>
+            <div class="section-head"><h2>Produk pilihan</h2><span class="muted">${filtered.length} produk</span></div>
             ${filtered.length?`<div class="products">${filtered.map(productCard).join("")}</div>`:`<div class="empty">Produk tidak ditemukan.<br><button class="outline" style="margin-top:12px" id="resetSearch">Reset pencarian</button></div>`}
           </section>
           
@@ -324,7 +341,7 @@ function loginCard(){
 }
 function productCard(p){
   const fav=state.favorites.includes(p.id);
-  return `<article class="product">${imageHtml(p)}<div class="product-body"><button class="product-name-btn" data-detail="${p.id}" title="${escapeHtml(p.name)}"><h3>${escapeHtml(p.name)}</h3></button><small class="rating">★ ${p.rating||"5.0"} · Siap dipesan</small><small class="muted product-short-desc">${escapeHtml(p.description||"Favorit Tubi untuk kamu.")}</small><strong class="price">${rupiah(p.price)}</strong><div class="product-actions"><button class="heart ${fav?"active":""}" data-fav="${p.id}" aria-label="Favorit">${fav?"♥":"♡"}</button><button class="add" data-add="${p.id}">+ Tambah</button></div></div></article>`;
+  return `<article class="product">${imageHtml(p)}<div class="product-body"><button class="product-name-btn" data-detail="${p.id}" title="${escapeHtml(p.name)}"><h3>${escapeHtml(p.name)}</h3></button><small class="rating">★ ${p.rating||"5.0"} · Siap dipesan</small>${Array.isArray(p.tags)&&p.tags.length?`<div class="tag-row">${p.tags.slice(0,3).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("")}</div>`:""}<small class="muted product-short-desc">${escapeHtml(p.description||"Favorit Tubi untuk kamu.")}</small><strong class="price">${rupiah(p.price)}</strong><div class="product-actions"><button class="heart ${fav?"active":""}" data-fav="${p.id}" aria-label="Favorit">${fav?"♥":"♡"}</button><button class="add" data-add="${p.id}">+ Tambah</button></div></div></article>`;
 }
 function ordersView(){
   return `<section class="section"><div class="section-head"><div><h2>Pesanan saya</h2><span class="muted">${state.user?"Riwayat pesanan akun ini":"Masuk untuk melihat pesanan"}</span></div><button class="outline" id="homeFromOrders">Beranda</button></div>${!state.user?`<div class="empty">Silakan masuk dengan Google untuk membuat dan melihat pesanan.<br><button class="google" id="googleBtn2" style="margin-top:13px">${googleIcon()} <span>Masuk dengan Google</span></button></div>`:state.orders.length?`<div class="orders">${state.orders.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(orderCard).join("")}</div>`:`<div class="empty">Belum ada pesanan.<br><button class="outline" id="shopNow" style="margin-top:12px">Mulai belanja</button></div>`}</section>`;
@@ -369,9 +386,9 @@ function adminView(){
       <div class="panel"><h3>${state.editingProduct?"Edit produk":"Tambah produk baru"}</h3><form id="productForm"><div class="form-grid">
         <div class="field full"><label>Nama produk</label><input name="name" required value="${escapeHtml(state.editingProduct?.name||"")}" placeholder="Contoh: Ayam Geprek"></div>
         <div class="field"><label>Harga (rupiah)</label><input name="price" type="number" min="0" required value="${state.editingProduct?.price||""}" placeholder="18000"></div>
-        <div class="field"><label>Kategori</label><select name="category">${CATS.map(c=>`<option ${state.editingProduct?.category===c[1]?"selected":""}>${c[1]}</option>`).join("")}</select></div>
+        <div class="field"><label>Kategori rasa</label><select name="category">${CATS.map(c=>`<option ${state.editingProduct?.category===c[1]?"selected":""}>${c[1]}</option>`).join("")}</select></div>
+        <div class="field"><label>Tag pencarian</label><input name="tags" value="${escapeHtml(Array.isArray(state.editingProduct?.tags)?state.editingProduct.tags.join(", "):state.editingProduct?.tags||"")}" placeholder="pedas, gurih, sambal"></div>
         <div class="field"><label>Rating</label><input name="rating" type="number" min="0" max="5" step=".1" value="${state.editingProduct?.rating||5}"></div>
-        <div class="field"><label>Tag rasa / pencarian</label><input name="tags" value="${escapeHtml((state.editingProduct?.tags||[]).join(", "))}" placeholder="pedas, gurih, sambal"></div>
         <div class="field"><label>Label singkat</label><input name="emoji" value="${escapeHtml(state.editingProduct?.emoji||"Tubi")}"></div>
         <div class="field full"><label>Deskripsi produk</label><textarea name="description" placeholder="Jelaskan rasa, isi, ukuran, atau keunggulan produk.">${escapeHtml(state.editingProduct?.description||"")}</textarea></div>
         <div class="field full"><label>Foto produk</label><input id="productImage" name="image" type="file" accept="image/*"><small class="muted">Foto akan dikompres otomatis agar ringan dan aman disimpan.</small></div>
@@ -444,7 +461,7 @@ function subscribeProducts(){
     state.products=snap.docs.map(d=>({id:d.id,...d.data()}));
     if(!state.products.length)state.products=[];
     render();
-  },err=>{console.error(err);state.products=[];render()});
+  },err=>{console.error("Products Firestore:",err);state.products=[];render()});
 }
 function subscribeOrders(){
   state.ordersUnsub?.();
@@ -471,20 +488,20 @@ function toggleFav(id){const i=state.favorites.indexOf(id);if(i>=0)state.favorit
 function openProductDetail(id){
   const p=productById(id);if(!p)return;
   const src=typeof p.image==="string" && /^(data:image|https?:\/\/)/.test(p.image)?p.image:"";
-  $("#productBackdrop").classList.add("open");
+  openOverlay("productBackdrop");
   $("#productModal").innerHTML=`<div class="modal-head"><h2>Detail produk</h2><button class="close" id="closeProductDetail" aria-label="Tutup">×</button></div><div class="product-detail"><div class="detail-image">${src?`<img src="${src}" alt="${escapeHtml(p.name)}">`:`${svg("image",64)}`}</div><div><h2 style="margin:0 0 5px">${escapeHtml(p.name)}</h2><span class="rating">★ ${p.rating||"5.0"} · ${escapeHtml(p.category||"Pilihan Tubi")}</span><strong class="price">${rupiah(p.price)}</strong><p class="detail-desc">${escapeHtml(p.description||"Produk pilihan Tubi untuk menemani harimu.")}</p></div><div class="modal-actions"><button class="outline" id="detailFav">${state.favorites.includes(p.id)?"♥ Hapus favorit":"♡ Simpan favorit"}</button><button class="primary" id="detailAdd">${svg("plus",18)} Tambah ke keranjang</button></div></div>`;
-  $("#closeProductDetail").onclick=()=>$("#productBackdrop").classList.remove("open");
+  $("#closeProductDetail").onclick=()=>closeOverlay("productBackdrop");
   $("#detailFav").onclick=()=>{toggleFav(p.id);openProductDetail(id)};
-  $("#detailAdd").onclick=()=>{addToCart(id);$("#productBackdrop").classList.remove("open");};
+  $("#detailAdd").onclick=()=>{addToCart(id);closeOverlay("productBackdrop");};
 }
-function openLogin(){$("#loginBackdrop").classList.add("open");$("#loginModal").innerHTML=`<div class="modal-head"><h2>Masuk ke Tubi</h2><button class="close" id="closeLogin">×</button></div><p class="muted">Satu akun Google untuk pesanan, favorit, dan profil.</p><button class="google" id="modalGoogle" style="width:100%;margin-top:10px">${googleIcon()} <span>Masuk dengan Google</span></button>`;$("#closeLogin").onclick=()=>$("#loginBackdrop").classList.remove("open");$("#modalGoogle").onclick=()=>{ $("#loginBackdrop").classList.remove("open");login();}}
+function openLogin(){openOverlay("loginBackdrop");$("#loginModal").innerHTML=`<div class="modal-head"><h2>Masuk ke Tubi</h2><button class="close" id="closeLogin">×</button></div><p class="muted">Satu akun Google untuk pesanan, favorit, dan profil.</p><button class="google" id="modalGoogle" style="width:100%;margin-top:10px">${googleIcon()} <span>Masuk dengan Google</span></button>`;$("#closeLogin").onclick=()=>closeOverlay("loginBackdrop");$("#modalGoogle").onclick=()=>{ closeOverlay("loginBackdrop");login();}}
 function openCart(){
-  $("#cartBackdrop").classList.add("open");renderCartModal();
+  openOverlay("cartBackdrop");renderCartModal();
 }
 function renderCartModal(){
   const total=state.cart.reduce((a,x)=>a+x.price*x.qty,0);
   $("#cartModal").innerHTML=`<div class="modal-head"><h2>Keranjang</h2><button class="close" id="closeCart">×</button></div>${state.cart.length?`<div class="cart-list">${state.cart.map(x=>`<div class="cart-row">${x.image?`<img src="${x.image}" alt="">`:`<div class="cart-emoji">${x.emoji}</div>`}<div class="cart-row-main"><strong>${escapeHtml(x.name)}</strong><small>${rupiah(x.price)}</small></div><div class="qty"><button data-minus="${x.id}">−</button><strong>${x.qty}</strong><button data-plus="${x.id}">+</button></div></div>`).join("")}</div><div class="total-line"><span>Total</span><span>${rupiah(total)}</span></div><button class="primary" id="checkoutBtn">Buat pesanan</button><button class="outline" id="clearCart" style="width:100%;margin-top:8px">Kosongkan</button>`:`<div class="empty" style="margin-top:18px">Keranjang masih kosong.</div>`}`;
-  $("#closeCart").onclick=()=>$("#cartBackdrop").classList.remove("open");
+  $("#closeCart").onclick=()=>closeOverlay("cartBackdrop");
   $("#cartModal").querySelectorAll("[data-minus]").forEach(b=>b.onclick=()=>changeQty(b.dataset.minus,-1));
   $("#cartModal").querySelectorAll("[data-plus]").forEach(b=>b.onclick=()=>changeQty(b.dataset.plus,1));
   $("#clearCart")?.addEventListener("click",confirmClearCart);
@@ -492,14 +509,14 @@ function renderCartModal(){
 }
 function changeQty(id,d){const x=state.cart.find(x=>x.id===id);if(!x)return;x.qty+=d;if(x.qty<=0)state.cart=state.cart.filter(x=>x.id!==id);saveLocal();renderCartModal();render()}
 async function checkout(){
-  if(!state.user){$("#cartBackdrop").classList.remove("open");openLogin();return}
+  if(!state.user){closeOverlay("cartBackdrop");openLogin();return}
   if(!state.cart.length)return;
   const address=state.profile?.address||"";
   const note=state.profile?.note||"";
-  $("#cartBackdrop").classList.remove("open");
-  $("#productBackdrop").classList.add("open");
+  closeOverlay("cartBackdrop");
+  openOverlay("productBackdrop");
   $("#productModal").innerHTML=`<div class="modal-head"><h2>Konfirmasi pesanan</h2><button class="close" id="closeCheckout">×</button></div><p class="muted">Pastikan alamat pengantaran sudah benar.</p><div class="form-grid"><div class="field"><label>Nama penerima</label><input id="checkoutRecipient" value="${escapeHtml(state.profile?.recipientName||state.profile?.displayName||state.user.displayName||"Pengguna Tubi")}" maxlength="60" placeholder="Nama penerima"></div><div class="field"><label>Nomor telepon</label><input id="checkoutPhone" value="${escapeHtml(state.profile?.phone||"")}" inputmode="tel" placeholder="08xxxxxxxxxx"></div><div class="field full"><label>Alamat pengantaran</label><textarea id="checkoutAddress" required placeholder="Tulis alamat lengkap">${escapeHtml(address)}</textarea><div class="map-actions"><button class="outline" type="button" id="useLocation">${svg("location",17)} Gunakan lokasi saya</button><button class="outline" type="button" id="openAddressMap">${svg("map",17)} Buka Maps</button></div><div class="location-chip" id="locationChip" style="margin-top:8px;display:none"></div></div><div class="field full"><label>Catatan untuk pesanan</label><textarea id="checkoutNote" placeholder="Contoh: jangan terlalu pedas">${escapeHtml(note)}</textarea></div></div><div class="total-line" style="margin-top:15px"><span>Total</span><span>${rupiah(state.cart.reduce((a,x)=>a+x.price*x.qty,0))}</span></div><button class="primary" id="confirmCheckout">${svg("check",18)} Buat pesanan</button>`;
-  $("#closeCheckout").onclick=()=>$("#productBackdrop").classList.remove("open");
+  $("#closeCheckout").onclick=()=>closeOverlay("productBackdrop");
   $("#useLocation").onclick=()=>useCurrentLocation("checkoutAddress");
   $("#openAddressMap").onclick=()=>{const a=$("#checkoutAddress").value.trim();if(a)openMapsForAddress(a);else toast("Isi alamat dulu atau gunakan lokasi saya.");};
   $("#confirmCheckout").onclick=async()=>{
@@ -513,15 +530,19 @@ async function checkout(){
       await addDoc(collection(db,"orders"),{userId:state.user.uid,email:state.user.email||"",customerName:recipientName,recipientName,phone,address:addr,note:$("#checkoutNote").value.trim(),location:state.location||null,mapsUrl:state.location?.url||mapsSearchUrl(addr),items:state.cart.map(x=>({id:x.id,name:x.name,price:x.price,qty:x.qty})),total,status:"baru",createdAt:serverTimestamp()});
       await setDoc(doc(db,"users",state.user.uid),{address:addr,note:$("#checkoutNote").value.trim(),recipientName:recipientName,phone:phone},{merge:true}).catch(()=>{});
       state.profile={...(state.profile||{}),address:addr,note:$("#checkoutNote").value.trim(),recipientName:recipientName,phone:phone};
-      state.cart=[];saveLocal();$("#productBackdrop").classList.remove("open");state.view="orders";render();toast("Pesanan berhasil dibuat. Admin akan langsung melihatnya.");
-    }catch(e){console.error(e);toast("Pesanan gagal disimpan. Cek Firestore Rules dan koneksi Firebase.");btn.disabled=false;btn.innerHTML=`${svg("check",18)} Buat pesanan`;}
+      state.cart=[];saveLocal();closeOverlay("productBackdrop");state.view="orders";render();toast("Pesanan berhasil dibuat. Admin akan langsung melihatnya.");
+    }catch(e){
+      console.error("Checkout Firestore:",e);
+      const code=e?.code||"";
+      const msg=code==="permission-denied"?"Pesanan ditolak Firestore. Pastikan Firestore Rules terbaru sudah dipasang.":code==="failed-precondition"?"Firestore belum siap. Pastikan database sudah dibuat di project tubi-app.":code==="unavailable"?"Firebase sedang tidak tersedia. Coba lagi sebentar.":"Pesanan gagal disimpan. Periksa koneksi Firebase.";
+      toast(msg);btn.disabled=false;btn.innerHTML=`${svg("check",18)} Buat pesanan`;}
   };
 }
 async function compressImage(file){
   return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const max=700,scale=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);const ctx=c.getContext("2d");ctx.drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL("image/jpeg",.68))};img.onerror=reject;img.src=r.result};r.onerror=reject;r.readAsDataURL(file)});
 }
 async function saveProduct(form){
-  const fd=new FormData(form);const data={name:String(fd.get("name")).trim(),price:Number(fd.get("price")),category:String(fd.get("category")),tags:String(fd.get("tags")||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean),rating:Number(fd.get("rating"))||5,emoji:String(fd.get("emoji")||"Tubi").trim()||"Tubi",description:String(fd.get("description")||"").trim()};
+  const fd=new FormData(form);const tags=String(fd.get("tags")||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean).slice(0,12);const data={name:String(fd.get("name")).trim(),price:Number(fd.get("price")),category:String(fd.get("category")),tags,rating:Number(fd.get("rating"))||5,emoji:"Tubi",description:String(fd.get("description")||"").trim()};
   const file=$("#productImage")?.files?.[0];
   if(file)data.image=await compressImage(file);else if(state.editingProduct)data.image=state.editingProduct.image||"";
   if(!data.name||data.price<0){toast("Lengkapi nama dan harga.");return}
@@ -587,11 +608,32 @@ async function saveProfilePhoto(file){
     state.profile={...(state.profile||{}),photoURL:data};render();toast("Foto profil diperbarui.");
   }catch(e){console.error(e);toast("Foto profil gagal disimpan.");}
 }
-function setView(v){if(v==="admin"&&!isAdmin()){toast("Akses admin ditolak.");return}state.view=v;$("#drawer").classList.remove("open");$("#drawerBackdrop").classList.remove("open");render();window.scrollTo({top:0,behavior:"smooth"})}
+
+function setUiLock(locked){
+  document.documentElement.classList.toggle("ui-locked",!!locked);
+  document.body.classList.toggle("ui-locked",!!locked);
+}
+function closeDrawer(){
+  $("#drawer")?.classList.remove("open"); $("#drawerBackdrop")?.classList.remove("open");
+  setUiLock(false);
+}
+function closeOverlay(id){
+  $("#"+id)?.classList.remove("open");
+  const anyOpen=[...document.querySelectorAll(".drawer-backdrop.open,.modal-backdrop.open")].length>0;
+  setUiLock(anyOpen);
+}
+function openOverlay(id){
+  $("#"+id)?.classList.add("open"); setUiLock(true);
+}
+
+function setView(v){
+  if(v==="admin"&&!isAdmin()){toast("Akses admin ditolak.");return}
+  state.view=v; closeDrawer(); render(); window.scrollTo({top:0,behavior:"smooth"});
+}
 function bind(){
-  $("#menuBtn").onclick=()=>{$("#drawer").classList.add("open");$("#drawerBackdrop").classList.add("open")};
-  $("#closeDrawer").onclick=()=>{$("#drawer").classList.remove("open");$("#drawerBackdrop").classList.remove("open")};
-  $("#drawerBackdrop").onclick=()=>{$("#drawer").classList.remove("open");$("#drawerBackdrop").classList.remove("open")};
+  $("#menuBtn").onclick=()=>{ $("#drawer").classList.add("open"); $("#drawerBackdrop").classList.add("open"); setUiLock(true); };
+  $("#closeDrawer").onclick=closeDrawer;
+  $("#drawerBackdrop").onclick=closeDrawer;
   $("#cartBtn").onclick=openCart;
   $("#themeToggle")?.addEventListener("click",()=>{state.theme=state.theme==="dark"?"light":"dark";applyTheme();});
   $("#installBtn")?.addEventListener("click",installApp);
@@ -620,6 +662,15 @@ function bind(){
   document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>removeProduct(b.dataset.delete));
   document.querySelectorAll("[data-status]").forEach(s=>s.onchange=()=>changeOrderStatus(s.dataset.status,s.value));
 }
+["cartBackdrop","productBackdrop","loginBackdrop"].forEach(id=>{
+  const el=document.getElementById(id);
+  el?.addEventListener("click",e=>{if(e.target===el)closeOverlay(id)});
+});
+document.addEventListener("keydown",e=>{
+  if(e.key!=="Escape")return;
+  if($("#drawer")?.classList.contains("open")) closeDrawer();
+  ["cartBackdrop","productBackdrop","loginBackdrop"].forEach(closeOverlay);
+});
 setupInstallPrompt();
 if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(err => console.warn("Tubi SW:", err))); }
 onAuthStateChanged(auth,user=>{if(user){afterLogin(user).catch(e=>{console.error(e);state.user=user;state.isAdmin=emailIsFixedAdmin(user.email);state.adminEmails=state.isAdmin?[ADMIN_EMAIL]:[];subscribeOrders();render()})}else{state.user=null;state.profile=null;state.isAdmin=false;state.orders=[];render()}});

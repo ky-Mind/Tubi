@@ -22,3 +22,7 @@ Versi ini dibuat sebagai aplikasi static single-page agar deployment Vercel tida
 Jika Google login di domain Vercel gagal dengan `auth/unauthorized-domain`, domain deployment Vercel tersebut tetap harus ditambahkan sekali di Firebase Authentication → Settings → Authorized domains. Itu adalah pengaturan akun Firebase, bukan sesuatu yang bisa dipaksa dari ZIP.
 
 Semua UI utama tetap berada di `index.html`, sehingga perubahan tampilan/fitur kecil berikutnya bisa dilakukan di sana tanpa membongkar struktur aplikasi.
+
+
+## Tubi v4 client revision
+Static Vercel deployment. Firebase Authentication/Firestore remain configured in index.html. Firestore rules are in firestore.rules and must be published in Firebase Console if they have not been published yet.

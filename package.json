@@ -3,9 +3,8 @@
   "private": true,
   "version": "3.0.0",
   "scripts": {
-    "build": "vite build"
+    "build": "echo Tubi static build - no compilation required"
   },
-  "devDependencies": {
-    "vite": "^6.3.5"
-  }
+  "devDependencies": {},
+  "dependencies": {}
 }
