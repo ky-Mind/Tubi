@@ -6,9 +6,24 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isAdmin() {
+    function fixedAdmin() {
       return signedIn() &&
-        (request.auth.token.email == "Hilmykia@gmail.com" || request.auth.token.email == "hilmykia@gmail.com");
+        (request.auth.token.email == "Hilmykia@gmail.com" ||
+         request.auth.token.email == "hilmykia@gmail.com");
+    }
+
+    function listedAdmin() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+    }
+
+    function isAdmin() {
+      return fixedAdmin() || listedAdmin();
+    }
+
+    match /admins/{email} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     match /products/{productId} {
@@ -27,8 +42,7 @@ service cloud.firestore {
         request.resource.data.userId == request.auth.uid;
       allow read: if signedIn() &&
         (resource.data.userId == request.auth.uid || isAdmin());
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow update, delete: if isAdmin();
     }
   }
 }
