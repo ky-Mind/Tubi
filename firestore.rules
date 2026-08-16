@@ -6,10 +6,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function normalizedAdminEmail() {
+    function fixedAdmin() {
       return signedIn() &&
-        (request.auth.token.email == "Hilmykia@gmail.com" ||
-         request.auth.token.email == "hilmykia@gmail.com");
+        (
+          request.auth.token.email == "Hilmykia@gmail.com" ||
+          request.auth.token.email == "hilmykia@gmail.com"
+        );
     }
 
     function listedAdmin() {
@@ -17,8 +19,14 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
     }
 
+    function roleAdmin() {
+      return signedIn() &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
     function isAdmin() {
-      return normalizedAdminEmail() || listedAdmin();
+      return fixedAdmin() || listedAdmin() || roleAdmin();
     }
 
     match /admins/{email} {
@@ -34,23 +42,33 @@ service cloud.firestore {
     match /users/{userId} {
       allow create: if signedIn() &&
         request.auth.uid == userId &&
-        (request.resource.data.role == "customer" || isAdmin());
+        (
+          request.resource.data.role == "customer" ||
+          (request.resource.data.role == "admin" && isAdmin())
+        );
+
       allow update: if signedIn() &&
         (
           isAdmin() ||
-          (request.auth.uid == userId &&
-           request.resource.data.role == resource.data.role)
+          (
+            request.auth.uid == userId &&
+            request.resource.data.role == resource.data.role
+          )
         );
+
       allow read: if signedIn() &&
         (request.auth.uid == userId || isAdmin());
+
       allow delete: if isAdmin();
     }
 
     match /orders/{orderId} {
       allow create: if signedIn() &&
         request.resource.data.userId == request.auth.uid;
+
       allow read: if signedIn() &&
         (resource.data.userId == request.auth.uid || isAdmin());
+
       allow update, delete: if isAdmin();
     }
   }

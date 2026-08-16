@@ -112,6 +112,72 @@ body.dark .preview{background:#20242a}
   .qty button{width:34px;height:34px}
   .primary,.outline{min-height:46px}
 }
+
+/* ===== Final production polish ===== */
+html,body{overscroll-behavior-x:none}
+body.ui-locked{overflow:hidden!important;overscroll-behavior:none!important;touch-action:none}
+html.ui-locked{overflow:hidden!important;overscroll-behavior:none!important}
+.drawer-backdrop.open,.modal-backdrop.open{touch-action:none}
+.drawer{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.modal{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.product-name-btn{border:0;background:transparent;color:inherit;padding:0;text-align:left;width:100%;font:inherit}
+.product-short-desc{display:block;line-height:1.35;margin-top:4px}
+.smart-hint{font-size:11px;color:var(--muted);padding:8px 10px 0 16px}
+.detail-image{height:240px;border-radius:20px;background:var(--surface2);overflow:hidden;display:grid;place-items:center;margin:12px 0}
+.detail-image img{width:100%;height:100%;object-fit:cover}
+.detail-desc{color:var(--muted);line-height:1.55}
+.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.modal-actions .primary{margin-top:0}
+.location-chip{color:var(--green);font-size:12px;font-weight:800}
+.map-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:7px}
+.order-map{display:inline-flex;align-items:center;gap:6px;margin-top:8px;color:var(--red);font-weight:800;font-size:12px;text-decoration:none}
+.admin-wrap .stat,.admin-wrap .panel{color:var(--ink)}
+.admin-wrap .stat span,.admin-wrap .panel .muted{color:var(--muted)}
+.field input::placeholder,.field textarea::placeholder,.search input::placeholder{color:var(--muted)}
+.preview{border:1px solid var(--line)}
+body.dark .stat,
+body.dark .admin-wrap .panel,
+body.dark .admin-product,
+body.dark .admin-product .thumb,
+body.dark .empty,
+body.dark .worship,
+body.dark .search,
+body.dark .profile-card,
+body.dark .login-card,
+body.dark .product,
+body.dark .cat,
+body.dark .outline,
+body.dark .small-btn,
+body.dark .heart,
+body.dark .cart-row,
+body.dark .modal,
+body.dark .drawer,
+body.dark .field input,
+body.dark .field select,
+body.dark .field textarea,
+body.dark .preview,
+body.dark .detail-image{background:var(--surface);color:var(--ink);border-color:var(--line)}
+body.dark .admin-wrap{background:var(--bg);color:var(--ink)}
+body.dark .admin-banner{background:#32171b;border-color:#633038;color:var(--ink)}
+body.dark .pill{background:#173b2a;color:#86e3ae}
+body.dark .product-short-desc,
+body.dark .muted,
+body.dark .label,
+body.dark .order-items,
+body.dark .admin-product-main small{color:var(--muted)!important}
+body.dark .field input,
+body.dark .field select,
+body.dark .field textarea{color:var(--ink)}
+body.dark .close{background:var(--surface2);color:var(--ink)}
+body.dark .drawer-links button{color:var(--ink)}
+body.dark .cat:hover,body.dark .cat.active{background:#32171b;border-color:#6d2b35}
+body.dark .search{box-shadow:0 14px 40px rgba(0,0,0,.28)}
+body.dark .preview img{background:var(--surface2)}
+@media(max-width:560px){
+  .modal-actions{grid-template-columns:1fr}
+  .map-actions .outline{flex:1;min-width:145px}
+  .detail-image{height:210px}
+}
 </style>
 </head>
 <body>
@@ -134,6 +200,7 @@ body.dark .preview{background:#20242a}
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut, updateProfile, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey:"AIzaSyBX6gj6mboRztlrF9ILRXD1gnHHIB94Bqo",
@@ -148,6 +215,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 setPersistence(auth,browserLocalPersistence).catch(e=>console.warn("Auth persistence:",e));
 const db = getFirestore(app);
+const storage = getStorage(app);
 const google = new GoogleAuthProvider();
 google.setCustomParameters({prompt:"select_account"});
 
@@ -431,7 +499,7 @@ function render(){
 }
 function nav(v,icon,label){return `<button class="nav-btn ${state.view===v?"active":""}" data-view="${v}"><span>${svg(icon,21)}</span><small>${label}</small></button>`}
 function loginCard(){
-  if(state.user)return `<div class="login-card"><div class="user-mini"><img class="avatar" src="${state.user.photoURL||"/tubi-icon.png"}" alt=""><div><strong>${escapeHtml(state.user.displayName||"Pengguna Tubi")}</strong><small>${escapeHtml(state.user.email||"")}${isAdmin()?" · Admin":""}</small></div></div><button class="outline" id="profileBtn">Buka profil</button></div>`;
+  if(state.user)return `<div class="login-card"><div class="user-mini"><img class="avatar" src="${state.user.photoURL||"./tubi-icon.png"}" alt=""><div><strong>${escapeHtml(state.user.displayName||"Pengguna Tubi")}</strong><small>${escapeHtml(state.user.email||"")}${isAdmin()?" · Admin":""}</small></div></div><button class="outline" id="profileBtn">Buka profil</button></div>`;
   return `<div class="login-card"><div><strong>Sudah punya akun?</strong><small class="muted" style="display:block;margin-top:5px">Masuk untuk menyimpan pesanan dan favorit.</small></div><button class="google" id="googleBtn">${googleIcon()} <span>Masuk dengan Google</span></button></div>`;
 }
 function productCard(p){
@@ -450,7 +518,7 @@ function favoritesView(){
 }
 function profileView(){
   if(!state.user)return `<section class="section profile-section"><div class="profile-card profile-guest"><div class="profile-logo"><img src="./tubi-icon.png" alt="Tubi"></div><h2>Profil Tubi</h2><p class="muted">Masuk dengan Google untuk mengakses profil, pesanan, favorit, dan fitur akun.</p><button class="google" id="googleBtn3">${googleIcon()} <span>Masuk dengan Google</span></button></div></section>`;
-  const photo=state.profile?.photoURL||state.user.photoURL||"/tubi-icon.png";
+  const photo=state.profile?.photoURL||state.user.photoURL||"./tubi-icon.png";
   return `<section class="section profile-section"><div class="profile-card">
     <div class="profile-top">
       <div class="profile-avatar-wrap"><img class="profile-avatar" src="${photo}" alt="Foto profil"><label class="photo-edit" for="profilePhoto" title="Ganti foto">${svg("edit",18)}</label><input id="profilePhoto" type="file" accept="image/*" hidden></div>
@@ -629,23 +697,79 @@ async function checkout(){
     }catch(e){
       console.error("Checkout Firestore:",e);
       const code=e?.code||"";
-      const msg=code==="permission-denied"?"Pesanan ditolak Firestore. Pastikan Firestore Rules terbaru sudah dipasang.":code==="failed-precondition"?"Firestore belum siap. Pastikan database sudah dibuat di project tubi-app.":code==="unavailable"?"Firebase sedang tidak tersedia. Coba lagi sebentar.":"Pesanan gagal disimpan. Periksa koneksi Firebase.";
+      const msg=code==="permission-denied"?"Pesanan ditolak database. Pasang Firestore Rules terbaru di project tubi-app.":code==="failed-precondition"?"Database belum siap. Pastikan Firestore sudah dibuat pada project tubi-app.":code==="unavailable"?"Database sedang tidak tersedia. Coba lagi sebentar.":"Pesanan gagal disimpan. Periksa koneksi database dan login Firebase.";
       toast(msg);btn.disabled=false;btn.innerHTML=`${svg("check",18)} Buat pesanan`;}
   };
 }
 async function compressImage(file){
-  return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{const max=700,scale=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);const ctx=c.getContext("2d");ctx.drawImage(img,0,0,c.width,c.height);resolve(c.toDataURL("image/jpeg",.68))};img.onerror=reject;img.src=r.result};r.onerror=reject;r.readAsDataURL(file)});
+  return new Promise((resolve,reject)=>{
+    if(!file){reject(new Error("File gambar tidak ada."));return}
+    const r=new FileReader();
+    r.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          const max=1200,scale=Math.min(1,max/Math.max(img.width,img.height));
+          const c=document.createElement("canvas");
+          c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));
+          const ctx=c.getContext("2d",{alpha:false});
+          if(!ctx){reject(new Error("Canvas tidak tersedia."));return}
+          ctx.fillStyle="#ffffff";ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);
+          c.toBlob(blob=>blob?resolve(blob):reject(new Error("Gagal mengompres foto.")),"image/jpeg",.78);
+        }catch(e){reject(e)}
+      };
+      img.onerror=()=>reject(new Error("File gambar tidak dapat dibaca."));
+      img.src=r.result;
+    };
+    r.onerror=()=>reject(new Error("File gambar tidak dapat dibaca."));
+    r.readAsDataURL(file);
+  });
+}
+async function uploadImage(file,path){
+  const blob=await compressImage(file);
+  const target=storageRef(storage,path);
+  const snap=await uploadBytes(target,blob,{contentType:"image/jpeg",cacheControl:"public,max-age=31536000"});
+  return await getDownloadURL(snap.ref);
+}
+function firebaseStorageMessage(e){
+  const code=e?.code||"";
+  if(code==="storage/unauthorized")return "Foto ditolak Firebase Storage. Pastikan Storage Rules terbaru sudah dipasang.";
+  if(code==="storage/unknown"||code==="storage/retry-limit-exceeded")return "Firebase Storage sedang bermasalah. Coba lagi sebentar.";
+  if(code==="storage/bucket-not-found")return "Firebase Storage belum diaktifkan pada project tubi-app.";
+  if(code==="storage/unauthenticated")return "Sesi login Firebase sudah habis. Login lagi lalu coba simpan.";
+  return "Foto gagal disimpan. Pastikan Firebase Storage sudah diaktifkan dan Rules terbaru sudah dipasang.";
 }
 async function saveProduct(form){
-  const fd=new FormData(form);const tags=String(fd.get("tags")||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean).slice(0,12);const data={name:String(fd.get("name")).trim(),price:Number(fd.get("price")),category:String(fd.get("category")),tags,rating:Number(fd.get("rating"))||5,emoji:"Tubi",description:String(fd.get("description")||"").trim()};
+  const fd=new FormData(form);
+  const tags=String(fd.get("tags")||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean).slice(0,12);
+  const data={name:String(fd.get("name")).trim(),price:Number(fd.get("price")),category:String(fd.get("category")),tags,rating:Number(fd.get("rating"))||5,emoji:"Tubi",description:String(fd.get("description")||"").trim()};
   const file=$("#productImage")?.files?.[0];
-  if(file)data.image=await compressImage(file);else if(state.editingProduct)data.image=state.editingProduct.image||"";
   if(!data.name||data.price<0){toast("Lengkapi nama dan harga.");return}
   try{
-    if(state.editingProduct)await updateDoc(doc(db,"products",state.editingProduct.id),data);
-    else await addDoc(collection(db,"products"),data);
+    let productId=state.editingProduct?.id;
+    if(productId){
+      if(file)data.image=await uploadImage(file,`products/${state.user.uid}/${productId}-${Date.now()}.jpg`);
+      else data.image=state.editingProduct.image||"";
+      await updateDoc(doc(db,"products",productId),data);
+    }else{
+      const ref=await addDoc(collection(db,"products"),{...data,image:""});
+      productId=ref.id;
+      try{
+        if(file){
+          data.image=await uploadImage(file,`products/${state.user.uid}/${productId}-${Date.now()}.jpg`);
+          await updateDoc(ref,{image:data.image});
+        }
+      }catch(uploadErr){
+        await deleteDoc(ref).catch(()=>{});
+        throw uploadErr;
+      }
+    }
     state.editingProduct=null;render();toast("Produk berhasil disimpan.");
-  }catch(e){console.error(e);toast("Gagal menyimpan produk. Cek Firestore Rules.");}
+  }catch(e){
+    console.error("Save product:",e);
+    const msg=String(e?.code||"").startsWith("storage/")?firebaseStorageMessage(e):(e?.code==="permission-denied"?"Produk ditolak Firestore. Pasang Firestore Rules terbaru.":"Produk gagal disimpan. Periksa koneksi Firebase.");
+    toast(msg);
+  }
 }
 async function seed(){
   if(!window.confirm("Buat katalog produk awal Tubi sekarang?"))return;
@@ -698,10 +822,15 @@ async function saveProfile(){
 async function saveProfilePhoto(file){
   if(!file||!state.user)return;
   try{
-    const data=await compressImage(file);
-    await setDoc(doc(db,"users",state.user.uid),{photoURL:data},{merge:true});
-    state.profile={...(state.profile||{}),photoURL:data};render();toast("Foto profil diperbarui.");
-  }catch(e){console.error(e);toast("Foto profil gagal disimpan.");}
+    const url=await uploadImage(file,`users/${state.user.uid}/profile-${Date.now()}.jpg`);
+    await setDoc(doc(db,"users",state.user.uid),{photoURL:url},{merge:true});
+    try{await updateProfile(state.user,{photoURL:url})}catch{}
+    state.profile={...(state.profile||{}),photoURL:url};
+    render();toast("Foto profil berhasil disimpan.");
+  }catch(e){
+    console.error("Profile photo:",e);
+    toast(firebaseStorageMessage(e));
+  }
 }
 
 function setUiLock(locked){
@@ -786,7 +915,17 @@ document.addEventListener("keydown",e=>{
   ["cartBackdrop","productBackdrop","loginBackdrop"].forEach(closeOverlay);
 });
 setupInstallPrompt();
-if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(err => console.warn("Tubi SW:", err))); }
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", async () => {
+    try{
+      const reg=await navigator.serviceWorker.register("./sw.js");
+      await reg.update();
+    }catch(err){console.warn("Tubi SW:",err)}
+  });
+  document.addEventListener("visibilitychange",()=>{
+    if(document.visibilityState==="visible")navigator.serviceWorker.getRegistration("./sw.js").then(r=>r?.update()).catch(()=>{});
+  });
+}
 onAuthStateChanged(auth,user=>{if(user){afterLogin(user).catch(e=>{console.error(e);state.user=user;state.isAdmin=emailIsFixedAdmin(user.email);state.adminEmails=state.isAdmin?[ADMIN_EMAIL]:[];subscribeOrders();render()})}else{state.user=null;state.profile=null;state.isAdmin=false;state.orders=[];render()}});
 getRedirectResult(auth).catch(e=>{if(e?.code)console.warn("Redirect:",e.code)});
 subscribeProducts();
