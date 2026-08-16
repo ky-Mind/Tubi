@@ -28,7 +28,7 @@ Semua UI utama tetap berada di `index.html`, sehingga perubahan tampilan/fitur k
 Static Vercel deployment. Firebase Authentication/Firestore remain configured in index.html. Firestore rules are in firestore.rules and must be published in Firebase Console if they have not been published yet.
 
 
-## Client revision — v4.1
+## Client revision — v4.2
 Perbaikan yang termasuk dalam revisi ini:
 - Modal/drawer mengunci scroll dan interaksi halaman belakang.
 - Dark mode contrast diperbaiki untuk modal, form, admin, drawer, dan navigasi.
@@ -40,3 +40,14 @@ Perbaikan yang termasuk dalam revisi ini:
 
 ### Penting untuk Firebase
 `firestore.rules` pada ZIP ini harus dipublish/deploy ke project Firebase `tubi-app`. ZIP tidak dapat mengubah Rules yang sudah tersimpan di Firebase Console secara otomatis. Jika checkout masih mendapat `permission-denied`, publish file `firestore.rules` terlebih dahulu.
+
+
+### v4.2 — Client polish
+- Admin dashboard is a management surface: no cart/buy controls on the admin view.
+- Product management is explicit CRUD with edit/delete, menu category, taste/attribute tags, availability, and image preview.
+- Customer and admin share the same Firestore `products` and `orders` collections.
+- Added a one-click admin catalog import when Firestore has no products, preventing the customer fallback catalog from appearing as an unexplained admin `0`.
+- Product images use a common fallback resolver in customer cards, detail, cart, and admin preview.
+- Search now understands both menu types and taste/attribute intent.
+- Dark mode and the display-mode control were polished for contrast and clarity.
+- Admin order status now includes `Siap` in addition to Menunggu/Diproses/Selesai/Dibatalkan.
