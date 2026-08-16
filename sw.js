@@ -1,6 +1,7 @@
-const CACHE="tubi-v4-rev4-spark";
+const CACHE="tubi-v5-final-blueprint";
 const CORE=["./","./index.html","./manifest.webmanifest","./tubi-icon.png","./tubi-icon-192.png","./tubi-icon-512.png"];
 
+self.addEventListener("message",event=>{if(event.data?.type==="SKIP_WAITING")self.skipWaiting();});
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)).then(()=>self.skipWaiting()));
 });

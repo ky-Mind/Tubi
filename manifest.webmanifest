@@ -7,6 +7,10 @@
   "background_color": "#ffffff",
   "theme_color": "#ed1b2f",
   "description": "Aplikasi pemesanan makanan Tubi",
+  "categories": [
+    "food",
+    "shopping"
+  ],
   "icons": [
     {
       "src": "./tubi-icon-192.png",
@@ -19,6 +23,30 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Pesanan",
+      "short_name": "Pesanan",
+      "url": "./?view=orders",
+      "icons": [
+        {
+          "src": "./tubi-icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Profil",
+      "short_name": "Profil",
+      "url": "./?view=profile",
+      "icons": [
+        {
+          "src": "./tubi-icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

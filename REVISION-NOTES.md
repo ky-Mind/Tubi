@@ -1,28 +1,25 @@
-# Tubi — Production Revision
+# Tubi — Final Blueprint Revision
 
-## Fixed
-- Firebase Storage upload for profile/product photos.
-- Firestore rules for customer/admin/order access.
-- Storage rules for profile/product images.
-- Admin dashboard CRUD remains separate from customer cart.
-- Checkout error handling made actionable.
-- Dark mode contrast across admin and modal surfaces.
-- Background scroll/interactions locked while drawer or modal is active.
-- Service worker changed to network-first for HTML to prevent stale GitHub/Vercel builds.
-- No files/config from the separate reference project were copied into Tubi.
+## Finalized
+- Customer and Admin experiences separated; Admin has no cart/add-to-cart controls.
+- Products are read from Firestore as the single source of truth; customer no longer falls back to hardcoded catalog when Firestore is empty.
+- Admin CRUD supports category, attributes/taste, rating, description, image, and availability (Tersedia/Habis).
+- Product images are compressed client-side and stored in Firestore for Firebase Spark compatibility; no Storage dependency.
+- Smart search covers name, category, description, attributes/tags and fuzzy/synonym matching.
+- Checkout writes orders to Firestore with `menunggu` status and includes recipient, phone, address, location, notes and item image references.
+- Customer can cancel eligible orders; Admin controls the full status flow `Menunggu → Diproses → Siap → Selesai` plus `Dibatalkan`.
+- Admin order view includes order ID, customer, recipient, phone, address/location, items, prices, totals, notes, time, status and print action.
+- Admin notifications are stored in Firestore and shown with unread/read state.
+- Omzet/reporting uses completed (`selesai`) orders only, with 1/7/30-day totals and a simple 7-day chart.
+- Admin calculator, bug report management, FAQ/help, WhatsApp settings and printer/fallback print tools added.
+- Customer help center, WhatsApp contact and bug reporting with optional screenshot added.
+- Reviews can be submitted after completed orders.
+- Modal/drawer background locking, dark/light support, responsive admin panels and PWA update prompt retained/improved.
+- Service worker cache version bumped and supports `SKIP_WAITING` for in-app update flow.
+- Firestore rules cover products, users, orders, admins, notifications, bug reports, reviews and public store settings.
 
-## Firebase one-time action
-Enable Firebase Storage in project `tubi-app`, then deploy:
-`firebase deploy --only firestore:rules,storage`
+## Firebase Spark image strategy
+Product/profile/bug screenshots are compressed in-browser as JPEG data URLs and stored in Firestore. Firebase Storage is not required.
 
-## Vercel
-Keep the same Vercel project and production domain. Push to `main`; Vercel creates a new production deployment without changing the domain.
-
-
-## REV4 — Firebase Spark $0
-- Removed Firebase Storage SDK and all Cloud Storage dependencies.
-- Product and profile uploads are compressed in-browser to JPEG data URLs and stored in Firestore.
-- Image output is limited to 900px and guarded below 850 KB per image field to stay safely below Firestore's 1 MiB document limit.
-- Removed `storage.rules` and the Storage section from `firebase.json`.
-- Google Authentication and Firestore remain unchanged.
-- This build does not require upgrading the Firebase project to Blaze for image uploads.
+## Deployment
+`package.json` remains dependency-free for the static Vercel deployment. `npm run build` is an intentional no-op build and does not require Vite.

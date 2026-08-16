@@ -178,10 +178,14 @@ body.dark .preview img{background:var(--surface2)}
   .map-actions .outline{flex:1;min-width:145px}
   .detail-image{height:210px}
 }
+/* Tubi Final Blueprint additions */
+.admin-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.admin-tab{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:9px 13px;cursor:pointer}.admin-tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.admin-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.admin-kpi{padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}.admin-kpi strong{display:block;font-size:24px;margin-top:5px}.admin-section{margin-top:18px}.admin-two{display:grid;grid-template-columns:1fr 1fr;gap:16px}.admin-list{display:grid;gap:10px}.notice-row,.bug-row,.setting-row{padding:13px;border:1px solid var(--line);border-radius:13px;background:var(--surface2);display:flex;gap:12px;justify-content:space-between;align-items:flex-start}.notice-row.unread{border-color:var(--accent)}.is-soldout .product-img{filter:grayscale(.45)}.order-status-flow{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px}.status-chip{font-size:11px;padding:5px 8px;border-radius:999px;background:var(--surface2);border:1px solid var(--line)}.status-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}.calc{display:grid;gap:8px}.calc-display{font-size:22px;text-align:right}.printer-box{border:1px dashed var(--line);padding:16px;border-radius:14px}.help-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.help-item{padding:13px;border:1px solid var(--line);border-radius:13px}.chart-bars{display:flex;align-items:end;gap:8px;height:150px}.chart-bar{flex:1;min-width:8px;background:var(--accent);border-radius:7px 7px 2px 2px}.chart-label{font-size:10px;text-align:center;margin-top:5px}
+@media(max-width:760px){.admin-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.admin-two,.help-grid{grid-template-columns:1fr}.admin-tabs{overflow:auto;flex-wrap:nowrap}.admin-tab{white-space:nowrap}}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div id="app"></div><div class="version-banner" id="versionBanner"><span><strong>Versi baru Tubi tersedia.</strong><br><small class="muted">Perbarui untuk mendapatkan fitur terbaru.</small></span><button class="primary compact" id="updateApp">Perbarui sekarang</button></div>
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
 <aside class="drawer" id="drawer" aria-label="Menu Tubi">
   <div class="drawer-head"><div class="brand"><img src="./tubi-icon.png" alt="Tubi">tubi</div><button class="close" id="closeDrawer" aria-label="Tutup menu">×</button></div>
@@ -221,26 +225,29 @@ const ADMIN_EMAIL = ADMIN_EMAILS[0];
 const normalizedEmail = value => String(value || "").trim().toLowerCase();
 const emailIsFixedAdmin = email => ADMIN_EMAILS.some(item => normalizedEmail(item) === normalizedEmail(email));
 const FALLBACK_PRODUCTS = [
-  {id:"default-roti",name:"Roti Kukus Thailand",price:5000,rating:4.9,category:"Manis",tags:["manis","coklat","matcha","keju"],emoji:"Tubi",image:"./assets/roti-kukus.png",description:"Roti kukus lembut dengan pilihan rasa manis seperti coklat, matcha, keju, blueberry, strawberry, dan abon."},
-  {id:"default-topokki",name:"Topokki Sosis & Odeng",price:10000,rating:4.9,category:"Pedas",tags:["pedas","gurih","sosis","odeng"],emoji:"Tubi",image:"./assets/topokki.png",description:"Topokki kenyal dengan saus pedas gurih, sosis, dan odeng."},
-  {id:"default-cilok",name:"Cilok dan Tahu",price:10000,rating:4.8,category:"Gurih",tags:["gurih","cilok","tahu","saus"],emoji:"Tubi",image:"./assets/cilok.png",description:"Cilok dan tahu dalam porsi praktis dengan pilihan saus gurih."},
-  {id:"default-kwetiau",name:"Kwetiau Goreng Pangsit",price:12000,rating:4.8,category:"Gurih",tags:["gurih","kwetiau","pangsit","goreng"],emoji:"Tubi",image:"./assets/kwetiau.png",description:"Kwetiau goreng gurih dengan pangsit dan topping pilihan."},
-  {id:"default-chili",name:"Chili Oil Favorit",price:15000,rating:4.9,category:"Sambal",tags:["sambal","pedas","chili oil","gurih"],emoji:"Tubi",image:"./assets/dimsum-chili.png",description:"Camilan dengan chili oil khas untuk pencinta rasa pedas dan gurih."},
-  {id:"default-mambo",name:"Es Mambo Susu",price:2000,rating:4.9,category:"Segar",tags:["segar","manis","susu","dingin"],emoji:"Tubi",image:"./assets/es-mambo.png",description:"Es mambo susu aneka rasa, segar dan cocok diminum kapan saja."},
-  {id:"default-creamy",name:"Creamy Special Tubi",price:13000,rating:4.8,category:"Creamy",tags:["creamy","gurih","saus"],emoji:"Tubi",image:"./assets/menu-poster.jpg",description:"Pilihan creamy dengan saus lembut dan gurih untuk teman makan."}
+  {id:"default-roti",name:"Roti Kukus Thailand",price:5000,rating:4.9,category:"Roti",attributes:["Manis","Coklat","Keju"],tags:["manis","coklat","keju"],emoji:"Tubi",image:"./assets/roti-kukus.png",description:"Roti kukus lembut dengan pilihan rasa manis seperti coklat, matcha, keju, blueberry, strawberry, dan abon."},
+  {id:"default-topokki",name:"Topokki Sosis & Odeng",price:10000,rating:4.9,category:"Tteokbokki",attributes:["Pedas","Gurih"],tags:["pedas","gurih","sosis","odeng"],emoji:"Tubi",image:"./assets/topokki.png",description:"Topokki kenyal dengan saus pedas gurih, sosis, dan odeng."},
+  {id:"default-cilok",name:"Cilok dan Tahu",price:10000,rating:4.8,category:"Cilok",attributes:["Gurih"],tags:["gurih","cilok","tahu","saus"],emoji:"Tubi",image:"./assets/cilok.png",description:"Cilok dan tahu dalam porsi praktis dengan pilihan saus gurih."},
+  {id:"default-kwetiau",name:"Kwetiau Goreng Pangsit",price:12000,rating:4.8,category:"Kwetiau",attributes:["Gurih"],tags:["gurih","kwetiau","pangsit","goreng"],emoji:"Tubi",image:"./assets/kwetiau.png",description:"Kwetiau goreng gurih dengan pangsit dan topping pilihan."},
+  {id:"default-chili",name:"Chili Oil Favorit",price:15000,rating:4.9,category:"Dimsum",attributes:["Sambal","Pedas","Gurih"],tags:["sambal","pedas","chili oil","gurih"],emoji:"Tubi",image:"./assets/dimsum-chili.png",description:"Camilan dengan chili oil khas untuk pencinta rasa pedas dan gurih."},
+  {id:"default-mambo",name:"Es Mambo Susu",price:2000,rating:4.9,category:"Minuman",attributes:["Segar","Manis"],tags:["segar","manis","susu","dingin"],emoji:"Tubi",image:"./assets/es-mambo.png",description:"Es mambo susu aneka rasa, segar dan cocok diminum kapan saja."},
+  {id:"default-creamy",name:"Creamy Special Tubi",price:13000,rating:4.8,category:"Lainnya",attributes:["Creamy","Gurih"],tags:["creamy","gurih","saus"],emoji:"Tubi",image:"./assets/menu-poster.jpg",description:"Pilihan creamy dengan saus lembut dan gurih untuk teman makan."}
 ];
-const CATS = [
-  ["Pedas","Pedas","star"],["Manis","Manis","sun"],["Gurih","Gurih","orders"],
-  ["Sambal","Sambal","heart"],["Creamy","Creamy","grid"],["Segar","Segar","map"]
-];
+const CATEGORY_OPTIONS=["Roti","Dimsum","Tteokbokki","Kwetiau","Cilok","Minuman","Lainnya"];
+const ATTRIBUTE_OPTIONS=["Pedas","Manis","Gurih","Asin","Sambal","Creamy","Segar","Keju","Coklat"];
+const CATS=CATEGORY_OPTIONS.map((x,i)=>[x,x,["grid","orders","star","map","heart","sun","grid"][i]||"grid"]);
+const ORDER_STATUSES=["menunggu","diproses","siap","selesai","dibatalkan"];
+function productAvailable(p){return p?.available!==false && p?.availability!=="habis";}
+function displayStatus(s){const v=String(s||"menunggu").toLowerCase();return v==="baru"?"menunggu":v;}
+function statusLabel(s){const v=displayStatus(s);return ({menunggu:"Menunggu",diproses:"Diproses",siap:"Siap",selesai:"Selesai",dibatalkan:"Dibatalkan"})[v]||v;}
 
 const state = {
   user:null, profile:null, isAdmin:false, view:"home", q:"", cat:"Semua",
   products:[], orders:[], favorites:JSON.parse(localStorage.getItem("tubi_favorites")||"[]"),
-  cart:JSON.parse(localStorage.getItem("tubi_cart")||"[]"), productsUnsub:null, ordersUnsub:null, adminOrdersUnsub:null,
+  cart:JSON.parse(localStorage.getItem("tubi_cart")||"[]"), productsUnsub:null, ordersUnsub:null, adminOrdersUnsub:null, notificationsUnsub:null, settingsUnsub:null,
   editingProduct:null,
   adminEmails:[],
-  profileSaving:false, theme:localStorage.getItem("tubi_theme")||((window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"), installPrompt:null, location:null
+  profileSaving:false, checkoutBusy:false, theme:localStorage.getItem("tubi_theme")||((window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches)?"dark":"light"), installPrompt:null, location:null
 };
 const $=s=>document.querySelector(s);
 const rupiah=n=>new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(Number(n)||0);
@@ -248,7 +255,7 @@ const escapeHtml=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;"
 const isAdmin=()=>!!state.user && state.isAdmin===true;
 function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("show");clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.classList.remove("show"),2500)}
 function saveLocal(){localStorage.setItem("tubi_cart",JSON.stringify(state.cart));localStorage.setItem("tubi_favorites",JSON.stringify(state.favorites))}
-function productById(id){return state.products.find(p=>p.id===id)||FALLBACK_PRODUCTS.find(p=>p.id===id)}
+function productById(id){return state.products.find(p=>p.id===id)||null}
 const SEARCH_SYNONYMS={
   pedas:["pedas","hot","spicy","cabe","cabai","chili","sambal","mercon"],
   manis:["manis","sweet","coklat","cokelat","gula","matcha","stroberi","strawberry"],
@@ -388,18 +395,19 @@ function applyTheme(){
 function renderDrawer(){
   const links=document.getElementById("drawerLinks");
   if(!links)return;
-  const items=[
-    ["home","home","Beranda"],
-    ["orders","orders","Pesanan saya"],
-    ["favorites","heart","Favorit"],
-    ["profile","user","Profil"]
-  ];
-  if(isAdmin())items.push(["admin","grid","Dashboard Admin"]);
+  const items=isAdmin()
+    ? [["admin","grid","Dashboard Admin"],["profile","user","Profil Admin"]]
+    : [["home","home","Beranda"],["orders","orders","Pesanan saya"],["favorites","heart","Favorit"],["profile","user","Profil"]];
   links.innerHTML=items.map(([v,icon,label])=>`<button data-view="${v}" class="${state.view===v?"active":""}">${svg(icon,19)} ${label}</button>`).join("");
   links.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>setView(b.dataset.view));
   applyTheme();
   const install=document.getElementById("installBtn");
   if(install)install.style.display=state.installPrompt?"grid":"none";
+}
+function showUpdateBanner(reg){
+  const b=$("#versionBanner"); if(!b)return;
+  b.style.display="flex";
+  const btn=$("#updateApp"); if(btn)btn.onclick=()=>{if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});location.reload();}else{location.reload();}};
 }
 function setupInstallPrompt(){
   window.addEventListener("beforeinstallprompt",e=>{
@@ -450,7 +458,7 @@ function render(){
   const admin=!!isAdmin();
   const drawerAdmin=document.getElementById("drawerAdmin");
   if(drawerAdmin) drawerAdmin.style.display=admin?"block":"none";
-  const visible=state.products.length?state.products:FALLBACK_PRODUCTS;
+  const visible=state.products;
   const filtered=smartProducts(visible,state.q,state.cat);
   const root=$("#app");
   root.innerHTML=`
@@ -459,9 +467,7 @@ function render(){
       <div class="topbar">
         <button class="icon-btn" id="menuBtn" aria-label="Menu">${svg("menu",25)}</button>
         <div class="brand"><img src="./tubi-icon.png" alt="Tubi">tubi</div>
-        <div class="top-actions">
-          <button class="icon-btn cart-badge" id="cartBtn" aria-label="Keranjang">${svg("cart",24)}<i>${state.cart.reduce((a,x)=>a+x.qty,0)}</i></button>
-        </div>
+        <div class="top-actions">${admin?"":`<button class="icon-btn cart-badge" id="cartBtn" aria-label="Keranjang">${svg("cart",24)}<i>${state.cart.reduce((a,x)=>a+x.qty,0)}</i></button>`}</div>
       </div>
       <div class="view ${state.view==="home"?"active":""}">
         <div class="hero"><div class="hero-copy"><div class="eyebrow">Selamat datang di</div><h1>Tubi</h1><p>Pesan makanan favoritmu dengan mudah, cepat, dan nyaman.</p><div class="hero-points"><span>Restoran pilihan</span><span>Pesanan real-time</span><span>Profil personal</span></div></div><div class="hero-art" aria-hidden="true"><span></span><span></span><span></span></div></div>
@@ -483,12 +489,7 @@ function render(){
       <div class="view ${state.view==="profile"?"active":""}">${profileView()}</div>
       ${admin&&state.view==="admin"?adminView():""}
     </div>
-    <nav class="bottom-nav">
-      ${nav("home","home","Beranda")}
-      ${nav("orders","orders","Pesanan")}
-      ${nav("favorites","heart","Favorit")}
-      ${nav("profile","user","Akun")}
-    </nav>
+    <nav class="bottom-nav">${admin?`${nav("admin","grid","Admin")}${nav("profile","user","Akun")}`:`${nav("home","home","Beranda")}${nav("orders","orders","Pesanan")}${nav("favorites","heart","Favorit")}${nav("profile","user","Akun")}`}</nav>
   </div>`;
   bind();
   renderDrawer();
@@ -500,17 +501,18 @@ function loginCard(){
   return `<div class="login-card"><div><strong>Sudah punya akun?</strong><small class="muted" style="display:block;margin-top:5px">Masuk untuk menyimpan pesanan dan favorit.</small></div><button class="google" id="googleBtn">${googleIcon()} <span>Masuk dengan Google</span></button></div>`;
 }
 function productCard(p){
-  const fav=state.favorites.includes(p.id);
-  return `<article class="product">${imageHtml(p)}<div class="product-body"><button class="product-name-btn" data-detail="${p.id}" title="${escapeHtml(p.name)}"><h3>${escapeHtml(p.name)}</h3></button><small class="rating">★ ${p.rating||"5.0"} · Siap dipesan</small>${Array.isArray(p.tags)&&p.tags.length?`<div class="tag-row">${p.tags.slice(0,3).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("")}</div>`:""}<small class="muted product-short-desc">${escapeHtml(p.description||"Favorit Tubi untuk kamu.")}</small><strong class="price">${rupiah(p.price)}</strong><div class="product-actions"><button class="heart ${fav?"active":""}" data-fav="${p.id}" aria-label="Favorit">${fav?"♥":"♡"}</button><button class="add" data-add="${p.id}">+ Tambah</button></div></div></article>`;
+  const fav=state.favorites.includes(p.id), available=productAvailable(p);
+  const attrs=Array.isArray(p.attributes)?p.attributes:(Array.isArray(p.tags)?p.tags:[]);
+  return `<article class="product ${available?"":"is-soldout"}">${imageHtml(p)}<div class="product-body"><button class="product-name-btn" data-detail="${p.id}" title="${escapeHtml(p.name)}"><h3>${escapeHtml(p.name)}</h3></button><small class="rating">★ ${p.rating||"5.0"} · ${available?"Siap dipesan":"Habis"}</small>${attrs.length?`<div class="tag-row">${attrs.slice(0,3).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join("")}</div>`:""}<small class="muted product-short-desc">${escapeHtml(p.description||"Pilihan Tubi untuk kamu.")}</small><strong class="price">${rupiah(p.price)}</strong><div class="product-actions"><button class="heart ${fav?"active":""}" data-fav="${p.id}" aria-label="Favorit">${fav?"♥":"♡"}</button><button class="add" data-add="${p.id}" ${available?"":"disabled"}>${available?"+ Tambah":"Habis"}</button></div></div></article>`;
 }
 function ordersView(){
   return `<section class="section"><div class="section-head"><div><h2>Pesanan saya</h2><span class="muted">${state.user?"Riwayat pesanan akun ini":"Masuk untuk melihat pesanan"}</span></div><button class="outline" id="homeFromOrders">Beranda</button></div>${!state.user?`<div class="empty">Silakan masuk dengan Google untuk membuat dan melihat pesanan.<br><button class="google" id="googleBtn2" style="margin-top:13px">${googleIcon()} <span>Masuk dengan Google</span></button></div>`:state.orders.length?`<div class="orders">${state.orders.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(orderCard).join("")}</div>`:`<div class="empty">Belum ada pesanan.<br><button class="outline" id="shopNow" style="margin-top:12px">Mulai belanja</button></div>`}</section>`;
 }
 function orderCard(o){
-  return `<div class="order"><div class="order-top"><div><strong>${escapeHtml(o.recipientName||o.customerName||o.email||"Pesanan")}</strong><small class="muted" style="display:block;margin-top:4px">${timeText(o.createdAt)}</small></div><span class="status ${statusClass(o.status)}">${escapeHtml(o.status||"baru")}</span></div><div class="order-items">${(o.items||[]).map(i=>`${i.qty}× ${escapeHtml(i.name)} — ${rupiah(i.price*i.qty)}`).join("<br>")}</div>${o.mapsUrl||o.address?`<a class="order-map" href="${escapeHtml(o.mapsUrl||mapsSearchUrl(o.address))}" target="_blank" rel="noopener noreferrer">${svg("map",15)} Lihat lokasi di Google Maps</a>`:""}<strong style="display:block;margin-top:7px">Total ${rupiah(o.total)}</strong></div>`;
+  return `<div class="order"><div class="order-top"><div><strong>${escapeHtml(o.recipientName||o.customerName||o.email||"Pesanan")}</strong><small class="muted" style="display:block;margin-top:4px">${timeText(o.createdAt)}</small></div><span class="status ${statusClass(displayStatus(o.status))}">${escapeHtml(statusLabel(o.status))}</span></div><div class="order-items">${(o.items||[]).map(i=>`${i.image?`<img src="${escapeHtml(i.image)}" alt="" style="width:34px;height:34px;object-fit:cover;border-radius:7px;vertical-align:middle;margin-right:5px">`:""}${i.qty}× ${escapeHtml(i.name)} — ${rupiah(i.price*i.qty)}`).join("<br>")}</div>${o.mapsUrl||o.address?`<a class="order-map" href="${escapeHtml(o.mapsUrl||mapsSearchUrl(o.address))}" target="_blank" rel="noopener noreferrer">${svg("map",15)} Lihat lokasi di Google Maps</a>`:""}<strong style="display:block;margin-top:7px">Total ${rupiah(o.total)}</strong>${["menunggu","diproses"].includes(displayStatus(o.status))?`<button class="outline danger full-btn" data-cancel-order="${o.id}" style="margin-top:10px">Batalkan pesanan</button>`:""}${displayStatus(o.status)==="selesai"&&!o.review?`<button class="outline full-btn" data-review-order="${o.id}" style="margin-top:8px">⭐ Beri review</button>`:""}</div>`;
 }
 function favoritesView(){
-  const favs=(state.products.length?state.products:FALLBACK_PRODUCTS).filter(p=>state.favorites.includes(p.id));
+  const favs=state.products.filter(p=>state.favorites.includes(p.id));
   return `<section class="section"><div class="section-head"><div><h2>Favorit</h2><span class="muted">Simpan makanan yang kamu suka.</span></div></div>${favs.length?`<div class="products">${favs.map(productCard).join("")}</div>`:`<div class="empty">Belum ada favorit.<br>Tekan ♡ pada produk untuk menyimpannya.</div>`}</section>`;
 }
 function profileView(){
@@ -527,44 +529,119 @@ function profileView(){
       <div class="field full"><label>Alamat pengantaran</label><textarea id="profileAddress" placeholder="Alamat yang biasa dipakai untuk pesanan">${escapeHtml(state.profile?.address||"")}</textarea><div class="map-actions"><button class="outline" type="button" id="profileLocation">${svg("location",17)} Gunakan lokasi saya</button>${state.profile?.address?`<button class="outline" type="button" id="profileMap">${svg("map",17)} Buka di Google Maps</button>`:""}</div></div>
       <div class="field full"><label>Tentang kamu</label><textarea id="profileBio" placeholder="Tambahkan catatan singkat tentang profilmu">${escapeHtml(state.profile?.bio||"")}</textarea></div>
     </div>
+    <div class="admin-two" style="margin-top:18px"><div class="panel"><h3>Pusat Bantuan</h3><div class="help-grid">${FAQ_ITEMS.slice(0,4).map(x=>`<div class="help-item"><strong>${escapeHtml(x.q)}</strong><div class="muted" style="margin-top:5px">${escapeHtml(x.a)}</div></div>`).join("")}</div>${whatsappUrl()?`<a class="primary" style="display:block;text-align:center;margin-top:12px;text-decoration:none" href="${whatsappUrl()}" target="_blank" rel="noopener noreferrer">Hubungi Admin via WhatsApp</a>`:"<small class='muted'>Nomor WhatsApp admin belum diatur.</small>"}</div><div class="panel"><h3>Laporkan masalah</h3><div class="field"><label>Jenis masalah</label><select id="bugType"><option>Pesanan</option><option>Login</option><option>Produk</option><option>Lokasi</option><option>Pembayaran</option><option>Lainnya</option></select></div><div class="field"><label>Nomor pesanan (opsional)</label><input id="bugOrder" placeholder="ID pesanan"></div><div class="field"><label>Deskripsi</label><textarea id="bugDescription" placeholder="Jelaskan masalah yang terjadi"></textarea></div><div class="field"><label>Screenshot (opsional)</label><input id="bugScreenshot" type="file" accept="image/*"></div><button class="outline" id="submitBug">Kirim laporan</button></div></div>
     <div class="account-actions"><button class="primary compact" id="saveProfile">${state.profileSaving?"Menyimpan...":"Simpan profil"}</button><button class="outline" id="myOrdersBtn">${svg("orders",18)} Pesanan saya</button><button class="outline" id="myFavBtn">${svg("heart",18)} Favorit</button></div>${state.installPrompt?`<div class="install-banner"><div><strong>Pasang Tubi di perangkat</strong><div class="muted">Akses lebih cepat seperti aplikasi.</div></div><button class="primary compact" id="installProfile">Pasang sekarang</button></div>`:""}
     ${isAdmin()?`<div class="admin-banner"><div><strong>Dashboard Admin</strong><div class="muted">Kelola katalog, produk, admin, dan pesanan customer.</div></div><button class="primary compact" id="adminBtn">Buka Dashboard</button></div>`:""}
     <button class="outline danger full-btn" id="logoutBtn">${svg("logout",18)} Keluar</button>
   </div></section>`;
 }
 
+
+const FAQ_ITEMS=[
+ {q:"Cara pesan?",a:"Pilih produk, tambahkan ke keranjang, lalu checkout dengan alamat dan nomor WhatsApp."},
+ {q:"Cara melihat status?",a:"Buka Pesanan saya. Status berubah realtime mengikuti proses admin."},
+ {q:"Pesanan gagal?",a:"Pastikan koneksi internet aktif, login Google, dan alamat pengantaran sudah diisi."},
+ {q:"Login Google bermasalah?",a:"Pastikan domain Tubi sudah masuk Authorized domains Firebase Authentication."},
+ {q:"Lokasi tidak terbaca?",a:"Izinkan lokasi di browser, lalu tekan Gunakan lokasi saya kembali."},
+ {q:"Produk tidak muncul?",a:"Produk customer berasal dari Firestore. Jika katalog kosong, admin dapat membuat katalog awal dari Dashboard."}
+];
+state.notifications=state.notifications||[]; state.bugReports=state.bugReports||[]; state.storeSettings=state.storeSettings||{}; state.printer=JSON.parse(localStorage.getItem("tubi_printer")||'{"connected":false,"auto":false}');
+function periodRevenue(days){
+  const cutoff=Date.now()-days*86400000;
+  return (state.orders||[]).filter(o=>displayStatus(o.status)==="selesai" && o.createdAt?.toDate && o.createdAt.toDate().getTime()>=cutoff).reduce((a,o)=>a+Number(o.total||0),0);
+}
+function revenueChartHtml(){
+  const days=[]; for(let i=6;i>=0;i--){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-i);const next=new Date(d);next.setDate(next.getDate()+1);const val=(state.orders||[]).filter(o=>displayStatus(o.status)==="selesai"&&o.createdAt?.toDate&&o.createdAt.toDate()>=d&&o.createdAt.toDate()<next).reduce((a,o)=>a+Number(o.total||0),0);days.push({d,val});}
+  const max=Math.max(1,...days.map(x=>x.val)); return `<div class="chart-bars">${days.map(x=>`<div style="flex:1;text-align:center"><div class="chart-bar" style="height:${Math.max(6,Math.round(x.val/max*120))}px" title="${rupiah(x.val)}"></div><div class="chart-label">${x.d.getDate()}/${x.d.getMonth()+1}</div></div>`).join("")}</div>`;
+}
+function topProductsHtml(){
+  const map={}; (state.orders||[]).filter(o=>displayStatus(o.status)==="selesai").forEach(o=>(o.items||[]).forEach(i=>{map[i.id||i.name]=(map[i.id||i.name]||0)+Number(i.qty||0)}));
+  const rows=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  return rows.length?rows.map((r,i)=>`<div class="notice-row"><span>${i+1}. ${escapeHtml((state.products.find(p=>p.id===r[0])?.name)||r[0])}</span><strong>${r[1]} terjual</strong></div>`).join(""):`<div class="empty">Belum ada transaksi selesai.</div>`;
+}
+function notificationHtml(n){
+  return `<div class="notice-row ${n.read?"":"unread"}"><div><strong>${escapeHtml(n.title||"Notifikasi")}</strong><div class="muted">${escapeHtml(n.body||"")}</div><small class="muted">${timeText(n.createdAt)}</small></div>${!n.read?`<button class="small-btn" data-read-notification="${n.id}">Baca</button>`:""}</div>`;
+}
+function bugHtml(b){
+  return `<div class="bug-row"><div><strong>${escapeHtml(b.type||"Masalah")}</strong><div>${escapeHtml(b.description||"")}</div><small class="muted">${escapeHtml(b.email||"")} · ${timeText(b.createdAt)}</small>${b.orderId?`<div class="muted">Order: ${escapeHtml(b.orderId)}</div>`:""}${b.screenshot?`<a class="outline" style="display:inline-block;margin-top:6px;text-decoration:none" href="${escapeHtml(b.screenshot)}" target="_blank" rel="noopener noreferrer">Lihat screenshot</a>`:""}</div><select class="status-select" data-bug-status="${b.id}"><option value="baru" ${b.status==="baru"?"selected":""}>Baru</option><option value="ditangani" ${b.status==="ditangani"?"selected":""}>Ditangani</option><option value="selesai" ${b.status==="selesai"?"selected":""}>Selesai</option></select></div>`;
+}
+async function loadAdminExtras(){
+  if(!isAdmin())return;
+  try{const n=await getDocs(collection(db,"notifications"));state.notifications=n.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));}catch(e){console.warn(e)}
+  try{const b=await getDocs(collection(db,"bugReports"));state.bugReports=b.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));}catch(e){console.warn(e)}
+  try{const s=await getDoc(doc(db,"settings","store"));state.storeSettings=s.exists()?s.data():{};}catch(e){console.warn(e)}
+}
+async function submitBug(){
+  if(!state.user){openLogin();return}
+  const type=$("#bugType")?.value||"Lainnya", description=$("#bugDescription")?.value.trim()||"", orderId=$("#bugOrder")?.value.trim()||"";
+  if(!description){toast("Jelaskan masalahnya dulu.");return}
+  try{const file=$("#bugScreenshot")?.files?.[0];let screenshot="";if(file)screenshot=await imageForFirestore(file);await addDoc(collection(db,"bugReports"),{userId:state.user.uid,email:state.user.email||"",type,description,orderId,screenshot,status:"baru",createdAt:serverTimestamp()});toast("Laporan bug terkirim ke admin.");$("#bugDescription").value="";if($("#bugScreenshot"))$("#bugScreenshot").value="";}catch(e){console.error(e);toast(e?.message||"Laporan belum terkirim. Coba lagi.");}
+}
+async function saveStoreSettings(form){
+  const fd=new FormData(form), data={whatsapp:String(fd.get("number")||"").replace(/\D/g,""),whatsappName:String(fd.get("name")||"Admin Tubi"),hours:String(fd.get("hours")||"")};
+  try{await setDoc(doc(db,"settings","store"),data,{merge:true});state.storeSettings={...(state.storeSettings||{}),...data};render();toast("Pengaturan toko disimpan.");}catch(e){console.error(e);toast("Pengaturan gagal disimpan.");}
+}
+function whatsappUrl(){
+  const n=String(state.storeSettings?.whatsapp||"").replace(/\D/g,"");
+  return n?`https://wa.me/${n}`:"";
+}
+function printOrder(o){
+  const w=window.open("","_blank","noopener,noreferrer"); if(!w){toast("Popup print diblokir browser.");return;}
+  const rows=(o.items||[]).map(i=>`<tr><td>${escapeHtml(i.name)}</td><td>${i.qty}</td><td>${rupiah(i.price)}</td><td>${rupiah(i.price*i.qty)}</td></tr>`).join("");
+  w.document.write(`<!doctype html><html><head><title>Struk Tubi ${escapeHtml(o.id)}</title><style>body{font-family:Arial,sans-serif;padding:24px;max-width:520px;margin:auto}table{width:100%;border-collapse:collapse}td{padding:6px 2px;border-bottom:1px solid #ddd}h1{margin-bottom:4px}.total{font-size:18px;font-weight:bold}</style></head><body><h1>TUBI</h1><div>Order: ${escapeHtml(o.id)}</div><div>Customer: ${escapeHtml(o.customerName||"")}</div><div>Penerima: ${escapeHtml(o.recipientName||"")}</div><div>Waktu: ${escapeHtml(timeText(o.createdAt))}</div><hr><table>${rows}</table><p>Catatan: ${escapeHtml(o.note||"-")}</p><p class="total">Total: ${rupiah(o.total)}</p><p>Status: ${escapeHtml(statusLabel(o.status))}</p><script>window.onload=()=>setTimeout(()=>window.print(),150)<\/script></body></html>`);w.document.close();
+}
+async function connectPrinter(){
+  if(!navigator.bluetooth){toast("Bluetooth browser tidak didukung. Tubi akan memakai fallback print.");return}
+  try{const device=await navigator.bluetooth.requestDevice({acceptAllDevices:true});state.printer.connected=!!device;state.printer.name=device.name||"Bluetooth printer";localStorage.setItem("tubi_printer",JSON.stringify(state.printer));render();toast("Perangkat dipilih. Dukungan cetak langsung bergantung pada printer.");}catch(e){if(e.name!=="NotFoundError")toast("Printer belum terhubung.");}
+}
+function testPrinter(){printOrder({id:"TEST-TUBI",customerName:"Test",recipientName:"Test",createdAt:null,items:[{name:"Tes cetak",qty:1,price:0}],total:0,note:"Printer Tubi",status:"menunggu"});}
+async function markNotification(id){try{await updateDoc(doc(db,"notifications",id),{read:true});state.notifications=state.notifications.map(n=>n.id===id?{...n,read:true}:n);render();}catch(e){console.error(e)}}
+async function readAllNotifications(){try{for(const n of state.notifications.filter(x=>!x.read))await updateDoc(doc(db,"notifications",n.id),{read:true});state.notifications=state.notifications.map(n=>({...n,read:true}));render();}catch(e){toast("Notifikasi belum bisa diperbarui.");}}
+async function changeBugStatus(id,status){try{await updateDoc(doc(db,"bugReports",id),{status});state.bugReports=state.bugReports.map(b=>b.id===id?{...b,status}:b);render();}catch(e){toast("Status laporan gagal diperbarui.");}}
 function adminView(){
-  const newOrders=state.orders.filter(o=>(o.status||"baru")==="baru").length;
-  return `<div class="admin-wrap"><div class="section-head"><div><div class="admin-kicker">TUBI CONTROL</div><h2>Dashboard Admin</h2><span class="muted">Kelola katalog dan pantau pesanan customer secara real-time.</span></div><button class="outline" id="adminHome">${svg("home",18)} Beranda</button></div>
-    <div class="stats-grid">
-      <div class="stat"><span>Produk</span><strong>${state.products.length}</strong></div>
-      <div class="stat"><span>Pesanan baru</span><strong>${newOrders}</strong></div>
-      <div class="stat"><span>Total pesanan</span><strong>${state.orders.length}</strong></div>
-      <div class="stat"><span>Admin aktif</span><strong>${state.adminEmails.length||1}</strong></div>
-    </div>
-    <div class="admin-grid">
+  const orders=state.orders||[];
+  const active=orders.filter(o=>!["selesai","dibatalkan"].includes(displayStatus(o.status)));
+  const done=orders.filter(o=>displayStatus(o.status)==="selesai");
+  const cancelled=orders.filter(o=>displayStatus(o.status)==="dibatalkan");
+  const revenue=done.reduce((a,o)=>a+Number(o.total||0),0);
+  const unread=(state.notifications||[]).filter(n=>!n.read).length;
+  const bugs=(state.bugReports||[]).filter(b=>b.status!=="selesai").length;
+  return `<div class="admin-wrap"><div class="section-head"><div><div class="admin-kicker">TUBI CONTROL</div><h2>Dashboard Admin</h2><span class="muted">Kelola toko, pesanan, laporan, bantuan, dan perangkat.</span></div><button class="outline" id="adminHome">${svg("home",18)} Beranda</button></div>
+    <div class="admin-kpis"><div class="admin-kpi"><span>Produk</span><strong>${state.products.length}</strong></div><div class="admin-kpi"><span>Pesanan berjalan</span><strong>${active.length}</strong></div><div class="admin-kpi"><span>Pesanan selesai</span><strong>${done.length}</strong></div><div class="admin-kpi"><span>Omzet selesai</span><strong>${rupiah(revenue)}</strong></div></div>
+    <div class="admin-tabs">${["overview","products","orders","reports","notifications","tools","support","settings"].map((t,i)=>`<button class="admin-tab ${i===0?"active":""}" data-admin-tab="${t}">${({overview:"Ringkasan",products:"Produk",orders:"Pesanan",reports:"Omzet & Laporan",notifications:"Notifikasi",tools:"Kalkulator",support:"Bantuan & Bug",settings:"Pengaturan"})[t]}</button>`).join("")}</div>
+    <div class="admin-section" data-admin-panel="overview"><div class="admin-two">
+      <div class="panel"><h3>Ringkasan hari ini</h3><div class="security-list"><div>${svg("check",18)} <span>Transaksi selesai: <strong>${done.length}</strong></span></div><div>${svg("check",18)} <span>Berjalan: <strong>${active.length}</strong></span></div><div>${svg("check",18)} <span>Dibatalkan: <strong>${cancelled.length}</strong></span></div><div>${svg("check",18)} <span>Notifikasi belum dibaca: <strong>${unread}</strong></span></div></div></div>
+      <div class="panel"><h3>Akses cepat</h3><div class="help-grid"><button class="outline" data-admin-jump="products">Kelola produk</button><button class="outline" data-admin-jump="orders">Pesanan masuk</button><button class="outline" data-admin-jump="notifications">Notifikasi ${unread?`(${unread})`:""}</button><button class="outline" data-admin-jump="settings">Printer & WhatsApp</button></div></div>
+    </div></div>
+    <div class="admin-section" data-admin-panel="products" hidden><div class="admin-two">
       <div class="panel"><h3>${state.editingProduct?"Edit produk":"Tambah produk baru"}</h3><form id="productForm"><div class="form-grid">
         <div class="field full"><label>Nama produk</label><input name="name" required value="${escapeHtml(state.editingProduct?.name||"")}" placeholder="Contoh: Ayam Geprek"></div>
-        <div class="field"><label>Harga (rupiah)</label><input name="price" type="number" min="0" required value="${state.editingProduct?.price||""}" placeholder="18000"></div>
-        <div class="field"><label>Kategori rasa</label><select name="category">${CATS.map(c=>`<option ${state.editingProduct?.category===c[1]?"selected":""}>${c[1]}</option>`).join("")}</select></div>
-        <div class="field"><label>Tag pencarian</label><input name="tags" value="${escapeHtml(Array.isArray(state.editingProduct?.tags)?state.editingProduct.tags.join(", "):state.editingProduct?.tags||"")}" placeholder="pedas, gurih, sambal"></div>
+        <div class="field"><label>Harga (rupiah)</label><input name="price" type="number" min="0" required value="${state.editingProduct?.price||""}"></div>
+        <div class="field"><label>Kategori</label><select name="category">${CATEGORY_OPTIONS.map(c=>`<option ${state.editingProduct?.category===c?"selected":""}>${c}</option>`).join("")}</select></div>
+        <div class="field"><label>Atribut / rasa</label><input name="attributes" value="${escapeHtml(Array.isArray(state.editingProduct?.attributes)?state.editingProduct.attributes.join(", "):Array.isArray(state.editingProduct?.tags)?state.editingProduct.tags.join(", "):"")}" placeholder="pedas, gurih, sambal"></div>
+        <div class="field"><label>Ketersediaan</label><select name="availability"><option value="tersedia" ${productAvailable(state.editingProduct)?"selected":""}>🟢 Tersedia</option><option value="habis" ${state.editingProduct&&!productAvailable(state.editingProduct)?"selected":""}>🔴 Habis</option></select></div>
         <div class="field"><label>Rating</label><input name="rating" type="number" min="0" max="5" step=".1" value="${state.editingProduct?.rating||5}"></div>
-        <div class="field"><label>Label singkat</label><input name="emoji" value="${escapeHtml(state.editingProduct?.emoji||"Tubi")}"></div>
-        <div class="field full"><label>Deskripsi produk</label><textarea name="description" placeholder="Jelaskan rasa, isi, ukuran, atau keunggulan produk.">${escapeHtml(state.editingProduct?.description||"")}</textarea></div>
-        <div class="field full"><label>Foto produk</label><input id="productImage" name="image" type="file" accept="image/*"><small class="muted">Foto akan dikompres otomatis agar ringan dan aman disimpan.</small></div>
-        <div class="field full">${resolveImageSrc(state.editingProduct?.image,state.editingProduct)?`<div class="preview"><img src="${escapeHtml(resolveImageSrc(state.editingProduct?.image,state.editingProduct))}" alt=""></div>`:`<div class="preview">${svg("image",46)}</div>`}</div>
+        <div class="field full"><label>Deskripsi</label><textarea name="description">${escapeHtml(state.editingProduct?.description||"")}</textarea></div>
+        <div class="field full"><label>Foto produk</label><input id="productImage" name="image" type="file" accept="image/*"><small class="muted">Dikompres di browser dan disimpan di Firestore.</small></div>
+        <div class="field full">${resolveImageSrc(state.editingProduct?.image,state.editingProduct)?`<div class="preview"><img src="${escapeHtml(resolveImageSrc(state.editingProduct.image,state.editingProduct))}" alt=""></div>`:`<div class="preview">${svg("image",46)}</div>`}</div>
       </div><button class="primary" type="submit">${state.editingProduct?svg("check",18)+" Simpan perubahan":svg("plus",18)+" Tambah produk"}</button>${state.editingProduct?`<button class="outline full-btn" type="button" id="cancelEdit">Batal edit</button>`:""}</form></div>
-      <div class="panel"><div class="panel-title-row"><h3>Produk aktif (${state.products.length})</h3>${state.products.length?`<span class="muted">Tersinkron Firebase</span>`:""}</div><div class="admin-products">${state.products.length?state.products.map(adminProductCard).join(""):`<div class="empty">Belum ada produk di database.<br><button class="outline" id="seedBtn" style="margin-top:10px">Buat produk awal</button></div>`}</div></div>
-      <div class="panel" style="grid-column:1/-1"><div class="panel-title-row"><h3>Pesanan masuk</h3><span class="pill">${newOrders} baru</span></div>${state.orders.length?`<div class="orders">${state.orders.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(adminOrderCard).join("")}</div>`:`<div class="empty">Belum ada pesanan dari customer.</div>`}</div>
-      <div class="panel"><h3>Admin yang diizinkan</h3><p class="muted">Tambahkan email admin baru tanpa mengubah kode. Admin baru tinggal login Google memakai email tersebut.</p><form id="adminForm" class="inline-form"><input id="newAdminEmail" type="email" required placeholder="nama@gmail.com"><button class="primary compact" type="submit">${svg("plus",18)} Tambah</button></form><div class="admin-email-list">${state.adminEmails.map(e=>`<div class="admin-email"><span>${escapeHtml(e)}</span>${normalizedEmail(e)!==normalizedEmail(ADMIN_EMAIL)?`<button class="small-btn danger" data-remove-admin="${escapeHtml(e)}">${svg("trash",16)}</button>`:""}</div>`).join("")}</div></div>
-      <div class="panel"><h3>Keamanan & koneksi</h3><div class="security-list"><div>${svg("check",18)} <span>Google Authentication aktif</span></div><div>${svg("check",18)} <span>Firestore terhubung</span></div><div>${svg("check",18)} <span>Admin diverifikasi dari email + daftar admin</span></div></div></div>
-    </div></div>`;
+      <div class="panel"><div class="panel-title-row"><h3>Produk aktif (${state.products.length})</h3><span class="muted">Firestore realtime</span></div><div class="admin-products">${state.products.length?state.products.map(adminProductCard).join(""):`<div class="empty">Belum ada produk di Firestore.<br><button class="outline" id="seedBtn" style="margin-top:10px">Buat katalog awal</button></div>`}</div></div>
+    </div></div>
+    <div class="admin-section" data-admin-panel="orders" hidden><div class="panel"><div class="panel-title-row"><h3>Pesanan masuk</h3><span class="pill">${active.length} berjalan</span></div>${orders.length?`<div class="orders">${orders.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(adminOrderCard).join("")}</div>`:`<div class="empty">Belum ada pesanan.</div>`}</div></div>
+    <div class="admin-section" data-admin-panel="reports" hidden><div class="admin-two"><div class="panel"><h3>Omzet</h3><div class="stats-grid"><div class="stat"><span>Hari ini</span><strong>${rupiah(periodRevenue(1))}</strong></div><div class="stat"><span>7 hari</span><strong>${rupiah(periodRevenue(7))}</strong></div><div class="stat"><span>30 hari</span><strong>${rupiah(periodRevenue(30))}</strong></div><div class="stat"><span>Total selesai</span><strong>${rupiah(revenue)}</strong></div></div></div><div class="panel"><h3>Produk terlaris</h3>${topProductsHtml()}<h3 style="margin-top:18px">Omzet 7 hari</h3>${revenueChartHtml()}</div></div></div>
+    <div class="admin-section" data-admin-panel="notifications" hidden><div class="panel"><div class="panel-title-row"><h3>Notifikasi</h3><button class="outline compact" id="readAllNotifications">Tandai semua dibaca</button></div><div class="admin-list">${(state.notifications||[]).length?state.notifications.slice(0,30).map(notificationHtml).join(""):`<div class="empty">Belum ada notifikasi.</div>`}</div></div></div>
+    <div class="admin-section" data-admin-panel="tools" hidden><div class="admin-two"><div class="panel"><h3>Kalkulator</h3><div class="calc"><input class="calc-display" id="adminCalc" placeholder="0" inputmode="decimal"><div class="help-grid">${["7","8","9","/","4","5","6","*","1","2","3","-","0",".","=","+"].map(x=>`<button class="outline calc-key" data-calc="${x}">${x}</button>`).join("")}</div><button class="outline" id="calcClear">Bersihkan</button></div></div><div class="panel"><h3>Transaksi</h3><p class="muted">Perhitungan omzet hanya memasukkan pesanan berstatus <b>Selesai</b>.</p><div class="stat"><span>Jumlah transaksi selesai</span><strong>${done.length}</strong></div></div></div></div>
+    <div class="admin-section" data-admin-panel="support" hidden><div class="admin-two"><div class="panel"><h3>Laporan bug (${bugs})</h3><div class="admin-list">${(state.bugReports||[]).map(bugHtml).join("")||`<div class="empty">Belum ada laporan bug.</div>`}</div></div><div class="panel"><h3>FAQ & Pusat Bantuan</h3><div class="help-grid">${FAQ_ITEMS.map(x=>`<div class="help-item"><strong>${escapeHtml(x.q)}</strong><div class="muted" style="margin-top:5px">${escapeHtml(x.a)}</div></div>`).join("")}</div></div></div></div>
+    <div class="admin-section" data-admin-panel="settings" hidden><div class="admin-two"><div class="panel"><h3>WhatsApp Admin</h3><form id="whatsappForm" class="form-grid"><div class="field"><label>Nomor WhatsApp</label><input name="number" value="${escapeHtml(state.storeSettings?.whatsapp||"")}" placeholder="628xxxxxxxxxx"></div><div class="field"><label>Nama kontak</label><input name="name" value="${escapeHtml(state.storeSettings?.whatsappName||"Admin Tubi")}"></div><div class="field full"><label>Jam operasional</label><input name="hours" value="${escapeHtml(state.storeSettings?.hours||"Setiap hari 09.00–21.00")}"></div><button class="primary" type="submit">Simpan pengaturan</button></form></div>
+      <div class="panel"><h3>Printer</h3><div class="printer-box"><strong>Printer Admin</strong><p class="muted">Browser tidak menjamin dukungan Bluetooth untuk semua printer. Tubi memakai Web Bluetooth jika tersedia dan fallback ke dialog print perangkat.</p><div class="account-actions"><button class="outline" id="printerConnect">Hubungkan</button><button class="outline" id="printerTest">Tes cetak</button><button class="outline" id="printerDisconnect">Putuskan</button></div><div id="printerStatus" class="muted" style="margin-top:8px">${state.printer?.connected?"Terhubung":"Belum terhubung"} · Auto-print ${state.printer?.auto?"ON":"OFF"}</div><label style="display:block;margin-top:12px"><input type="checkbox" id="autoPrint" ${state.printer?.auto?"checked":""}> Auto-print pesanan baru</label></div></div>
+      <div class="panel"><h3>Admin yang diizinkan</h3><form id="adminForm" class="inline-form"><input id="newAdminEmail" type="email" required placeholder="nama@gmail.com"><button class="primary compact" type="submit">${svg("plus",18)} Tambah</button></form><div class="admin-email-list">${state.adminEmails.map(e=>`<div class="admin-email"><span>${escapeHtml(e)}</span>${normalizedEmail(e)!==normalizedEmail(ADMIN_EMAIL)?`<button class="small-btn danger" data-remove-admin="${escapeHtml(e)}">${svg("trash",16)}</button>`:""}</div>`).join("")}</div></div>
+    </div></div></div>`;
 }
 function adminProductCard(p){
   return `<div class="admin-product">${imageHtml(p,"thumb")}<div class="admin-product-main"><strong>${escapeHtml(p.name)}</strong><small>${rupiah(p.price)} · ${escapeHtml(p.category)}</small><p>${escapeHtml(p.description||"Belum ada deskripsi")}</p></div><div class="admin-product-actions"><button class="small-btn" data-edit="${p.id}" title="Edit">${svg("edit",16)} Edit</button><button class="small-btn danger" data-delete="${p.id}" title="Hapus">${svg("trash",16)} Hapus</button></div></div>`;
 }
 function adminOrderCard(o){
-  return `<div class="order"><div class="order-top"><div><strong>${escapeHtml(o.customerName||"Customer")}</strong><small class="muted" style="display:block;margin-top:4px">${escapeHtml(o.email||"")} · ${timeText(o.createdAt)}</small></div><select class="status-select" data-status="${o.id}"><option ${o.status==="baru"?"selected":""}>baru</option><option ${o.status==="diproses"?"selected":""}>diproses</option><option ${o.status==="selesai"?"selected":""}>selesai</option><option ${o.status==="dibatalkan"?"selected":""}>dibatalkan</option></select></div><div class="order-items">${(o.items||[]).map(i=>`${i.qty}× ${escapeHtml(i.name)} — ${rupiah(i.price*i.qty)}`).join("<br>")}</div>${o.address?`<div class="order-meta">${svg("location",16)} ${escapeHtml(o.address)}</div>`:""}${o.mapsUrl||o.address?`<a class="order-map" href="${escapeHtml(o.mapsUrl||mapsSearchUrl(o.address))}" target="_blank" rel="noopener noreferrer">${svg("map",15)} Buka titik lokasi</a>`:""}${o.note?`<div class="order-meta">${escapeHtml(o.note)}</div>`:""}<strong style="display:block;margin-top:7px">Total ${rupiah(o.total)}</strong></div>`;
+  return `<div class="order"><div class="order-top"><div><strong>${escapeHtml(o.customerName||"Customer")}</strong><small class="muted" style="display:block;margin-top:4px">#${escapeHtml(o.id)} · ${escapeHtml(o.email||"")} · ${timeText(o.createdAt)}</small></div><select class="status-select" data-status="${o.id}">${ORDER_STATUSES.map(s=>`<option value="${s}" ${displayStatus(o.status)===s?"selected":""}>${statusLabel(s)}</option>`).join("")}</select></div><div class="order-items">${(o.items||[]).map(i=>`${i.qty}× ${escapeHtml(i.name)} — ${rupiah(i.price*i.qty)}`).join("<br>")}</div>${o.address?`<div class="order-meta">${svg("location",16)} ${escapeHtml(o.address)}</div>`:""}${o.mapsUrl||o.address?`<a class="order-map" href="${escapeHtml(o.mapsUrl||mapsSearchUrl(o.address))}" target="_blank" rel="noopener noreferrer">${svg("map",15)} Buka titik lokasi</a>`:""}${o.note?`<div class="order-meta">${escapeHtml(o.note)}</div>`:""}<div class="account-actions" style="margin-top:10px"><button class="outline compact" data-print-order="${o.id}">${svg("image",16)} Cetak Pesanan</button></div><strong style="display:block;margin-top:7px">Total ${rupiah(o.total)}</strong></div>`;
 }
 async function login(){
   try{
@@ -603,6 +680,7 @@ async function afterLogin(user){
   if(state.isAdmin) await setDoc(doc(db,"admins",email),{email:user.email||email,updatedAt:serverTimestamp()},{merge:true}).catch(()=>{});
   await setDoc(doc(db,"users",user.uid),{uid:user.uid,email:user.email||"",displayName:state.profile.displayName,photoURL:state.profile.photoURL||"",recipientName:state.profile.recipientName||state.profile.displayName,role,lastLogin:serverTimestamp()},{merge:true}).catch(()=>{});
   state.adminEmails=state.isAdmin?await loadAdminEmails():[];
+  if(state.isAdmin) await loadAdminExtras();
   subscribeOrders();
   state.view=state.isAdmin?"admin":"profile";
   render();
@@ -614,6 +692,10 @@ async function loadAdminEmails(){
     const list=snap.docs.map(d=>d.data()?.email||d.id).filter(Boolean);
     return [...new Set([ADMIN_EMAIL,...list])].sort((a,b)=>a.localeCompare(b));
   }catch(e){console.warn("Admin list:",e);return [ADMIN_EMAIL];}
+}
+function subscribeStoreSettings(){
+  state.settingsUnsub?.();
+  state.settingsUnsub=onSnapshot(doc(db,"settings","store"),snap=>{state.storeSettings=snap.exists()?snap.data():{}; if(state.view!=="admin")render();},err=>console.warn("Store settings:",err));
 }
 function subscribeProducts(){
   state.productsUnsub?.();
@@ -627,18 +709,20 @@ function subscribeOrders(){
   state.ordersUnsub?.();
   if(!state.user)return;
   if(state.isAdmin){
-    state.adminOrdersUnsub?.();
+    state.adminOrdersUnsub?.(); state.notificationsUnsub?.();
     state.adminOrdersUnsub=onSnapshot(collection(db,"orders"),snap=>{state.orders=snap.docs.map(d=>({id:d.id,...d.data()}));render()},err=>console.error(err));
+    state.notificationsUnsub=onSnapshot(collection(db,"notifications"),snap=>{state.notifications=snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0));render()},err=>console.warn("Notifications:",err));
   }else{
     const qy=query(collection(db,"orders"),where("userId","==",state.user.uid));
     state.ordersUnsub=onSnapshot(qy,snap=>{state.orders=snap.docs.map(d=>({id:d.id,...d.data()}));render()},err=>console.error(err));
   }
 }
 async function logout(){
-  await signOut(auth);state.user=null;state.profile=null;state.isAdmin=false;state.adminEmails=[];state.orders=[];state.view="home";state.adminOrdersUnsub?.();state.ordersUnsub?.();const da=document.getElementById("drawerAdmin");if(da)da.style.display="none";render();toast("Kamu sudah keluar.");
+  await signOut(auth);state.user=null;state.profile=null;state.isAdmin=false;state.adminEmails=[];state.orders=[];state.view="home";state.adminOrdersUnsub?.();state.notificationsUnsub?.();state.settingsUnsub?.();state.ordersUnsub?.();const da=document.getElementById("drawerAdmin");if(da)da.style.display="none";render();toast("Kamu sudah keluar.");
 }
 async function addToCart(id){
   const p=productById(id);if(!p)return;
+  if(!productAvailable(p)){toast("Produk sedang habis.");return}
   const found=state.cart.find(x=>x.id===id);
   if(found)found.qty++;else state.cart.push({id:p.id,name:p.name,price:Number(p.price),qty:1,image:resolveImageSrc(p.image,p),emoji:p.emoji||"Tubi"});
   saveLocal();render();toast(`${p.name} ditambahkan ke keranjang.`);
@@ -669,6 +753,7 @@ function renderCartModal(){
 }
 function changeQty(id,d){const x=state.cart.find(x=>x.id===id);if(!x)return;x.qty+=d;if(x.qty<=0)state.cart=state.cart.filter(x=>x.id!==id);saveLocal();renderCartModal();render()}
 async function checkout(){
+  if(state.checkoutBusy){toast("Pesanan sedang diproses.");return}
   if(!state.user){closeOverlay("cartBackdrop");openLogin();return}
   if(!state.cart.length)return;
   const address=state.profile?.address||"";
@@ -682,20 +767,21 @@ async function checkout(){
   $("#confirmCheckout").onclick=async()=>{
     const addr=$("#checkoutAddress").value.trim();
     if(!addr){toast("Alamat pengantaran wajib diisi.");return}
-    const btn=$("#confirmCheckout");btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Menyimpan pesanan';
+    const btn=$("#confirmCheckout");btn.disabled=true;state.checkoutBusy=true;btn.innerHTML='<span class="spinner"></span> Memproses...';
     const total=state.cart.reduce((a,x)=>a+x.price*x.qty,0);
     try{
       const recipientName=$("#checkoutRecipient").value.trim() || state.profile?.displayName || state.user.displayName || "Pengguna Tubi";
       const phone=$("#checkoutPhone").value.trim() || state.profile?.phone || "";
-      await addDoc(collection(db,"orders"),{userId:state.user.uid,email:state.user.email||"",customerName:recipientName,recipientName,phone,address:addr,note:$("#checkoutNote").value.trim(),location:state.location||null,mapsUrl:state.location?.url||mapsSearchUrl(addr),items:state.cart.map(x=>({id:x.id,name:x.name,price:x.price,qty:x.qty})),total,status:"baru",createdAt:serverTimestamp()});
+      const orderRef=await addDoc(collection(db,"orders"),{userId:state.user.uid,email:state.user.email||"",customerName:recipientName,recipientName,phone,address:addr,note:$("#checkoutNote").value.trim(),location:state.location||null,mapsUrl:state.location?.url||mapsSearchUrl(addr),items:state.cart.map(x=>({id:x.id,name:x.name,price:x.price,qty:x.qty,image:x.image||""})),total,status:"menunggu",createdAt:serverTimestamp()});
+      await addDoc(collection(db,"notifications"),{type:"new_order",orderId:orderRef.id,userId:state.user.uid,title:"Pesanan baru",body:`Pesanan baru dari ${recipientName}`,read:false,createdAt:serverTimestamp()}).catch(e=>console.warn("Notification:",e));
       await setDoc(doc(db,"users",state.user.uid),{address:addr,note:$("#checkoutNote").value.trim(),recipientName:recipientName,phone:phone},{merge:true}).catch(()=>{});
       state.profile={...(state.profile||{}),address:addr,note:$("#checkoutNote").value.trim(),recipientName:recipientName,phone:phone};
-      state.cart=[];saveLocal();closeOverlay("productBackdrop");state.view="orders";render();toast("Pesanan berhasil dibuat. Admin akan langsung melihatnya.");
+      state.cart=[];state.checkoutBusy=false;saveLocal();closeOverlay("productBackdrop");state.view="orders";render();toast("Pesanan berhasil dibuat. Admin akan langsung melihatnya.");
     }catch(e){
       console.error("Checkout Firestore:",e);
       const code=e?.code||"";
       const msg=code==="permission-denied"?"Pesanan ditolak database. Pasang Firestore Rules terbaru di project tubi-app.":code==="failed-precondition"?"Database belum siap. Pastikan Firestore sudah dibuat pada project tubi-app.":code==="unavailable"?"Database sedang tidak tersedia. Coba lagi sebentar.":"Pesanan gagal disimpan. Periksa koneksi database dan login Firebase.";
-      toast(msg);btn.disabled=false;btn.innerHTML=`${svg("check",18)} Buat pesanan`;}
+      toast(msg);state.checkoutBusy=false;btn.disabled=false;btn.innerHTML=`${svg("check",18)} Buat pesanan`;}
   };
 }
 async function compressImage(file){
@@ -734,7 +820,9 @@ async function imageForFirestore(file){
 async function saveProduct(form){
   const fd=new FormData(form);
   const tags=String(fd.get("tags")||"").split(",").map(x=>x.trim().toLowerCase()).filter(Boolean).slice(0,12);
-  const data={name:String(fd.get("name")).trim(),price:Number(fd.get("price")),category:String(fd.get("category")),tags,rating:Number(fd.get("rating"))||5,emoji:"Tubi",description:String(fd.get("description")||"").trim()};
+  const attributes=String(fd.get("attributes")||"").split(",").map(x=>x.trim()).filter(Boolean).slice(0,15);
+  const availability=String(fd.get("availability")||"tersedia");
+  const data={name:String(fd.get("name")).trim(),price:Number(fd.get("price")),category:String(fd.get("category")),attributes,tags:attributes,rating:Number(fd.get("rating"))||5,emoji:"Tubi",description:String(fd.get("description")||"").trim(),available:availability!=="habis",availability};
   const file=$("#productImage")?.files?.[0];
   if(!data.name||data.price<0){toast("Lengkapi nama dan harga.");return}
   try{
@@ -765,11 +853,20 @@ async function saveProduct(form){
 }
 async function seed(){
   if(!window.confirm("Buat katalog produk awal Tubi sekarang?"))return;
-  try{for(const p of FALLBACK_PRODUCTS){const {id,...data}=p;await setDoc(doc(db,"products",id),data)}toast("Produk awal berhasil dibuat.")}catch(e){console.error(e);toast("Gagal membuat produk awal.")}
+  try{for(const p of FALLBACK_PRODUCTS){const {id,...data}=p;data.available=true;data.availability="tersedia";await setDoc(doc(db,"products",id),data)}toast("Produk awal berhasil dibuat.")}catch(e){console.error(e);toast("Gagal membuat produk awal.")}
 }
 async function removeProduct(id){
   if(!confirm("Hapus produk ini?"))return;
   try{await deleteDoc(doc(db,"products",id));toast("Produk dihapus.")}catch(e){console.error(e);toast("Gagal menghapus produk.")}
+}
+async function reviewOrder(id){
+  const rating=Number(prompt("Rating 1–5:", "5")); if(!rating||rating<1||rating>5)return;
+  const text=prompt("Tulis review singkat (opsional):","")||"";
+  try{await setDoc(doc(db,"reviews",`${id}_${state.user.uid}`),{orderId:id,userId:state.user.uid,email:state.user.email||"",rating,text,createdAt:serverTimestamp()},{merge:true});await updateDoc(doc(db,"orders",id),{review:{rating,text}});toast("Review tersimpan. Terima kasih!");}catch(e){console.error(e);toast("Review belum tersimpan.");}
+}
+async function cancelOrder(id){
+  if(!window.confirm("Yakin ingin membatalkan pesanan ini?"))return;
+  try{await updateDoc(doc(db,"orders",id),{status:"dibatalkan"});toast("Pesanan dibatalkan.");}catch(e){console.error(e);toast("Pesanan belum bisa dibatalkan.");}
 }
 async function changeOrderStatus(id,status){
   try{await updateDoc(doc(db,"orders",id),{status});toast("Status pesanan diperbarui.")}catch(e){console.error(e);toast("Gagal memperbarui status.")}
@@ -896,6 +993,29 @@ function bind(){
   document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>{state.editingProduct=state.products.find(p=>p.id===b.dataset.edit);render();window.scrollTo({top:0,behavior:"smooth"})});
   document.querySelectorAll("[data-delete]").forEach(b=>b.onclick=()=>removeProduct(b.dataset.delete));
   document.querySelectorAll("[data-status]").forEach(s=>s.onchange=()=>changeOrderStatus(s.dataset.status,s.value));
+  document.querySelectorAll("[data-cancel-order]").forEach(b=>b.onclick=()=>cancelOrder(b.dataset.cancelOrder));
+  document.querySelectorAll("[data-review-order]").forEach(b=>b.onclick=()=>reviewOrder(b.dataset.reviewOrder));
+  document.querySelectorAll("[data-print-order]").forEach(b=>b.onclick=()=>{const o=state.orders.find(x=>x.id===b.dataset.printOrder);if(o)printOrder(o);});
+  document.querySelectorAll("[data-admin-tab]").forEach(b=>b.onclick=()=>{
+    const tab=b.dataset.adminTab;
+    document.querySelectorAll("[data-admin-tab]").forEach(x=>x.classList.toggle("active",x===b));
+    document.querySelectorAll("[data-admin-panel]").forEach(p=>p.hidden=p.dataset.adminPanel!==tab);
+  });
+  document.querySelectorAll("[data-admin-jump]").forEach(b=>b.onclick=()=>document.querySelector(`[data-admin-tab="${b.dataset.adminJump}"]`)?.click());
+  document.querySelectorAll("[data-read-notification]").forEach(b=>b.onclick=()=>markNotification(b.dataset.readNotification));
+  $("#readAllNotifications")?.addEventListener("click",readAllNotifications);
+  document.querySelectorAll("[data-bug-status]").forEach(s=>s.onchange=()=>changeBugStatus(s.dataset.bugStatus,s.value));
+  $("#submitBug")?.addEventListener("click",submitBug);
+  $("#whatsappForm")?.addEventListener("submit",e=>{e.preventDefault();saveStoreSettings(e.target)});
+  $("#printerConnect")?.addEventListener("click",connectPrinter);
+  $("#printerTest")?.addEventListener("click",testPrinter);
+  $("#printerDisconnect")?.addEventListener("click",()=>{state.printer.connected=false;localStorage.setItem("tubi_printer",JSON.stringify(state.printer));render();toast("Printer diputuskan.")});
+  $("#autoPrint")?.addEventListener("change",e=>{state.printer.auto=e.target.checked;localStorage.setItem("tubi_printer",JSON.stringify(state.printer));});
+  document.querySelectorAll("[data-calc]").forEach(b=>b.onclick=()=>{
+    const input=$("#adminCalc"); if(!input)return;
+    if(b.dataset.calc==="="){try{input.value=String(Function('"use strict";return ('+input.value.replace(/[^0-9+\-*/(). ]/g,"")+')')())}catch{input.value="Error"}}else input.value+=b.dataset.calc;
+  });
+  $("#calcClear")?.addEventListener("click",()=>{if($("#adminCalc"))$("#adminCalc").value=""});
 }
 ["cartBackdrop","productBackdrop","loginBackdrop"].forEach(id=>{
   const el=document.getElementById(id);
@@ -912,15 +1032,27 @@ if ("serviceWorker" in navigator) {
     try{
       const reg=await navigator.serviceWorker.register("./sw.js");
       await reg.update();
+      if(reg.waiting){
+        showUpdateBanner(reg);
+      }
+      reg.addEventListener("updatefound",()=>{
+        const installing=reg.installing;
+        installing?.addEventListener("statechange",()=>{
+          if(installing.state==="installed" && navigator.serviceWorker.controller) showUpdateBanner(reg);
+        });
+      });
     }catch(err){console.warn("Tubi SW:",err)}
   });
   document.addEventListener("visibilitychange",()=>{
     if(document.visibilityState==="visible")navigator.serviceWorker.getRegistration("./sw.js").then(r=>r?.update()).catch(()=>{});
   });
 }
-onAuthStateChanged(auth,user=>{if(user){afterLogin(user).catch(e=>{console.error(e);state.user=user;state.isAdmin=emailIsFixedAdmin(user.email);state.adminEmails=state.isAdmin?[ADMIN_EMAIL]:[];subscribeOrders();render()})}else{state.user=null;state.profile=null;state.isAdmin=false;state.orders=[];render()}});
+onAuthStateChanged(auth,user=>{if(user){afterLogin(user).catch(e=>{console.error(e);state.user=user;state.isAdmin=emailIsFixedAdmin(user.email);state.adminEmails=state.isAdmin?[ADMIN_EMAIL]:[];if(state.isAdmin)loadAdminExtras().then(()=>render());subscribeOrders();render()})}else{state.user=null;state.profile=null;state.isAdmin=false;state.orders=[];render()}});
 getRedirectResult(auth).catch(e=>{if(e?.code)console.warn("Redirect:",e.code)});
+subscribeStoreSettings();
 subscribeProducts();
+const initialView=new URLSearchParams(location.search).get("view");
+if(["home","orders","favorites","profile"].includes(initialView))state.view=initialView;
 render();
 </script>
 </body>

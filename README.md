@@ -115,3 +115,13 @@ Service worker versi ini juga memakai network-first untuk HTML dan memanggil `re
 
 ## Firebase Spark $0
 This REV4 build intentionally does **not** use Firebase Cloud Storage. Product/profile images are compressed in the browser and stored in Firestore as data URLs. Do not enable or deploy Storage rules for this build. Firestore remains required for products, profiles, admins, and orders.
+
+
+## Final Blueprint build
+This ZIP is the final Spark-compatible blueprint implementation. It keeps the static Vercel architecture, uses Firestore as the product source of truth, and adds customer/admin separation, order lifecycle, notifications, reporting, calculator, bug reports, FAQ, WhatsApp settings, printer fallback, reviews, availability, and PWA update handling.
+
+### Firebase collections used
+`users`, `admins`, `products`, `orders`, `notifications`, `bugReports`, `reviews`, `settings/store`.
+
+### One-time Firebase action
+Publish the included `firestore.rules` to project `tubi-app`. No Firebase Storage setup is required for this Spark image strategy.

@@ -2,34 +2,22 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
-
-    function fixedAdmin() {
-      return signedIn() &&
-        (
-          request.auth.token.email == "Hilmykia@gmail.com" ||
-          request.auth.token.email == "hilmykia@gmail.com"
-        );
-    }
-
+    function signedIn() { return request.auth != null; }
+    function email() { return signedIn() ? request.auth.token.email : ""; }
+    function fixedAdmin() { return email() == "Hilmykia@gmail.com" || email() == "hilmykia@gmail.com"; }
     function listedAdmin() {
       return signedIn() &&
-        exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+        (exists(/databases/$(database)/documents/admins/$(email())) ||
+         exists(/databases/$(database)/documents/admins/hilmykia@gmail.com));
     }
-
     function roleAdmin() {
       return signedIn() &&
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
     }
+    function isAdmin() { return fixedAdmin() || listedAdmin() || roleAdmin(); }
 
-    function isAdmin() {
-      return fixedAdmin() || listedAdmin() || roleAdmin();
-    }
-
-    match /admins/{email} {
+    match /admins/{adminEmail} {
       allow read: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
@@ -40,36 +28,52 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow create: if signedIn() &&
-        request.auth.uid == userId &&
-        (
-          request.resource.data.role == "customer" ||
-          (request.resource.data.role == "admin" && isAdmin())
-        );
-
+      allow create: if signedIn() && request.auth.uid == userId &&
+        request.resource.data.role == "customer";
       allow update: if signedIn() &&
-        (
-          isAdmin() ||
-          (
-            request.auth.uid == userId &&
-            request.resource.data.role == resource.data.role
-          )
-        );
-
-      allow read: if signedIn() &&
-        (request.auth.uid == userId || isAdmin());
-
+        (isAdmin() || (request.auth.uid == userId &&
+          request.resource.data.role == resource.data.role));
+      allow read: if signedIn() && (request.auth.uid == userId || isAdmin());
       allow delete: if isAdmin();
     }
 
     match /orders/{orderId} {
       allow create: if signedIn() &&
-        request.resource.data.userId == request.auth.uid;
-
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == "menunggu";
       allow read: if signedIn() &&
         (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin() ||
+        (signedIn() && resource.data.userId == request.auth.uid &&
+         request.resource.data.status == "dibatalkan" &&
+         resource.data.status in ["menunggu","diproses"] &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"]));
+      allow delete: if isAdmin();
+    }
 
+    match /notifications/{notificationId} {
+      allow create: if signedIn() &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.type == "new_order";
+      allow read: if isAdmin();
       allow update, delete: if isAdmin();
+    }
+
+    match /bugReports/{bugId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    match /reviews/{reviewId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if signedIn();
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
   }
 }
