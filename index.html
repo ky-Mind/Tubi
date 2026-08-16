@@ -16,7 +16,7 @@
 <title>Tubi — Makanan favoritmu</title>
 <style>
 :root{--red:#ed1b2f;--red2:#c90f24;--ink:#17171a;--muted:#777;--soft:#f6f6f7;--card:#fff;--line:#ececef;--green:#20a05a;--gold:#b47b19;--shadow:0 14px 40px rgba(20,20,20,.08)}
-*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:#f3f3f4;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+*{box-sizing:border-box}html{scroll-behavior:smooth}.boot-screen{min-height:100vh;display:grid;place-items:center;align-content:center;gap:8px;padding:28px;text-align:center;background:var(--bg,#f3f3f4);color:var(--ink,#17171a)}.boot-screen img{width:74px;height:74px;border-radius:20px;object-fit:contain;background:#fff;border:1px solid var(--line,#ececef);margin-bottom:8px}.boot-screen strong{font-size:20px}.boot-screen span{color:var(--muted,#777);font-size:13px}.version-banner{position:fixed;z-index:300;left:50%;bottom:18px;transform:translate(-50%,calc(100% + 30px));width:min(680px,calc(100% - 24px));display:none;align-items:center;justify-content:space-between;gap:16px;padding:14px 16px;border:1px solid var(--line);border-radius:18px;background:var(--surface,#fff);color:var(--ink);box-shadow:0 18px 50px rgba(0,0,0,.18);transition:transform .22s ease}.version-banner.show{display:flex;transform:translate(-50%,0)}.version-banner .compact{flex:0 0 auto}.version-banner small{color:var(--muted)}body.dark .version-banner{background:var(--surface);border-color:var(--line)}body{background:var(--bg,#f3f3f4)}body{margin:0;background:#f3f3f4;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.55}
 #app{min-height:100vh}.shell{max-width:1180px;margin:auto;min-height:100vh;background:#fff}.page{padding:0 22px 105px}.topbar{height:72px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand{display:flex;align-items:center;gap:10px;font-weight:900;font-size:25px;letter-spacing:-1px}.brand img{width:40px;height:40px;border-radius:12px;object-fit:contain;background:#fff;display:block}.top-actions{display:flex;gap:9px;align-items:center}.icon-btn,.ghost-btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:14px;min-width:44px;height:44px;padding:0 12px;box-shadow:0 3px 12px #00000008}.icon-btn{font-size:20px}.cart-badge{position:relative}.cart-badge i{position:absolute;right:-3px;top:-5px;background:#111;color:#fff;border-radius:20px;min-width:19px;height:19px;font-size:10px;font-style:normal;display:grid;place-items:center;padding:0 4px}
 .hero{background:linear-gradient(135deg,var(--red),#ff233a);border-radius:0 0 34px 34px;color:#fff;padding:24px 28px 30px;position:relative;overflow:hidden;min-height:285px}.hero:after{content:"";position:absolute;width:360px;height:360px;border:2px solid #ffffff25;border-radius:50%;right:-120px;top:-210px}.hero-copy{position:relative;z-index:2;max-width:620px}.eyebrow{opacity:.9;font-size:14px}.hero h1{font-size:clamp(42px,7vw,68px);line-height:.95;margin:8px 0 10px;letter-spacing:-3px}.hero p{margin:0;font-size:18px;opacity:.95}.hero-art{position:absolute;right:28px;bottom:14px;font-size:clamp(55px,9vw,100px);transform:rotate(-5deg);white-space:nowrap;filter:drop-shadow(0 12px 8px #0002)}
@@ -185,7 +185,7 @@ body.dark .preview img{background:var(--surface2)}
 </style>
 </head>
 <body>
-<div id="app"></div><div class="version-banner" id="versionBanner"><span><strong>Versi baru Tubi tersedia.</strong><br><small class="muted">Perbarui untuk mendapatkan fitur terbaru.</small></span><button class="primary compact" id="updateApp">Perbarui sekarang</button></div>
+<div id="app"><div class="boot-screen"><img src="./tubi-icon.png" alt="Tubi"><strong>Memuat Tubi…</strong><span>Menyiapkan aplikasi.</span></div></div><div class="version-banner" id="versionBanner"><span><strong>Versi baru Tubi tersedia.</strong><br><small class="muted">Perbarui untuk mendapatkan fitur terbaru.</small></span><button class="primary compact" id="updateApp">Perbarui sekarang</button></div>
 <div class="drawer-backdrop" id="drawerBackdrop"></div>
 <aside class="drawer" id="drawer" aria-label="Menu Tubi">
   <div class="drawer-head"><div class="brand"><img src="./tubi-icon.png" alt="Tubi">tubi</div><button class="close" id="closeDrawer" aria-label="Tutup menu">×</button></div>
@@ -200,6 +200,24 @@ body.dark .preview img{background:var(--surface2)}
 <div class="modal-backdrop" id="loginBackdrop"><div class="modal" id="loginModal"></div></div>
 <div class="toast" id="toast"></div>
 
+<script>
+window.__tubiBooted=false;
+window.addEventListener("error",function(e){
+  if(window.__tubiBooted)return;
+  console.error("Tubi boot error:",e.error||e.message);
+  const app=document.getElementById("app");
+  if(app && !app.querySelector(".boot-error")){
+    app.innerHTML='<div class="boot-screen boot-error"><img src="./tubi-icon.png" alt="Tubi"><strong>Tubi belum bisa dimuat.</strong><span>Periksa koneksi lalu muat ulang halaman.</span><button class="primary compact" style="width:auto;margin-top:10px" onclick="location.reload()">Muat ulang</button></div>';
+  }
+});
+setTimeout(function(){
+  if(window.__tubiBooted)return;
+  const app=document.getElementById("app");
+  if(app && app.querySelector(".boot-screen") && !app.querySelector(".boot-error")){
+    app.innerHTML='<div class="boot-screen boot-error"><img src="./tubi-icon.png" alt="Tubi"><strong>Tubi masih memuat.</strong><span>Periksa koneksi internet, lalu coba muat ulang.</span><button class="primary compact" style="width:auto;margin-top:10px" onclick="location.reload()">Muat ulang</button></div>';
+  }
+},8000);
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, onAuthStateChanged, signOut, updateProfile, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
@@ -407,7 +425,7 @@ function renderDrawer(){
     links.innerHTML += `
       <button class="drawer-extra" data-profile-focus="help">${svg("help",19)} Pusat Bantuan</button>
       <button class="drawer-extra" data-profile-focus="bug">${svg("bug",19)} Laporkan masalah</button>
-      <button class="drawer-extra" data-whatsapp-admin="1">${svg("phone",19)} Hubungi WhatsApp Admin</button>
+      <button class="drawer-extra" data-whatsapp-admin="1">${svg("phone",19)} <span style="display:grid;gap:2px"><span>WhatsApp Admin</span><small style="font-weight:600;color:var(--muted)">${escapeHtml(whatsappDisplay())}</small></span></button>
       <button class="drawer-extra" data-profile-focus="settings">${svg("settings",19)} Pengaturan aplikasi</button>`;
   }
   links.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>setView(b.dataset.view));
@@ -423,8 +441,23 @@ function renderDrawer(){
 }
 function showUpdateBanner(reg){
   const b=$("#versionBanner"); if(!b)return;
-  b.style.display="flex";
-  const btn=$("#updateApp"); if(btn)btn.onclick=()=>{if(reg.waiting){reg.waiting.postMessage({type:"SKIP_WAITING"});location.reload();}else{location.reload();}};
+  b.classList.add("show");
+  const btn=$("#updateApp");
+  if(btn)btn.onclick=()=>{
+    btn.disabled=true;
+    btn.textContent="Memperbarui…";
+    if(reg?.waiting){
+      const once=()=>{
+        navigator.serviceWorker.removeEventListener("controllerchange",once);
+        window.location.reload();
+      };
+      navigator.serviceWorker.addEventListener("controllerchange",once);
+      reg.waiting.postMessage({type:"SKIP_WAITING"});
+      setTimeout(()=>window.location.reload(),2500);
+    }else{
+      window.location.reload();
+    }
+  };
 }
 function setupInstallPrompt(){
   window.addEventListener("beforeinstallprompt",e=>{
@@ -549,11 +582,13 @@ function profileView(){
     </div>
 
     <div class="account-contact panel" data-profile-section="whatsapp" style="margin-top:18px">
-      <div class="panel-title-row"><h3>Hubungi WhatsApp Admin</h3><span class="pill">Admin</span></div>
-      <strong>${escapeHtml(state.storeSettings?.whatsappName||"Admin Tubi")}</strong>
-      <div class="muted" style="margin-top:5px">${escapeHtml(whatsappDisplay())}</div>
-      <div class="muted" style="margin-top:4px">${escapeHtml(state.storeSettings?.hours||"Jam operasional belum diatur.")}</div>
-      ${wa?`<button class="primary full-btn" id="profileWhatsApp" style="margin-top:12px">${svg("phone",18)} Chat WhatsApp Admin</button>`:`<div class="empty" style="margin-top:12px;padding:18px">Admin belum mengatur nomor WhatsApp. Silakan hubungi admin melalui kanal yang tersedia.</div>`}
+      <div class="panel-title-row"><h3>WhatsApp Admin</h3><span class="pill">Kontak toko</span></div>
+      <div style="display:grid;gap:5px;margin-top:4px">
+        <strong>${escapeHtml(state.storeSettings?.whatsappName||"Admin Tubi")}</strong>
+        <div class="muted"><strong style="color:var(--ink)">Nomor WhatsApp:</strong> ${escapeHtml(whatsappDisplay())}</div>
+        <div class="muted">${escapeHtml(state.storeSettings?.hours||"Jam operasional belum diatur.")}</div>
+      </div>
+      ${wa?`<button class="primary full-btn" id="profileWhatsApp" style="margin-top:12px">${svg("phone",18)} Chat WhatsApp Admin</button>`:`<div class="empty" style="margin-top:12px;padding:18px">Nomor WhatsApp Admin belum diatur oleh admin.</div>`}
     </div>
 
     <div class="admin-two" style="margin-top:18px">
@@ -745,7 +780,14 @@ async function loadAdminEmails(){
 }
 function subscribeStoreSettings(){
   state.settingsUnsub?.();
-  state.settingsUnsub=onSnapshot(doc(db,"settings","store"),snap=>{state.storeSettings=snap.exists()?snap.data():{}; if(state.view!=="admin")render();},err=>console.warn("Store settings:",err));
+  state.settingsUnsub=onSnapshot(doc(db,"settings","store"),snap=>{
+    state.storeSettings=snap.exists()?snap.data():{};
+    render();
+  },err=>{
+    console.warn("Store settings:",err);
+    state.storeSettings=state.storeSettings||{};
+    render();
+  });
 }
 function subscribeProducts(){
   state.productsUnsub?.();
@@ -914,7 +956,7 @@ async function reviewOrder(id){
   const text=prompt("Tulis review singkat (opsional):","")||"";
   try{await setDoc(doc(db,"reviews",`${id}_${state.user.uid}`),{orderId:id,userId:state.user.uid,email:state.user.email||"",rating,text,createdAt:serverTimestamp()},{merge:true});await updateDoc(doc(db,"orders",id),{review:{rating,text}});toast("Review tersimpan. Terima kasih!");}catch(e){console.error(e);toast("Review belum tersimpan.");}
 }
-async async function cancelOrder(id){
+async function cancelOrder(id){
   if(!id)return;
   if(!window.confirm("Yakin ingin membatalkan pesanan ini?"))return;
   const order=state.orders.find(o=>o.id===id);
@@ -1115,6 +1157,7 @@ subscribeStoreSettings();
 subscribeProducts();
 const initialView=new URLSearchParams(location.search).get("view");
 if(["home","orders","favorites","profile"].includes(initialView))state.view=initialView;
+window.__tubiBooted=true;
 render();
 </script>
 </body>

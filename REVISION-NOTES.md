@@ -32,3 +32,14 @@ Product/profile/bug screenshots are compressed in-browser as JPEG data URLs and 
 - Fixed customer order cancellation compatibility for legacy `baru` orders and improved permission-denied guidance.
 - Firestore rules now permit eligible cancellation of legacy `baru` orders as well as `menunggu`/`diproses`.
 - Added missing drawer icons and preserved Firestore as the only product source of truth.
+
+
+## v5.2 — Stability / Account / Update Fix
+- Fixed the customer cancellation handler declaration so the cancel action is actually bound.
+- Added a proper boot/loading screen and friendly boot error instead of leaving a blank white page when the module fails to initialize.
+- Fixed the PWA update banner so it is hidden by default and only appears when a waiting service worker is detected.
+- Update action now waits for the new service-worker controller before reloading, with a safe timeout fallback.
+- Customer drawer now shows the configured WhatsApp Admin number directly.
+- Customer Account explicitly shows Admin WhatsApp number, contact name, and operating hours.
+- Store settings realtime listener now refreshes the app for both customer and admin views.
+- Service-worker cache key bumped to force the corrected assets to refresh.

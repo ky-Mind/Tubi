@@ -125,3 +125,7 @@ This ZIP is the final Spark-compatible blueprint implementation. It keeps the st
 
 ### One-time Firebase action
 Publish the included `firestore.rules` to project `tubi-app`. No Firebase Storage setup is required for this Spark image strategy.
+
+
+### v5.2 stability patch
+Fixes blank boot/update state, customer WhatsApp visibility, store-settings refresh, and customer cancellation binding. Static Vercel deployment remains dependency-free.
