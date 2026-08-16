@@ -1,7 +1,7 @@
 {
   "name": "tubi",
   "private": true,
-  "version": "3.0.0",
+  "version": "4.0.0-spark",
   "scripts": {
     "build": "echo Tubi static build - no compilation required"
   },

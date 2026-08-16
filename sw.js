@@ -1,4 +1,4 @@
-const CACHE="tubi-v4";
+const CACHE="tubi-v4-rev4-spark";
 const CORE=["./","./index.html","./manifest.webmanifest","./tubi-icon.png","./tubi-icon-192.png","./tubi-icon-512.png"];
 
 self.addEventListener("install",event=>{

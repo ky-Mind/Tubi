@@ -111,3 +111,7 @@ Hubungkan repository GitHub ke project Vercel dan jadikan branch produksi `main`
 Service worker versi ini juga memakai network-first untuk HTML dan memanggil `registration.update()` ketika aplikasi dibuka/dikembalikan ke foreground, sehingga perubahan `index.html` tidak tertahan cache lama.
 
 **Catatan:** Firebase Rules dan Storage adalah bagian dari project Firebase, bukan bagian dari deployment Vercel. Jika hanya meng-upload ZIP ke GitHub/Vercel, rules Firebase tidak ikut terpasang otomatis.
+
+
+## Firebase Spark $0
+This REV4 build intentionally does **not** use Firebase Cloud Storage. Product/profile images are compressed in the browser and stored in Firestore as data URLs. Do not enable or deploy Storage rules for this build. Firestore remains required for products, profiles, admins, and orders.
