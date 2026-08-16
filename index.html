@@ -260,7 +260,7 @@ function displayStatus(s){const v=String(s||"menunggu").toLowerCase();return v==
 function statusLabel(s){const v=displayStatus(s);return ({menunggu:"Menunggu",diproses:"Diproses",siap:"Siap",selesai:"Selesai",dibatalkan:"Dibatalkan"})[v]||v;}
 
 const state = {
-  user:null, profile:null, isAdmin:false, view:"home", q:"", cat:"Semua",
+  user:null, profile:null, isAdmin:false, view:"home", adminPage:"overview", q:"", cat:"Semua",
   products:[], orders:[], favorites:JSON.parse(localStorage.getItem("tubi_favorites")||"[]"),
   cart:JSON.parse(localStorage.getItem("tubi_cart")||"[]"), productsUnsub:null, ordersUnsub:null, adminOrdersUnsub:null, notificationsUnsub:null, settingsUnsub:null,
   editingProduct:null,
@@ -417,24 +417,38 @@ function applyTheme(){
 function renderDrawer(){
   const links=document.getElementById("drawerLinks");
   if(!links)return;
-  const items=isAdmin()
-    ? [["admin","grid","Dashboard Admin"],["profile","user","Profil Admin"]]
-    : [["home","home","Beranda"],["orders","orders","Pesanan saya"],["favorites","heart","Favorit"],["profile","user","Akun saya"]];
-  links.innerHTML=items.map(([v,icon,label])=>`<button data-view="${v}" class="${state.view===v?"active":""}">${svg(icon,19)} ${label}</button>`).join("");
-  if(!isAdmin()){
-    links.innerHTML += `
-      <button class="drawer-extra" data-profile-focus="help">${svg("help",19)} Pusat Bantuan</button>
-      <button class="drawer-extra" data-profile-focus="bug">${svg("bug",19)} Laporkan masalah</button>
-      <button class="drawer-extra" data-whatsapp-admin="1">${svg("phone",19)} <span style="display:grid;gap:2px"><span>WhatsApp Admin</span><small style="font-weight:600;color:var(--muted)">${escapeHtml(whatsappDisplay())}</small></span></button>
-      <button class="drawer-extra" data-profile-focus="settings">${svg("settings",19)} Pengaturan aplikasi</button>`;
+  const adminItems=[
+    ["admin","grid","Dashboard Admin","overview"],
+    ["admin-products","grid","Produk","products"],
+    ["admin-orders","orders","Pesanan","orders"],
+    ["admin-reports","grid","Omzet & Laporan","reports"],
+    ["admin-tools","grid","Kalkulator","tools"],
+    ["admin-notifications","help","Notifikasi","notifications"],
+    ["admin-support","help","Bantuan & Bug","support"],
+    ["admin-settings","settings","Pengaturan","settings"]
+  ];
+  const customerItems=[
+    ["home","home","Beranda"],
+    ["orders","orders","Pesanan saya"],
+    ["favorites","heart","Favorit"],
+    ["profile","user","Akun saya"],
+    ["help","help","Pusat Bantuan"],
+    ["bug","bug","Laporkan masalah"],
+    ["whatsapp","phone","WhatsApp Admin"],
+    ["settings","settings","Pengaturan aplikasi"]
+  ];
+  if(isAdmin()){
+    links.innerHTML=adminItems.map(([v,icon,label,page])=>`<button data-admin-page="${page}" class="${state.view==="admin"&&state.adminPage===page?"active":""}">${svg(icon,19)} ${label}</button>`).join("");
+    links.querySelectorAll("[data-admin-page]").forEach(b=>b.onclick=()=>{
+      setAdminPage(b.dataset.adminPage);
+    });
+  }else{
+    links.innerHTML=customerItems.map(([v,icon,label])=>`<button data-view="${v}" class="${state.view===v?"active":""}">${svg(icon,19)} ${label}</button>`).join("");
+    links.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>{
+      if(b.dataset.view==="whatsapp"){ setView("whatsapp"); }
+      else setView(b.dataset.view);
+    });
   }
-  links.querySelectorAll("[data-view]").forEach(b=>b.onclick=()=>setView(b.dataset.view));
-  links.querySelectorAll("[data-profile-focus]").forEach(b=>b.onclick=()=>{
-    const target=b.dataset.profileFocus;
-    setView("profile");
-    setTimeout(()=>document.querySelector(`[data-profile-section="${target}"]`)?.scrollIntoView({behavior:"smooth",block:"start"}),50);
-  });
-  links.querySelectorAll("[data-whatsapp-admin]").forEach(b=>b.onclick=()=>openAdminWhatsApp());
   applyTheme();
   const install=document.getElementById("installBtn");
   if(install)install.style.display=state.installPrompt?"grid":"none";
@@ -503,6 +517,25 @@ function confirmLogout(){
 function confirmClearCart(){
   if(window.confirm("Kosongkan semua isi keranjang?")){state.cart=[];saveLocal();renderCartModal();render();toast("Keranjang dikosongkan.");}
 }
+
+function helpView(){
+  return `<section class="section simple-page"><div class="section-head"><div><div class="admin-kicker">BANTUAN TUBI</div><h2>Pusat Bantuan</h2><span class="muted">Jawaban singkat untuk hal yang paling sering ditanyakan.</span></div><button class="outline" id="helpBack">Kembali</button></div><div class="help-grid">${FAQ_ITEMS.map(x=>`<div class="help-item"><strong>${escapeHtml(x.q)}</strong><div class="muted" style="margin-top:5px">${escapeHtml(x.a)}</div></div>`).join("")}</div></section>`;
+}
+function bugView(){
+  if(!state.user)return `<section class="section simple-page"><div class="empty">Silakan login terlebih dahulu untuk melaporkan masalah.<br><button class="google" id="googleBtn3" style="margin-top:13px">${googleIcon()} <span>Masuk dengan Google</span></button></div></section>`;
+  return `<section class="section simple-page"><div class="section-head"><div><div class="admin-kicker">BANTUAN TUBI</div><h2>Laporkan masalah</h2><span class="muted">Kirim laporan langsung ke admin Tubi.</span></div><button class="outline" id="bugBack">Kembali</button></div><div class="panel form-panel"><div class="field"><label>Jenis masalah</label><select id="bugType"><option>Pesanan</option><option>Login</option><option>Produk</option><option>Lokasi</option><option>Pembayaran</option><option>Lainnya</option></select></div><div class="field"><label>Nomor pesanan (opsional)</label><input id="bugOrder" placeholder="ID pesanan"></div><div class="field"><label>Deskripsi</label><textarea id="bugDescription" placeholder="Jelaskan masalah yang terjadi"></textarea></div><div class="field"><label>Screenshot (opsional)</label><input id="bugScreenshot" type="file" accept="image/*"></div><button class="primary" id="submitBug">${svg("bug",18)} Kirim laporan</button></div></section>`;
+}
+function settingsView(){
+  return `<section class="section simple-page"><div class="section-head"><div><div class="admin-kicker">TUBI</div><h2>Pengaturan aplikasi</h2><span class="muted">Atur tampilan dan pemasangan aplikasi.</span></div><button class="outline" id="settingsBack">Kembali</button></div><div class="panel settings-page"><div class="setting-row"><div><strong>Mode tampilan</strong><div class="muted">Pilih terang atau gelap.</div></div><button class="outline" id="profileThemeToggle">${state.theme==="dark"?"☀️ Terang":"🌙 Gelap"}</button></div>${state.installPrompt?`<div class="setting-row" style="margin-top:10px"><div><strong>Pasang Tubi</strong><div class="muted">Akses lebih cepat seperti aplikasi.</div></div><button class="primary compact" id="installProfile">Pasang sekarang</button></div>`:""}<div class="setting-row" style="margin-top:10px"><div><strong>Versi Tubi</strong><div class="muted">Aplikasi akan mengikuti deployment terbaru dari Vercel.</div></div><span class="pill">Aktif</span></div></div></section>`;
+}
+function whatsappView(){
+  const wa=whatsappUrl();
+  return `<section class="section simple-page"><div class="section-head"><div><div class="admin-kicker">KONTAK TOKO</div><h2>WhatsApp Admin</h2><span class="muted">Hubungi admin Tubi untuk bantuan atau pertanyaan pesanan.</span></div><button class="outline" id="whatsappBack">Kembali</button></div><div class="panel contact-page"><div class="profile-badges"><span>${escapeHtml(state.storeSettings?.whatsappName||"Admin Tubi")}</span><span>${escapeHtml(state.storeSettings?.hours||"Jam operasional belum diatur.")}</span></div><h3 style="margin-top:18px">Nomor WhatsApp</h3><p class="contact-number">${escapeHtml(whatsappDisplay())}</p>${wa?`<button class="primary full-btn" id="openWhatsAppPage">${svg("phone",18)} Chat WhatsApp Admin</button>`:`<div class="empty">Nomor WhatsApp admin belum diatur. Admin dapat mengaturnya dari Dashboard Admin → Pengaturan.</div>`}</div></section>`;
+}
+function setAdminPage(page="overview"){
+  if(!isAdmin()){toast("Akses admin ditolak.");return}
+  state.view="admin"; state.adminPage=page; closeDrawer(); render(); window.scrollTo({top:0,behavior:"smooth"});
+}
 function render(){
   document.body.classList.toggle("dark",state.theme==="dark");
   const admin=!!isAdmin();
@@ -537,6 +570,10 @@ function render(){
       <div class="view ${state.view==="orders"?"active":""}">${ordersView()}</div>
       <div class="view ${state.view==="favorites"?"active":""}">${favoritesView()}</div>
       <div class="view ${state.view==="profile"?"active":""}">${profileView()}</div>
+      <div class="view ${state.view==="help"?"active":""}">${helpView()}</div>
+      <div class="view ${state.view==="bug"?"active":""}">${bugView()}</div>
+      <div class="view ${state.view==="whatsapp"?"active":""}">${whatsappView()}</div>
+      <div class="view ${state.view==="settings"?"active":""}">${settingsView()}</div>
       ${admin&&state.view==="admin"?adminView():""}
     </div>
     <nav class="bottom-nav">${admin?`${nav("admin","grid","Admin")}${nav("profile","user","Akun")}`:`${nav("home","home","Beranda")}${nav("orders","orders","Pesanan")}${nav("favorites","heart","Favorit")}${nav("profile","user","Akun")}`}</nav>
@@ -581,24 +618,15 @@ function profileView(){
       <div class="field full"><label>Tentang kamu</label><textarea id="profileBio" placeholder="Tambahkan catatan singkat tentang profilmu">${escapeHtml(state.profile?.bio||"")}</textarea></div>
     </div>
 
-    <div class="account-contact panel" data-profile-section="whatsapp" style="margin-top:18px">
-      <div class="panel-title-row"><h3>WhatsApp Admin</h3><span class="pill">Kontak toko</span></div>
-      <div style="display:grid;gap:5px;margin-top:4px">
-        <strong>${escapeHtml(state.storeSettings?.whatsappName||"Admin Tubi")}</strong>
-        <div class="muted"><strong style="color:var(--ink)">Nomor WhatsApp:</strong> ${escapeHtml(whatsappDisplay())}</div>
-        <div class="muted">${escapeHtml(state.storeSettings?.hours||"Jam operasional belum diatur.")}</div>
+    <div class="account-contact panel" style="margin-top:18px">
+      <div class="panel-title-row"><h3>Kontak & bantuan</h3><span class="pill">Tubi</span></div>
+      <p class="muted" style="margin:4px 0 14px">Semua bantuan dan pengaturan dibuka sebagai halaman sendiri supaya akun tetap rapi.</p>
+      <div class="profile-menu-grid">
+        <button class="outline" id="profileHelpBtn">${svg("help",18)} Pusat Bantuan</button>
+        <button class="outline" id="profileBugBtn">${svg("bug",18)} Laporkan masalah</button>
+        <button class="outline" id="profileWhatsAppPageBtn">${svg("phone",18)} WhatsApp Admin</button>
+        <button class="outline" id="profileSettingsBtn">${svg("settings",18)} Pengaturan</button>
       </div>
-      ${wa?`<button class="primary full-btn" id="profileWhatsApp" style="margin-top:12px">${svg("phone",18)} Chat WhatsApp Admin</button>`:`<div class="empty" style="margin-top:12px;padding:18px">Nomor WhatsApp Admin belum diatur oleh admin.</div>`}
-    </div>
-
-    <div class="admin-two" style="margin-top:18px">
-      <div class="panel" data-profile-section="help"><h3>Pusat Bantuan Tubi</h3><div class="help-grid">${FAQ_ITEMS.map(x=>`<div class="help-item"><strong>${escapeHtml(x.q)}</strong><div class="muted" style="margin-top:5px">${escapeHtml(x.a)}</div></div>`).join("")}</div></div>
-      <div class="panel" data-profile-section="bug"><h3>Laporkan masalah</h3><div class="field"><label>Jenis masalah</label><select id="bugType"><option>Pesanan</option><option>Login</option><option>Produk</option><option>Lokasi</option><option>Pembayaran</option><option>Lainnya</option></select></div><div class="field"><label>Nomor pesanan (opsional)</label><input id="bugOrder" placeholder="ID pesanan"></div><div class="field"><label>Deskripsi</label><textarea id="bugDescription" placeholder="Jelaskan masalah yang terjadi"></textarea></div><div class="field"><label>Screenshot (opsional)</label><input id="bugScreenshot" type="file" accept="image/*"></div><button class="outline" id="submitBug">Kirim laporan</button></div>
-    </div>
-
-    <div class="panel" data-profile-section="settings" style="margin-top:18px"><div class="panel-title-row"><h3>Pengaturan aplikasi</h3><span class="muted">Tubi</span></div>
-      <div class="setting-row"><div><strong>Mode tampilan</strong><div class="muted">Pilih terang atau gelap.</div></div><button class="outline" id="profileThemeToggle">${state.theme==="dark"?"☀️ Terang":"🌙 Gelap"}</button></div>
-      ${state.installPrompt?`<div class="setting-row" style="margin-top:8px"><div><strong>Pasang Tubi</strong><div class="muted">Akses lebih cepat seperti aplikasi.</div></div><button class="primary compact" id="installProfile">Pasang sekarang</button></div>`:""}
     </div>
 
     <div class="account-actions"><button class="primary compact" id="saveProfile">${state.profileSaving?"Menyimpan...":"Simpan profil"}</button><button class="outline" id="myOrdersBtn">${svg("orders",18)} Pesanan saya</button><button class="outline" id="myFavBtn">${svg("heart",18)} Favorit</button></div>
@@ -648,16 +676,23 @@ async function submitBug(){
   if(!description){toast("Jelaskan masalahnya dulu.");return}
   try{const file=$("#bugScreenshot")?.files?.[0];let screenshot="";if(file)screenshot=await imageForFirestore(file);await addDoc(collection(db,"bugReports"),{userId:state.user.uid,email:state.user.email||"",type,description,orderId,screenshot,status:"baru",createdAt:serverTimestamp()});toast("Laporan bug terkirim ke admin.");$("#bugDescription").value="";if($("#bugScreenshot"))$("#bugScreenshot").value="";}catch(e){console.error(e);toast(e?.message||"Laporan belum terkirim. Coba lagi.");}
 }
+function normalizeWhatsAppNumber(value){
+  let n=String(value||"").replace(/\D/g,"");
+  if(n.startsWith("0")) n="62"+n.slice(1);
+  if(n.startsWith("8")) n="62"+n;
+  return n;
+}
 async function saveStoreSettings(form){
-  const fd=new FormData(form), data={whatsapp:String(fd.get("number")||"").replace(/\D/g,""),whatsappName:String(fd.get("name")||"Admin Tubi"),hours:String(fd.get("hours")||"")};
+  const fd=new FormData(form), data={whatsapp:normalizeWhatsAppNumber(fd.get("number")),whatsappName:String(fd.get("name")||"Admin Tubi").trim()||"Admin Tubi",hours:String(fd.get("hours")||"").trim()};
+  if(!data.whatsapp || data.whatsapp.length<10){toast("Masukkan nomor WhatsApp yang valid.");return}
   try{await setDoc(doc(db,"settings","store"),data,{merge:true});state.storeSettings={...(state.storeSettings||{}),...data};render();toast("Pengaturan toko disimpan.");}catch(e){console.error(e);toast("Pengaturan gagal disimpan.");}
 }
 function whatsappUrl(){
-  const n=String(state.storeSettings?.whatsapp||"").replace(/\D/g,"");
+  const n=normalizeWhatsAppNumber(state.storeSettings?.whatsapp);
   return n?`https://wa.me/${n}`:"";
 }
 function whatsappNumber(){
-  return String(state.storeSettings?.whatsapp||"").replace(/\D/g,"");
+  return normalizeWhatsAppNumber(state.storeSettings?.whatsapp);
 }
 function whatsappDisplay(){
   const n=whatsappNumber();
@@ -673,7 +708,26 @@ function openAdminWhatsApp(){
 function printOrder(o){
   const w=window.open("","_blank","noopener,noreferrer"); if(!w){toast("Popup print diblokir browser.");return;}
   const rows=(o.items||[]).map(i=>`<tr><td>${escapeHtml(i.name)}</td><td>${i.qty}</td><td>${rupiah(i.price)}</td><td>${rupiah(i.price*i.qty)}</td></tr>`).join("");
-  w.document.write(`<!doctype html><html><head><title>Struk Tubi ${escapeHtml(o.id)}</title><style>body{font-family:Arial,sans-serif;padding:24px;max-width:520px;margin:auto}table{width:100%;border-collapse:collapse}td{padding:6px 2px;border-bottom:1px solid #ddd}h1{margin-bottom:4px}.total{font-size:18px;font-weight:bold}</style></head><body><h1>TUBI</h1><div>Order: ${escapeHtml(o.id)}</div><div>Customer: ${escapeHtml(o.customerName||"")}</div><div>Penerima: ${escapeHtml(o.recipientName||"")}</div><div>Waktu: ${escapeHtml(timeText(o.createdAt))}</div><hr><table>${rows}</table><p>Catatan: ${escapeHtml(o.note||"-")}</p><p class="total">Total: ${rupiah(o.total)}</p><p>Status: ${escapeHtml(statusLabel(o.status))}</p><script>window.onload=()=>setTimeout(()=>window.print(),150)<\/script></body></html>`);w.document.close();
+  w.document.write(`<!doctype html><html><head><title>Struk Tubi ${escapeHtml(o.id)}</title><style>body{font-family:Arial,sans-serif;padding:24px;max-width:520px;margin:auto}table{width:100%;border-collapse:collapse}td{padding:6px 2px;border-bottom:1px solid #ddd}h1{margin-bottom:4px}.total{font-size:18px;font-weight:bold}
+/* Tubi v5.3 navigation cleanup */
+.simple-page{max-width:900px;margin:0 auto}
+.form-panel{max-width:760px}
+.profile-menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.profile-menu-grid button{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px}
+.contact-page{max-width:680px;margin:0 auto}
+.contact-number{font-size:24px;font-weight:900;letter-spacing:.4px}
+.admin-menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:18px 0}
+.admin-menu-card{display:flex;align-items:center;gap:14px;text-align:left;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:18px;padding:16px;min-height:78px;box-shadow:0 4px 18px #00000008}
+.admin-menu-card:hover{border-color:var(--accent);transform:translateY(-1px)}
+.admin-menu-icon{font-size:26px;width:36px;text-align:center}
+.admin-menu-card strong,.admin-menu-card small{display:block}
+.admin-menu-card small{margin-top:4px;color:var(--muted);font-weight:500}
+@media(max-width:640px){
+  .profile-menu-grid,.admin-menu-grid{grid-template-columns:1fr}
+  .simple-page .section-head{align-items:flex-start}
+  .contact-number{font-size:20px}
+}
+</style></head><body><h1>TUBI</h1><div>Order: ${escapeHtml(o.id)}</div><div>Customer: ${escapeHtml(o.customerName||"")}</div><div>Penerima: ${escapeHtml(o.recipientName||"")}</div><div>Waktu: ${escapeHtml(timeText(o.createdAt))}</div><hr><table>${rows}</table><p>Catatan: ${escapeHtml(o.note||"-")}</p><p class="total">Total: ${rupiah(o.total)}</p><p>Status: ${escapeHtml(statusLabel(o.status))}</p><script>window.onload=()=>setTimeout(()=>window.print(),150)<\/script></body></html>`);w.document.close();
 }
 async function connectPrinter(){
   if(!navigator.bluetooth){toast("Bluetooth browser tidak didukung. Tubi akan memakai fallback print.");return}
@@ -691,14 +745,24 @@ function adminView(){
   const revenue=done.reduce((a,o)=>a+Number(o.total||0),0);
   const unread=(state.notifications||[]).filter(n=>!n.read).length;
   const bugs=(state.bugReports||[]).filter(b=>b.status!=="selesai").length;
-  return `<div class="admin-wrap"><div class="section-head"><div><div class="admin-kicker">TUBI CONTROL</div><h2>Dashboard Admin</h2><span class="muted">Kelola toko, pesanan, laporan, bantuan, dan perangkat.</span></div><button class="outline" id="adminHome">${svg("home",18)} Beranda</button></div>
+  return `<div class="admin-wrap"><div class="section-head"><div><div class="admin-kicker">TUBI CONTROL</div><h2>Dashboard Admin</h2><span class="muted">Kelola toko, pesanan, laporan, bantuan, dan perangkat.</span></div><button class="outline" id="adminHome">${svg("grid",18)} Dashboard</button></div>
     <div class="admin-kpis"><div class="admin-kpi"><span>Produk</span><strong>${state.products.length}</strong></div><div class="admin-kpi"><span>Pesanan berjalan</span><strong>${active.length}</strong></div><div class="admin-kpi"><span>Pesanan selesai</span><strong>${done.length}</strong></div><div class="admin-kpi"><span>Omzet selesai</span><strong>${rupiah(revenue)}</strong></div></div>
-    <div class="admin-tabs">${["overview","products","orders","reports","notifications","tools","support","settings"].map((t,i)=>`<button class="admin-tab ${i===0?"active":""}" data-admin-tab="${t}">${({overview:"Ringkasan",products:"Produk",orders:"Pesanan",reports:"Omzet & Laporan",notifications:"Notifikasi",tools:"Kalkulator",support:"Bantuan & Bug",settings:"Pengaturan"})[t]}</button>`).join("")}</div>
-    <div class="admin-section" data-admin-panel="overview"><div class="admin-two">
+    ${state.adminPage==="overview"?`<div class="admin-menu-grid">
+      ${[
+        ["products","🛍️","Produk","Tambah, edit, hapus produk"],
+        ["orders","📦","Pesanan","Kelola pesanan dan status"],
+        ["reports","💰","Omzet & Laporan","Lihat transaksi dan laporan"],
+        ["tools","🧮","Kalkulator","Hitung transaksi sederhana"],
+        ["notifications","🔔","Notifikasi","Pesanan baru dan pemberitahuan"],
+        ["support","🐛","Bantuan & Bug","FAQ dan laporan masalah"],
+        ["settings","⚙️","Pengaturan","WhatsApp, printer, admin"]
+      ].map(([page,icon,title,desc])=>`<button class="admin-menu-card" data-admin-page="${page}"><span class="admin-menu-icon">${icon}</span><span><strong>${title}</strong><small>${desc}</small></span></button>`).join("")}
+    </div>`:""}
+    <div class="admin-section" data-admin-panel="overview" ${state.adminPage!=="overview"?"hidden":""}><div class="admin-two">
       <div class="panel"><h3>Ringkasan hari ini</h3><div class="security-list"><div>${svg("check",18)} <span>Transaksi selesai: <strong>${done.length}</strong></span></div><div>${svg("check",18)} <span>Berjalan: <strong>${active.length}</strong></span></div><div>${svg("check",18)} <span>Dibatalkan: <strong>${cancelled.length}</strong></span></div><div>${svg("check",18)} <span>Notifikasi belum dibaca: <strong>${unread}</strong></span></div></div></div>
-      <div class="panel"><h3>Akses cepat</h3><div class="help-grid"><button class="outline" data-admin-jump="products">Kelola produk</button><button class="outline" data-admin-jump="orders">Pesanan masuk</button><button class="outline" data-admin-jump="notifications">Notifikasi ${unread?`(${unread})`:""}</button><button class="outline" data-admin-jump="settings">Printer & WhatsApp</button></div></div>
+
     </div></div>
-    <div class="admin-section" data-admin-panel="products" hidden><div class="admin-two">
+    <div class="admin-section" data-admin-panel="products" ${state.adminPage!=="products"?"hidden":""}><div class="admin-two">
       <div class="panel"><h3>${state.editingProduct?"Edit produk":"Tambah produk baru"}</h3><form id="productForm"><div class="form-grid">
         <div class="field full"><label>Nama produk</label><input name="name" required value="${escapeHtml(state.editingProduct?.name||"")}" placeholder="Contoh: Ayam Geprek"></div>
         <div class="field"><label>Harga (rupiah)</label><input name="price" type="number" min="0" required value="${state.editingProduct?.price||""}"></div>
@@ -712,12 +776,12 @@ function adminView(){
       </div><button class="primary" type="submit">${state.editingProduct?svg("check",18)+" Simpan perubahan":svg("plus",18)+" Tambah produk"}</button>${state.editingProduct?`<button class="outline full-btn" type="button" id="cancelEdit">Batal edit</button>`:""}</form></div>
       <div class="panel"><div class="panel-title-row"><h3>Produk aktif (${state.products.length})</h3><span class="muted">Firestore realtime</span></div><div class="admin-products">${state.products.length?state.products.map(adminProductCard).join(""):`<div class="empty">Belum ada produk di Firestore.<br><button class="outline" id="seedBtn" style="margin-top:10px">Buat katalog awal</button></div>`}</div></div>
     </div></div>
-    <div class="admin-section" data-admin-panel="orders" hidden><div class="panel"><div class="panel-title-row"><h3>Pesanan masuk</h3><span class="pill">${active.length} berjalan</span></div>${orders.length?`<div class="orders">${orders.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(adminOrderCard).join("")}</div>`:`<div class="empty">Belum ada pesanan.</div>`}</div></div>
-    <div class="admin-section" data-admin-panel="reports" hidden><div class="admin-two"><div class="panel"><h3>Omzet</h3><div class="stats-grid"><div class="stat"><span>Hari ini</span><strong>${rupiah(periodRevenue(1))}</strong></div><div class="stat"><span>7 hari</span><strong>${rupiah(periodRevenue(7))}</strong></div><div class="stat"><span>30 hari</span><strong>${rupiah(periodRevenue(30))}</strong></div><div class="stat"><span>Total selesai</span><strong>${rupiah(revenue)}</strong></div></div></div><div class="panel"><h3>Produk terlaris</h3>${topProductsHtml()}<h3 style="margin-top:18px">Omzet 7 hari</h3>${revenueChartHtml()}</div></div></div>
-    <div class="admin-section" data-admin-panel="notifications" hidden><div class="panel"><div class="panel-title-row"><h3>Notifikasi</h3><button class="outline compact" id="readAllNotifications">Tandai semua dibaca</button></div><div class="admin-list">${(state.notifications||[]).length?state.notifications.slice(0,30).map(notificationHtml).join(""):`<div class="empty">Belum ada notifikasi.</div>`}</div></div></div>
-    <div class="admin-section" data-admin-panel="tools" hidden><div class="admin-two"><div class="panel"><h3>Kalkulator</h3><div class="calc"><input class="calc-display" id="adminCalc" placeholder="0" inputmode="decimal"><div class="help-grid">${["7","8","9","/","4","5","6","*","1","2","3","-","0",".","=","+"].map(x=>`<button class="outline calc-key" data-calc="${x}">${x}</button>`).join("")}</div><button class="outline" id="calcClear">Bersihkan</button></div></div><div class="panel"><h3>Transaksi</h3><p class="muted">Perhitungan omzet hanya memasukkan pesanan berstatus <b>Selesai</b>.</p><div class="stat"><span>Jumlah transaksi selesai</span><strong>${done.length}</strong></div></div></div></div>
-    <div class="admin-section" data-admin-panel="support" hidden><div class="admin-two"><div class="panel"><h3>Laporan bug (${bugs})</h3><div class="admin-list">${(state.bugReports||[]).map(bugHtml).join("")||`<div class="empty">Belum ada laporan bug.</div>`}</div></div><div class="panel"><h3>FAQ & Pusat Bantuan</h3><div class="help-grid">${FAQ_ITEMS.map(x=>`<div class="help-item"><strong>${escapeHtml(x.q)}</strong><div class="muted" style="margin-top:5px">${escapeHtml(x.a)}</div></div>`).join("")}</div></div></div></div>
-    <div class="admin-section" data-admin-panel="settings" hidden><div class="admin-two"><div class="panel"><h3>WhatsApp Admin</h3><form id="whatsappForm" class="form-grid"><div class="field"><label>Nomor WhatsApp</label><input name="number" value="${escapeHtml(state.storeSettings?.whatsapp||"")}" placeholder="628xxxxxxxxxx"></div><div class="field"><label>Nama kontak</label><input name="name" value="${escapeHtml(state.storeSettings?.whatsappName||"Admin Tubi")}"></div><div class="field full"><label>Jam operasional</label><input name="hours" value="${escapeHtml(state.storeSettings?.hours||"Setiap hari 09.00–21.00")}"></div><button class="primary" type="submit">Simpan pengaturan</button></form></div>
+    <div class="admin-section" data-admin-panel="orders" ${state.adminPage!=="orders"?"hidden":""}><div class="panel"><div class="panel-title-row"><h3>Pesanan masuk</h3><span class="pill">${active.length} berjalan</span></div>${orders.length?`<div class="orders">${orders.slice().sort((a,b)=>(b.createdAt?.seconds||0)-(a.createdAt?.seconds||0)).map(adminOrderCard).join("")}</div>`:`<div class="empty">Belum ada pesanan.</div>`}</div></div>
+    <div class="admin-section" data-admin-panel="reports" ${state.adminPage!=="reports"?"hidden":""}><div class="admin-two"><div class="panel"><h3>Omzet</h3><div class="stats-grid"><div class="stat"><span>Hari ini</span><strong>${rupiah(periodRevenue(1))}</strong></div><div class="stat"><span>7 hari</span><strong>${rupiah(periodRevenue(7))}</strong></div><div class="stat"><span>30 hari</span><strong>${rupiah(periodRevenue(30))}</strong></div><div class="stat"><span>Total selesai</span><strong>${rupiah(revenue)}</strong></div></div></div><div class="panel"><h3>Produk terlaris</h3>${topProductsHtml()}<h3 style="margin-top:18px">Omzet 7 hari</h3>${revenueChartHtml()}</div></div></div>
+    <div class="admin-section" data-admin-panel="notifications" ${state.adminPage!=="notifications"?"hidden":""}><div class="panel"><div class="panel-title-row"><h3>Notifikasi</h3><button class="outline compact" id="readAllNotifications">Tandai semua dibaca</button></div><div class="admin-list">${(state.notifications||[]).length?state.notifications.slice(0,30).map(notificationHtml).join(""):`<div class="empty">Belum ada notifikasi.</div>`}</div></div></div>
+    <div class="admin-section" data-admin-panel="tools" ${state.adminPage!=="tools"?"hidden":""}><div class="admin-two"><div class="panel"><h3>Kalkulator</h3><div class="calc"><input class="calc-display" id="adminCalc" placeholder="0" inputmode="decimal"><div class="help-grid">${["7","8","9","/","4","5","6","*","1","2","3","-","0",".","=","+"].map(x=>`<button class="outline calc-key" data-calc="${x}">${x}</button>`).join("")}</div><button class="outline" id="calcClear">Bersihkan</button></div></div><div class="panel"><h3>Transaksi</h3><p class="muted">Perhitungan omzet hanya memasukkan pesanan berstatus <b>Selesai</b>.</p><div class="stat"><span>Jumlah transaksi selesai</span><strong>${done.length}</strong></div></div></div></div>
+    <div class="admin-section" data-admin-panel="support" ${state.adminPage!=="support"?"hidden":""}><div class="admin-two"><div class="panel"><h3>Laporan bug (${bugs})</h3><div class="admin-list">${(state.bugReports||[]).map(bugHtml).join("")||`<div class="empty">Belum ada laporan bug.</div>`}</div></div><div class="panel"><h3>FAQ & Pusat Bantuan</h3><div class="help-grid">${FAQ_ITEMS.map(x=>`<div class="help-item"><strong>${escapeHtml(x.q)}</strong><div class="muted" style="margin-top:5px">${escapeHtml(x.a)}</div></div>`).join("")}</div></div></div></div>
+    <div class="admin-section" data-admin-panel="settings" ${state.adminPage!=="settings"?"hidden":""}><div class="admin-two"><div class="panel"><h3>WhatsApp Admin</h3><form id="whatsappForm" class="form-grid"><div class="field"><label>Nomor WhatsApp</label><input name="number" value="${escapeHtml(state.storeSettings?.whatsapp||"")}" placeholder="628xxxxxxxxxx"></div><div class="field"><label>Nama kontak</label><input name="name" value="${escapeHtml(state.storeSettings?.whatsappName||"Admin Tubi")}"></div><div class="field full"><label>Jam operasional</label><input name="hours" value="${escapeHtml(state.storeSettings?.hours||"Setiap hari 09.00–21.00")}"></div><button class="primary" type="submit">Simpan pengaturan</button></form></div>
       <div class="panel"><h3>Printer</h3><div class="printer-box"><strong>Printer Admin</strong><p class="muted">Browser tidak menjamin dukungan Bluetooth untuk semua printer. Tubi memakai Web Bluetooth jika tersedia dan fallback ke dialog print perangkat.</p><div class="account-actions"><button class="outline" id="printerConnect">Hubungkan</button><button class="outline" id="printerTest">Tes cetak</button><button class="outline" id="printerDisconnect">Putuskan</button></div><div id="printerStatus" class="muted" style="margin-top:8px">${state.printer?.connected?"Terhubung":"Belum terhubung"} · Auto-print ${state.printer?.auto?"ON":"OFF"}</div><label style="display:block;margin-top:12px"><input type="checkbox" id="autoPrint" ${state.printer?.auto?"checked":""}> Auto-print pesanan baru</label></div></div>
       <div class="panel"><h3>Admin yang diizinkan</h3><form id="adminForm" class="inline-form"><input id="newAdminEmail" type="email" required placeholder="nama@gmail.com"><button class="primary compact" type="submit">${svg("plus",18)} Tambah</button></form><div class="admin-email-list">${state.adminEmails.map(e=>`<div class="admin-email"><span>${escapeHtml(e)}</span>${normalizedEmail(e)!==normalizedEmail(ADMIN_EMAIL)?`<button class="small-btn danger" data-remove-admin="${escapeHtml(e)}">${svg("trash",16)}</button>`:""}</div>`).join("")}</div></div>
     </div></div></div>`;
@@ -1061,7 +1125,10 @@ function openOverlay(id){
 }
 
 function setView(v){
-  if(v==="admin"&&!isAdmin()){toast("Akses admin ditolak.");return}
+  if(v==="admin"){
+    if(!isAdmin()){toast("Akses admin ditolak.");return}
+    state.adminPage="overview";
+  }
   state.view=v; closeDrawer(); render(); window.scrollTo({top:0,behavior:"smooth"});
 }
 function bind(){
@@ -1081,14 +1148,24 @@ function bind(){
   document.querySelectorAll("[data-detail]").forEach(b=>b.onclick=()=>openProductDetail(b.dataset.detail));
   $("#googleBtn")?.addEventListener("click",login);$("#googleBtn2")?.addEventListener("click",login);$("#googleBtn3")?.addEventListener("click",login);
   $("#profileBtn")?.addEventListener("click",()=>setView("profile"));$("#homeFromOrders")?.addEventListener("click",()=>setView("home"));$("#shopNow")?.addEventListener("click",()=>setView("home"));
-  $("#logoutBtn")?.addEventListener("click",confirmLogout);$("#myOrdersBtn")?.addEventListener("click",()=>setView("orders"));$("#myFavBtn")?.addEventListener("click",()=>setView("favorites"));$("#adminBtn")?.addEventListener("click",()=>setView("admin"));$("#adminHome")?.addEventListener("click",()=>setView("home"));
+  $("#logoutBtn")?.addEventListener("click",confirmLogout);$("#myOrdersBtn")?.addEventListener("click",()=>setView("orders"));$("#myFavBtn")?.addEventListener("click",()=>setView("favorites"));$("#adminBtn")?.addEventListener("click",()=>setView("admin"));$("#adminHome")?.addEventListener("click",()=>setAdminPage("overview"));
   $("#saveProfile")?.addEventListener("click",saveProfile);
   $("#installProfile")?.addEventListener("click",installApp);
   $("#profilePhoto")?.addEventListener("change",e=>saveProfilePhoto(e.target.files?.[0]));
   $("#profileLocation")?.addEventListener("click",()=>useCurrentLocation("profileAddress"));
   $("#profileMap")?.addEventListener("click",()=>openMapsForAddress($("#profileAddress")?.value.trim()));
   $("#profileWhatsApp")?.addEventListener("click",openAdminWhatsApp);
+  $("#profileHelpBtn")?.addEventListener("click",()=>setView("help"));
+  $("#profileBugBtn")?.addEventListener("click",()=>setView("bug"));
+  $("#profileWhatsAppPageBtn")?.addEventListener("click",()=>setView("whatsapp"));
+  $("#profileSettingsBtn")?.addEventListener("click",()=>setView("settings"));
+  $("#helpBack")?.addEventListener("click",()=>setView("profile"));
+  $("#bugBack")?.addEventListener("click",()=>setView("profile"));
+  $("#whatsappBack")?.addEventListener("click",()=>setView("profile"));
+  $("#settingsBack")?.addEventListener("click",()=>setView("profile"));
+  $("#openWhatsAppPage")?.addEventListener("click",openAdminWhatsApp);
   $("#profileThemeToggle")?.addEventListener("click",()=>{state.theme=state.theme==="dark"?"light":"dark";saveLocal();applyTheme();render();});
+  $("#installProfile")?.addEventListener("click",installApp);
   $("#adminForm")?.addEventListener("submit",e=>{e.preventDefault();addAdmin($("#newAdminEmail").value)});
   document.querySelectorAll("[data-remove-admin]").forEach(b=>b.onclick=()=>removeAdmin(b.dataset.removeAdmin));
   $("#productForm")?.addEventListener("submit",async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Menyimpan';await saveProduct(e.target);});
@@ -1100,12 +1177,9 @@ function bind(){
   document.querySelectorAll("[data-cancel-order]").forEach(b=>b.onclick=()=>cancelOrder(b.dataset.cancelOrder));
   document.querySelectorAll("[data-review-order]").forEach(b=>b.onclick=()=>reviewOrder(b.dataset.reviewOrder));
   document.querySelectorAll("[data-print-order]").forEach(b=>b.onclick=()=>{const o=state.orders.find(x=>x.id===b.dataset.printOrder);if(o)printOrder(o);});
-  document.querySelectorAll("[data-admin-tab]").forEach(b=>b.onclick=()=>{
-    const tab=b.dataset.adminTab;
-    document.querySelectorAll("[data-admin-tab]").forEach(x=>x.classList.toggle("active",x===b));
-    document.querySelectorAll("[data-admin-panel]").forEach(p=>p.hidden=p.dataset.adminPanel!==tab);
-  });
-  document.querySelectorAll("[data-admin-jump]").forEach(b=>b.onclick=()=>document.querySelector(`[data-admin-tab="${b.dataset.adminJump}"]`)?.click());
+  document.querySelectorAll("[data-admin-page]").forEach(b=>b.onclick=()=>setAdminPage(b.dataset.adminPage));
+  document.querySelectorAll("[data-admin-tab]").forEach(b=>b.onclick=()=>setAdminPage(b.dataset.adminTab));
+  document.querySelectorAll("[data-admin-jump]").forEach(b=>b.onclick=()=>setAdminPage(b.dataset.adminJump));
   document.querySelectorAll("[data-read-notification]").forEach(b=>b.onclick=()=>markNotification(b.dataset.readNotification));
   $("#readAllNotifications")?.addEventListener("click",readAllNotifications);
   document.querySelectorAll("[data-bug-status]").forEach(s=>s.onchange=()=>changeBugStatus(s.dataset.bugStatus,s.value));
@@ -1156,7 +1230,7 @@ getRedirectResult(auth).catch(e=>{if(e?.code)console.warn("Redirect:",e.code)});
 subscribeStoreSettings();
 subscribeProducts();
 const initialView=new URLSearchParams(location.search).get("view");
-if(["home","orders","favorites","profile"].includes(initialView))state.view=initialView;
+if(["home","orders","favorites","profile","help","bug","whatsapp","settings"].includes(initialView))state.view=initialView;
 window.__tubiBooted=true;
 render();
 </script>

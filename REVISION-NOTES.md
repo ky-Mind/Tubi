@@ -43,3 +43,15 @@ Product/profile/bug screenshots are compressed in-browser as JPEG data URLs and 
 - Customer Account explicitly shows Admin WhatsApp number, contact name, and operating hours.
 - Store settings realtime listener now refreshes the app for both customer and admin views.
 - Service-worker cache key bumped to force the corrected assets to refresh.
+
+
+## v5.3 — Navigation & Account Cleanup
+- Admin dashboard is simplified into a control hub with dedicated page buttons for Products, Orders, Revenue & Reports, Calculator, Notifications, Help & Bug, and Settings.
+- Admin drawer now exposes those pages directly; admin no longer gets customer-style Favorites/Orders navigation.
+- Customer Account no longer contains large stacked Help/FAQ/Bug/Settings forms.
+- Customer Help, Bug Report, WhatsApp Admin, and App Settings are separate pages.
+- WhatsApp Admin settings accept Indonesian numbers entered as `08...`, `8...`, `62...`, or `+62...` and normalize them for `wa.me`.
+- Customer WhatsApp page shows the configured number, contact name, operating hours, and chat button.
+- Profile support buttons now navigate to real pages instead of scroll-only sections.
+- Service worker cache bumped to `tubi-v5-3-navigation-pages`.
+- JavaScript module syntax checked successfully with Node.js `--check`.

@@ -1,4 +1,4 @@
-const CACHE="tubi-v5-2-stable-account-whatsapp";
+const CACHE="tubi-v5-3-navigation-pages";
 const CORE=["./","./index.html","./manifest.webmanifest","./tubi-icon.png","./tubi-icon-192.png","./tubi-icon-512.png"];
 
 self.addEventListener("message",event=>{if(event.data?.type==="SKIP_WAITING")self.skipWaiting();});

@@ -129,3 +129,7 @@ Publish the included `firestore.rules` to project `tubi-app`. No Firebase Storag
 
 ### v5.2 stability patch
 Fixes blank boot/update state, customer WhatsApp visibility, store-settings refresh, and customer cancellation binding. Static Vercel deployment remains dependency-free.
+
+
+### v5.3 Navigation cleanup
+Admin and customer support/settings areas are separated into dedicated pages. WhatsApp admin number input is normalized for Indonesian numbers and exposed to customers through the Account drawer and WhatsApp page.
