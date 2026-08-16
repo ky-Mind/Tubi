@@ -1,4 +1,4 @@
-# Tubi v3 — static PWA
+# Tubi v5.1 — static PWA
 
 Versi ini dibuat sebagai aplikasi static single-page agar deployment Vercel tidak lagi bergantung pada build command Vite.
 

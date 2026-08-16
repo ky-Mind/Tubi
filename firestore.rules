@@ -46,7 +46,7 @@ service cloud.firestore {
       allow update: if isAdmin() ||
         (signedIn() && resource.data.userId == request.auth.uid &&
          request.resource.data.status == "dibatalkan" &&
-         resource.data.status in ["menunggu","diproses"] &&
+         resource.data.status in ["baru","menunggu","diproses"] &&
          request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status"]));
       allow delete: if isAdmin();
     }

@@ -23,3 +23,12 @@ Product/profile/bug screenshots are compressed in-browser as JPEG data URLs and 
 
 ## Deployment
 `package.json` remains dependency-free for the static Vercel deployment. `npm run build` is an intentional no-op build and does not require Vite.
+
+
+## v5.1 — Account / Navigation Fixes
+- Customer drawer now includes Akun, Pusat Bantuan, Laporkan masalah, WhatsApp Admin, and Pengaturan aplikasi.
+- Customer Account now visibly shows the WhatsApp Admin number, contact name, operating hours, and direct chat button when configured in Firestore.
+- Added app settings controls inside the customer Account screen.
+- Fixed customer order cancellation compatibility for legacy `baru` orders and improved permission-denied guidance.
+- Firestore rules now permit eligible cancellation of legacy `baru` orders as well as `menunggu`/`diproses`.
+- Added missing drawer icons and preserved Firestore as the only product source of truth.
