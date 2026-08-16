@@ -1,4 +1,4 @@
-# Tubi v4.1 — Client Revision
+# Tubi v4.2 — Client Revision
 
 ## UX
 - Drawer and modal overlays lock the background page.
@@ -20,3 +20,13 @@
 - Checkout writes to `orders` and customer profile fields.
 - Admin order subscription and product CRUD retained.
 - `firestore.rules` included and must be published in Firebase Console.
+
+
+## v4.2
+- Admin dashboard separated from customer shopping flow; cart is hidden on the admin view.
+- Admin CRUD strengthened: edit/delete actions, availability, menu category, taste tags, label, and immediate image preview.
+- Added explicit Firestore catalog import flow when the database is empty.
+- Unified image fallback behavior across product card/detail/cart/admin.
+- Reworked categories into Roti, Dimsum, Tteokbokki, Kwetiau, Cilok, Minuman; taste attributes remain searchable through tags.
+- Search scoring expanded for menu types and natural-language taste queries.
+- Added `siap` order status.
