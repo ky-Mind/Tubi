@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "492656969625",
+    "project_id": "tubi-app",
+    "storage_bucket": "tubi-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:492656969625:android:e1d8b1bb5456b307b53508",
+        "android_client_info": {
+          "package_name": "com.tubi.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "492656969625-lokrgfh27fhhvcsqo3ash6opldaso2im.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tubi.app",
+            "certificate_hash": "9e87b5268636bdd7f136f53acb8291702591d23a"
+          }
+        },
+        {
+          "client_id": "492656969625-ve14uoh2e4jo9v7f448skdga91uncr6q.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDCLwCg8dlrPbvQ8gzyXAnErLf4St1jBQc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "492656969625-ve14uoh2e4jo9v7f448skdga91uncr6q.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
