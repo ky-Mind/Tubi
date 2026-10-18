@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Tubi</string>
+    <string name="title_activity_main">Tubi</string>
+    <string name="package_name">com.tubi.app</string>
+    <string name="custom_url_scheme">com.tubi.app</string>
+    <string name="google_login_client_id">492656969625-ve14uoh2e4jo9v7f448skdga91uncr6q.apps.googleusercontent.com</string>
+<string name="default_web_client_id">492656969625-ve14uoh2e4jo9v7f448skdga91uncr6q.apps.googleusercontent.com</string>
+</resources>
