@@ -1,0 +1,185 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ================= Helper =================
+    function signedIn() { return request.auth != null; }
+    function mail() {
+      return signedIn() && request.auth.token.email != null ? request.auth.token.email.lower() : "";
+    }
+    // Admin utama (tetap) — satu-satunya yang boleh menambah/menghapus admin lain.
+    function mainAdmin() { return mail() == "hilmykia@gmail.com"; }
+    // Admin tambahan = email yang terdaftar di koleksi `admins`. Dihapus dari sana = langsung kehilangan akses.
+    function listedAdmin() {
+      return signedIn() && mail() != "" &&
+        exists(/databases/$(database)/documents/admins/$(mail()));
+    }
+    function isAdmin() { return mainAdmin() || listedAdmin(); }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
+    function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function validRating(v) { return v is number && v >= 1 && v <= 5; }
+    function text(v, max) { return v is string && v.size() <= max; }
+    function optText(key, max) { return !(key in request.resource.data) || text(request.resource.data[key], max); }
+
+    // ================= Admin =================
+    match /admins/{adminEmail} {
+      allow get: if signedIn() && (mail() == adminEmail.lower() || isAdmin());
+      allow list: if isAdmin();
+      allow create, update: if mainAdmin() &&
+        request.resource.data.keys().hasOnly(["email", "name", "phone", "createdAt", "by"]);
+      allow delete: if mainAdmin();
+    }
+
+    // ================= Katalog & pengaturan toko =================
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isAdmin() &&
+        text(request.resource.data.name, 120) &&
+        request.resource.data.price is number && request.resource.data.price >= 0;
+      allow delete: if isAdmin();
+    }
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ================= Pengguna =================
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) &&
+        request.resource.data.keys().hasOnly(["displayName", "email", "photoURL", "role", "createdAt"]) &&
+        request.resource.data.role == "customer";
+      allow update: if isAdmin() ||
+        (isOwner(userId) &&
+         changed().hasOnly(["displayName", "email", "photoURL", "recipientName", "phone", "address", "note", "location"]) &&
+         text(request.resource.data.get("address", ""), 500) && text(request.resource.data.get("phone", ""), 30));
+      allow delete: if isOwner(userId) || isAdmin();
+    }
+
+    // ================= Pesanan =================
+    match /orders/{orderId} {
+      allow create: if signedIn() &&
+        request.resource.data.keys().hasOnly(["userId", "email", "customerName", "recipientName", "phone", "address", "note",
+          "mapsUrl", "location", "items", "subtotal", "discount", "deliveryFee", "tax", "voucher", "total", "status", "createdAt",
+          "payment", "paymentProof"]) &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == "menunggu" &&
+        request.resource.data.createdAt == request.time &&
+        request.resource.data.items is list && request.resource.data.items.size() > 0 && request.resource.data.items.size() <= 50 &&
+        request.resource.data.total is number && request.resource.data.total >= 0 &&
+        text(request.resource.data.address, 500) && text(request.resource.data.note, 500) &&
+        optText("paymentProof", 450000) &&
+        (!("payment" in request.resource.data) ||
+          (request.resource.data.payment.method in ["cod", "transfer"] && request.resource.data.payment.status == "unpaid"));
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow update: if isAdmin() ||
+        // pelanggan boleh membatalkan selama belum diproses
+        (isOwner(resource.data.userId) &&
+         changed().hasOnly(["status"]) &&
+         request.resource.data.status == "dibatalkan" &&
+         resource.data.status in ["menunggu", "baru"]) ||
+        // pelanggan boleh memberi ulasan setelah pesanan selesai
+        (isOwner(resource.data.userId) &&
+         changed().hasOnly(["review"]) &&
+         resource.data.status == "selesai" &&
+         validRating(request.resource.data.review.rating)) ||
+        // pelanggan boleh mengunggah bukti transfer
+        (isOwner(resource.data.userId) &&
+         changed().hasOnly(["paymentProof"]) &&
+         resource.data.get("payment", {}).get("method", "") == "transfer" &&
+         resource.data.get("payment", {}).get("status", "") != "paid" &&
+         resource.data.status != "dibatalkan" &&
+         text(request.resource.data.paymentProof, 450000));
+      allow delete: if isAdmin();
+    }
+
+    // ================= Notifikasi & laporan masalah =================
+    match /notifications/{notificationId} {
+      allow create: if signedIn() &&
+        request.resource.data.keys().hasOnly(["type", "orderId", "userId", "title", "body", "read", "createdAt"]) &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.type == "new_order" &&
+        request.resource.data.read == false;
+      allow read, update, delete: if isAdmin();
+    }
+    match /bugReports/{bugId} {
+      allow create: if signedIn() &&
+        request.resource.data.keys().hasOnly(["userId", "email", "type", "description", "orderId", "screenshot", "status", "createdAt"]) &&
+        request.resource.data.userId == request.auth.uid &&
+        request.resource.data.status == "baru" &&
+        text(request.resource.data.description, 2000) &&
+        optText("screenshot", 450000);
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
+    }
+
+    // ================= Ulasan pesanan (versi lama) =================
+    match /reviews/{reviewId} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if signedIn();
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // ================= Rating & komentar produk =================
+    match /productReviews/{reviewId} {
+      allow read: if true;
+      allow create: if signedIn() &&
+        request.resource.data.keys().hasOnly(["productId", "userId", "name", "photoURL", "rating", "text", "createdAt"]) &&
+        request.resource.data.productId is string &&
+        reviewId == request.resource.data.productId + "_" + request.auth.uid &&
+        request.resource.data.userId == request.auth.uid &&
+        validRating(request.resource.data.rating) &&
+        text(request.resource.data.text, 500);
+      allow update: if isAdmin() ||
+        (isOwner(resource.data.userId) &&
+         request.resource.data.userId == request.auth.uid &&
+         changed().hasOnly(["rating", "text", "name", "photoURL", "createdAt"]) &&
+         validRating(request.resource.data.rating) &&
+         text(request.resource.data.text, 500));
+      allow delete: if isAdmin() || isOwner(resource.data.userId);
+    }
+
+    // ================= Chat pelanggan <-> admin =================
+    match /chats/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isAdmin() ||
+        (isOwner(uid) &&
+         request.resource.data.keys().hasOnly(["uid", "name", "email", "photoURL", "phone", "lastFrom", "lastMessage", "updatedAt", "unreadAdmin", "unreadUser"]) &&
+         request.resource.data.uid == uid &&
+         request.resource.data.lastFrom == "user");
+      allow update: if isAdmin() ||
+        (isOwner(uid) &&
+         changed().hasOnly(["name", "email", "photoURL", "phone", "lastFrom", "lastMessage", "updatedAt", "unreadAdmin", "unreadUser"]) &&
+         (!changed().hasAny(["unreadUser"]) || request.resource.data.unreadUser == 0) &&
+         (!changed().hasAny(["lastMessage"]) || request.resource.data.lastFrom == "user"));
+      allow delete: if isOwner(uid) || isAdmin();
+
+      match /messages/{messageId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow create: if signedIn() &&
+          request.resource.data.keys().hasOnly(["from", "text", "senderId", "createdAt"]) &&
+          request.resource.data.senderId == request.auth.uid &&
+          request.resource.data.createdAt == request.time &&
+          request.resource.data.text is string &&
+          request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000 &&
+          ((isOwner(uid) && request.resource.data.from == "user") ||
+           (isAdmin() && request.resource.data.from == "admin"));
+        // "Hapus untuk saya": peserta chat hanya boleh menambah penanda hiddenFor
+        allow update: if (isOwner(uid) || isAdmin()) &&
+          changed().hasOnly(["hiddenFor"]) &&
+          request.resource.data.hiddenFor is list && request.resource.data.hiddenFor.size() <= 20;
+        // "Hapus untuk semua": admin, atau pemilik chat (pesan di thread-nya sendiri)
+        allow delete: if isAdmin() || isOwner(uid);
+      }
+    }
+
+    // ================= WhatsApp Gateway =================
+    // Gateway Baileys memakai Admin SDK (tidak terikat rules). Dashboard hanya membaca status & mengirim perintah.
+    match /waGateway/{docId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && docId == "command" &&
+        request.resource.data.action in ["test", "restart", "logout", "pair"];
+    }
+  }
+}
