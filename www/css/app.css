@@ -836,3 +836,34 @@ kbd{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 
 .proof-view img{display:block;width:100%;max-height:420px;object-fit:contain;border-radius:10px;background:var(--soft)}
 .proof-tag{position:absolute;left:16px;top:16px;display:flex;align-items:center;gap:4px;background:#16a34a;color:#fff;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:99px;box-shadow:0 2px 8px #0003}
 .proof-view .qris-zoom{right:16px;bottom:16px}
+.pv-logo{background:#fff;overflow:hidden;box-shadow:0 0 0 1px #0000000f,0 2px 6px #0000001a}.pv-logo img{width:100%;height:100%;object-fit:cover;display:block}
+/* toast v3: snackbar gelap ringkas */
+.toasts{width:auto;max-width:min(92vw,380px);justify-items:center}
+.toast{display:inline-flex;align-items:center;gap:10px;width:auto;max-width:100%;background:#2b1a17;color:#fff;border:0;border-radius:14px;padding:10px 16px 10px 10px;font-size:13.5px;font-weight:600;line-height:1.35;box-shadow:0 10px 28px rgba(0,0,0,.28)}
+.toast .t-ic{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:#16a34a;color:#fff;font-style:normal}
+.toast.err{background:#2b1a17;border:0}.toast.err .t-ic{background:var(--red)}
+.toast span{display:block}
+body.dark .toast{background:#fff4e6;color:#2b1a17}
+/* ===== v18: dashboard admin lebih rapi ===== */
+.a-main>.live+.live,.a-main>.live+.two{margin-top:12px}
+.kpi{border-top:0;border-left:4px solid var(--line);gap:4px;padding:14px}
+.kpi:nth-child(2){border-left-color:var(--yellow2)}.kpi:nth-child(3){border-left-color:#16a34a}.kpi:nth-child(4){border-left-color:var(--teal)}
+.kpi.hl{border-left-color:var(--yellow)}
+.kpi small{font-size:11.5px}
+@media(max-width:759px){
+ .a-hello{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:22px 14px 14px;margin-bottom:0}
+ .a-hello .sp{flex:none;min-width:0}.a-hello h2{font-size:19px;margin:2px 0 0}.a-hello p{font-size:12.5px}
+ .a-hello small{font-size:11px}
+ .a-hello .store-sw{width:auto;flex-direction:column;gap:4px;padding:8px 10px;border-radius:12px}
+ .a-hello .store-sw span{text-align:center}.a-hello .store-sw b{font-size:12px}.a-hello .store-sw small{display:none}
+ .todo a{background:var(--soft)}
+ .kpis{gap:8px}.kpi{padding:12px}.kpi b{font-size:22px}
+ .a-main .two{gap:12px}
+}
+/* layar memuat: logo + teks berdekatan di tengah */
+.boot{align-content:center;gap:16px}
+.cartbar .cb-go.tutup{background:#ffffff26;font-size:13px}
+.store-sw:not(.on) b{color:var(--red)}
+.alert.closed{display:flex;align-items:center;gap:8px;font-weight:700}
+.toasts{width:min(92vw,400px);max-width:none}
+.toast{width:fit-content;max-width:100%}

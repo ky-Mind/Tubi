@@ -34,8 +34,11 @@ export const prov = k => PROVIDERS.find(p => p.key === k) || null;
 // Tebak penyedia dari nama lama (data sebelum ada katalog), mis. "DANA", "BCA"
 export const provOf = m => prov(m?.provider) || PROVIDERS.find(p => p.key !== "lain" && new RegExp(`\\b${p.name.split(" ")[0]}\\b`, "i").test(m?.name || "")) || null;
 const inisial = n => n.replace(/[^A-Za-z0-9. ]/g, "").split(/[ .]+/).filter(Boolean).map(w => w[0]).join("").slice(0, 2).toUpperCase() || "?";
+// Logo asli aplikasi (ikon Play Store di assets/bayar/<key>.webp); bila gagal dimuat → inisial berwarna
 export const badge = (m, size = 40) => { const p = provOf(m), nama = p?.name || m?.name || "Transfer";
-  return `<span class="pv" style="--pv:${p?.color || "#806f68"};width:${size}px;height:${size}px;font-size:${Math.round(size * .34)}px">${esc(p?.key === "dana" ? "DANA" : p?.key === "ovo" ? "OVO" : inisial(nama))}</span>`; };
+  const huruf = esc(p?.key === "dana" ? "DANA" : p?.key === "ovo" ? "OVO" : inisial(nama)), gaya = `--pv:${p?.color || "#806f68"};width:${size}px;height:${size}px;font-size:${Math.round(size * .34)}px`;
+  if (p && p.key !== "lain") return `<span class="pv pv-logo" style="${gaya}" data-h="${huruf}"><img src="./assets/bayar/${p.key}.webp" alt="${esc(p.name)}" loading="lazy" onerror="this.parentNode.classList.remove('pv-logo');this.parentNode.textContent=this.parentNode.dataset.h"></span>`;
+  return `<span class="pv" style="${gaya}">${huruf}</span>`; };
 export const nomorOf = m => m?.number || String(m?.detail || "").split(/\s|a\.n\./i).find(x => /\d{5,}/.test(x)) || "";
 export const atasNamaOf = m => m?.holder || (String(m?.detail || "").match(/a\.?n\.?\s*(.+)$/i)?.[1] || "").trim();
 export const appName = p => p?.app || p?.name || "aplikasi";
