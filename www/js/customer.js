@@ -46,7 +46,7 @@ export function shell() {
     </div>
   </div></header>
   <main id="view" class="c-main"></main>
-  ${live("cbar", ["cart", "route"], cartBar)}
+  ${live("cbar", ["cart", "route", "settings"], cartBar)}
   <nav class="c-nav">${live("cnav-m", ["route", "chatMeta"], () => navLinks(true))}</nav>`;
 }
 // Bar atas: di Beranda berisi kolom pencarian; di halaman lain berisi tombol kembali + judul halaman.
@@ -66,10 +66,13 @@ function navLinks(icons) {
   const p = location.hash.slice(1) || "/", unread = +S.chatMeta?.unreadUser || 0;
   return NAV.map(([h, ic, lb]) => `<a href="#${h}" class="${p === h ? "on" : ""}">${icons ? svg(ic, 22) : ""}${lb}${h === "/chat" && unread ? `<span class="badge">${unread}</span>` : ""}</a>`).join("");
 }
+// Toko tutup: pelanggan tetap bisa melihat menu, tapi semua tombol pesan dimatikan dengan jelas
+const tutup = () => S.settings.open === false;
+const infoTutup = () => `Toko sedang tutup${S.settings.hours ? " · buka " + esc(S.settings.hours) : ""}`;
 function cartBar() {
   const n = cartCount(), p = location.hash.slice(1) || "/";
   if (!n || p === "/checkout" || p === "/chat" || p.startsWith("/pay/")) return "";
-  return `<div class="cartbar" data-act="cart" role="button"><span class="cb-ic">${svg("bag", 20)}<span class="badge">${n}</span></span><div class="sp"><small style="opacity:.8">Total belanja</small><b style="display:block;font:700 17px var(--fd)">${rupiah(calc().subtotal)}</b></div><span class="cb-go">Checkout</span></div>`;
+  return `<div class="cartbar" data-act="cart" role="button"><span class="cb-ic">${svg("bag", 20)}<span class="badge">${n}</span></span><div class="sp"><small style="opacity:.8">Total belanja</small><b style="display:block;font:700 17px var(--fd)">${rupiah(calc().subtotal)}</b></div>${tutup() ? `<span class="cb-go tutup">Toko tutup</span>` : `<span class="cb-go">Checkout</span>`}</div>`;
 }
 
 // ===== Beranda =====
@@ -88,7 +91,7 @@ const card = p => {
     <div class="bd"><h3 data-act="detail" data-id="${p.id}">${esc(p.name)}</h3>
     <div class="price">${rupiah(p.price)}</div>
     <div class="meta"><span class="stars">★</span>${ratingOf(p).toFixed(1)}${rs ? `<span>· ${rs} ulasan</span>` : ""}</div>
-    <div class="pr"><span class="cat-l">${esc(p.category || "")}</span><button class="add" data-act="add" data-id="${p.id}" ${ok ? "" : "disabled"} aria-label="Tambah ke keranjang">${svg("plus", 18)}</button></div></div></article>`;
+    <div class="pr"><span class="cat-l">${esc(p.category || "")}</span><button class="add" data-act="add" data-id="${p.id}" ${ok && !tutup() ? "" : "disabled"} aria-label="Tambah ke keranjang">${svg("plus", 18)}</button></div></div></article>`;
 };
 const grid = () => {
   if (S.errors.products) return `<div class="alert">Menu belum bisa dimuat (${esc(S.errors.products)}). Pastikan <code>firestore.rules</code> sudah dipublish.</div>`;
@@ -122,7 +125,7 @@ export function home() {
   <section class="sec"><div class="sec-h"><h2>Kategori</h2></div>${live("cats", ["products"], katHtml)}</section>
   ${live("flash", ["products", "reviews"], flashHtml)}
   ${live("sorts", [], () => `<div class="sorts">${SORTS.map(([k, l]) => `<button class="${V.sort === k ? "on" : ""}" data-act="sortby" data-s="${k}">${l}</button>`).join("")}</div>`)}
-  ${live("feed", ["products", "reviews", "errors"], feed)}`;
+  ${live("feed", ["products", "reviews", "errors", "settings"], feed)}`;
 }
 actions.search = t => { V.q = t.value; $$('[data-input="search"]').forEach(i => { if (i !== t) i.value = V.q; }); repaint("feed"); };
 actions.sortby = el => { V.sort = el.dataset.s; repaint("sorts"); repaint("feed"); };
@@ -152,7 +155,7 @@ actions.detail = el => {
   ${p.description ? `<div><div class="lbl">Deskripsi</div><p class="muted">${esc(p.description)}</p></div>` : ""}
   <div><h3>Ulasan pembeli</h3>${live("rv", ["reviews", "auth"], () => reviewBox(p))}</div></div></div>
   <div class="pd-buy"><div class="qty"><button data-act="dq" data-d="-1" aria-label="Kurangi">${svg("minus", 16)}</button><b id="dqn">1</b><button data-act="dq" data-d="1" aria-label="Tambah">${svg("plus", 16)}</button></div>
-  <button class="btn alt" data-act="addn" data-id="${p.id}" ${ok ? "" : "disabled"}>${svg("bag", 18)} Keranjang</button><button class="btn pri" data-act="buy" data-id="${p.id}" ${ok ? "" : "disabled"}>Beli sekarang</button></div>`, "wide");
+  ${tutup() ? `<button class="btn" disabled style="grid-column:2/-1">${svg("clock", 18)} ${infoTutup()}</button>` : `<button class="btn alt" data-act="addn" data-id="${p.id}" ${ok ? "" : "disabled"}>${svg("bag", 18)} Keranjang</button><button class="btn pri" data-act="buy" data-id="${p.id}" ${ok ? "" : "disabled"}>Beli sekarang</button>`}</div>`, "wide");
 };
 actions.close = () => closeOverlay();
 actions.dq = el => { const n = $("#dqn"); n.textContent = Math.max(1, Math.min(50, +n.textContent + +el.dataset.d)); };
@@ -206,7 +209,7 @@ export function checkout() {
     <label>Catatan untuk penjual <span class="hint">(opsional)</span><input name="note" placeholder="Misal: pedas level 2"></label></div>
     <div class="card col"><div class="sec-t">${svg("tag", 18)} Metode pembayaran</div><div class="paybox">${opts.map(o => `<label class="pay"><input type="radio" name="pay" value="${esc(o.key)}" data-change="paychg" ${V.pay === o.key ? "checked" : ""}>${o.method && !o.method.qris ? badge(o.method, 40) : `<span class="pay-ic">${svg(o.kind === "cod" ? "cash" : o.key === "qris" ? "qr" : "wallet", 22)}</span>`}<span><b>${esc(o.name)}</b><small class="muted">${esc(o.method && !o.method.qris ? `${provOf(o.method)?.type === "bank" ? "Transfer bank" : "E-wallet"} · ${nomorOf(o.method)}${atasNamaOf(o.method) ? " a.n. " + atasNamaOf(o.method) : ""}` : o.hint)}</small></span></label>`).join("")}</div>
     <div id="paynote" class="alert ok ${opts.find(o => o.key === V.pay)?.kind === "transfer" ? "" : "hidden"}">Setelah menekan <b>Buat pesanan</b>, kamu akan diarahkan ke halaman pembayaran (rekening / e-wallet / QRIS) untuk menyelesaikan pembayaran dan mengunggah bukti.</div></div>
-    ${live("cocta", ["cart", "settings"], () => `<div class="co-cta"><div class="tot"><span class="muted xs">Total pembayaran</span><b>${rupiah(calc(V.voucher).total)}</b></div><button class="btn pri" type="submit">Buat pesanan</button></div>`)}</form>
+    ${live("cocta", ["cart", "settings"], () => `<div class="co-cta"><div class="tot"><span class="muted xs">Total pembayaran</span><b>${rupiah(calc(V.voucher).total)}</b></div>${tutup() ? `<button class="btn" type="button" disabled>${svg("clock", 16)} Toko tutup</button>` : `<button class="btn pri" type="submit">Buat pesanan</button>`}</div>`)}</form>
   <div class="col"><div class="card"><div class="sec-t" style="margin-bottom:8px"><img src="./tubi-icon.png" alt="" style="width:22px;border-radius:6px"> Pesanan dari Tubi</div>${live("sum", ["cart", "settings", "products"], sumHtml)}</div>
     <div class="card"><div class="sec-t" style="margin-bottom:10px">${svg("tag", 18)} Voucher Tubi</div><div class="row"><input id="vch" placeholder="Masukkan kode voucher" value="${esc(V.voucher)}" style="text-transform:uppercase"><button type="button" class="btn yel" data-act="voucher">Pakai</button></div></div></div></div>`;
 }
@@ -266,11 +269,13 @@ const orderCard = o => {
   <button class="btn sm" data-act="reorder" data-id="${o.id}">Pesan lagi</button></div></div>`;
 };
 const OTABS = ["semua", ...FLOW, "dibatalkan"];
-const otabs = () => `<div class="otabs">${OTABS.map(k => { const n = k === "semua" ? 0 : S.orders.filter(o => statusOf(o.status) === k).length; return `<button class="${V.ost === k ? "on" : ""}" data-act="ost" data-k="${k}">${k === "semua" ? "Semua" : STATUS_LABEL[k]}${n && k !== "selesai" && k !== "dibatalkan" ? `<small>${n}</small>` : ""}</button>`; }).join("")}</div>`;
+// Halaman pelanggan hanya menampilkan pesanan milik akun yang sedang masuk (akun admin memuat semua pesanan toko)
+const myOrders = () => S.orders.filter(o => o.userId === S.user?.uid);
+const otabs = () => `<div class="otabs">${OTABS.map(k => { const n = k === "semua" ? 0 : myOrders().filter(o => statusOf(o.status) === k).length; return `<button class="${V.ost === k ? "on" : ""}" data-act="ost" data-k="${k}">${k === "semua" ? "Semua" : STATUS_LABEL[k]}${n && k !== "selesai" && k !== "dibatalkan" ? `<small>${n}</small>` : ""}</button>`; }).join("")}</div>`;
 const olist = () => {
   if (S.errors.orders) return `<div class="alert">Pesanan belum bisa dimuat (${esc(S.errors.orders)}). Publish <code>firestore.rules</code> terbaru.</div>`;
-  const l = S.orders.filter(o => V.ost === "semua" || statusOf(o.status) === V.ost);
-  return l.length ? `<div class="col">${l.map(orderCard).join("")}</div>` : `<div class="empty">${S.orders.length ? "Tidak ada pesanan dengan status ini." : "Belum ada pesanan."}<br><a class="btn pri" href="#/" style="margin-top:12px">Mulai belanja</a></div>`;
+  const l = myOrders().filter(o => V.ost === "semua" || statusOf(o.status) === V.ost);
+  return l.length ? `<div class="col">${l.map(orderCard).join("")}</div>` : `<div class="empty">${myOrders().length ? "Tidak ada pesanan dengan status ini." : "Belum ada pesanan."}<br><a class="btn pri" href="#/" style="margin-top:12px">Mulai belanja</a></div>`;
 };
 export function orders() {
   if (!S.user) return loginCard("Masuk untuk melihat pesananmu", "Pesanan dan statusnya tampil real-time di sini.");
@@ -324,7 +329,7 @@ actions.cekupdate = async () => { const u = await cekUpdate(true); if (!u) toast
 export function account() {
   if (!S.user) return `<div class="two eq">${loginCard("Masuk ke Tubi", "Simpan alamat, pantau pesanan, chat admin, dan beri ulasan.")}${prefsCard()}</div>`;
   const p = S.profile;
-  const cnt = k => S.orders.filter(o => statusOf(o.status) === k).length;
+  const cnt = k => myOrders().filter(o => statusOf(o.status) === k).length;
   return `<div class="two eq"><div class="col"><div class="card col prof"><div class="row"><span class="av">${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="">` : initial(p.displayName)}</span><div style="min-width:0"><b style="font:700 19px var(--fd)">${esc(p.displayName)}</b><div class="muted sm">${esc(S.user.email || "")}</div>${S.isAdmin ? `<span class="chip">${isMain(S.user) ? "Admin utama" : "Admin"}</span>` : ""}</div><span class="sp"></span><button type="button" class="icon-btn prof-tema" data-act="temapick" aria-label="Ganti tema">${svg(document.body.classList.contains("dark") ? "moon" : "sun")}</button></div>
     ${S.isAdmin ? `<a class="btn yel" href="#/admin">${svg("grid", 18)} Buka dashboard admin</a>` : ""}</div>
     <div class="card"><div class="row" style="margin-bottom:10px"><b>Pesanan saya</b><span class="sp"></span><a class="xs muted" href="#/orders">Lihat riwayat ›</a></div>

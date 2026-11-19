@@ -29,8 +29,10 @@ export function toast(msg, type = "") {
   const tutup = el => { clearTimeout(el._t); el._t = setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 350); }, type === "err" ? 4200 : 3000); };
   if (sama) { sama.classList.remove("bump"); void sama.offsetWidth; sama.classList.add("bump"); tutup(sama); return; }
   const el = document.createElement("div"); el.className = "toast " + type; el.dataset.msg = msg; el.setAttribute("role", type === "err" ? "alert" : "status");
-  el.innerHTML = `<img src="./tubi-icon.png" alt=""><span><small>${type === "err" ? "Perhatian" : "Tubi"}</small></span>`;
-  el.querySelector("span").append(document.createTextNode(msg));
+  el.innerHTML = type === "err"
+    ? `<i class="t-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 7v6M12 17h.01"/></svg></i><span></span>`
+    : `<i class="t-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></i><span></span>`;
+  el.querySelector("span").textContent = msg;
   box.appendChild(el); [...box.children].slice(0, -3).forEach(x => x.remove());
   tutup(el);
 }

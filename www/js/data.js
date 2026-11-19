@@ -1,4 +1,5 @@
 // Satu sumber data realtime untuk admin & pelanggan.
+import { PROVIDERS } from "./pay.js";
 import { db, auth, A, F, FIXED_ADMINS } from "./firebase.js";
 import { ls, secs } from "./util.js";
 
@@ -165,10 +166,12 @@ export function payMethods() {
   return l;
 }
 // Pilihan di checkout: [{ key, kind:'cod'|'transfer', name, hint, method? }]
+// Nama metode untuk pelanggan: bila nama tampilan masih umum ("E-wallet", "Transfer"), pakai nama aplikasinya (DANA, BCA, …)
+const namaTampil = m => { const p = PROVIDERS.find(x => x.key === m.provider && x.key !== "lain"); return p && /^(e-?wallet|transfer|bank|rekening)?$/i.test((m.name || "").trim()) ? p.name : m.name; };
 export function payOptions() {
   const s = S.settings, o = [];
   if (s.payCod !== false) o.push({ key: "cod", kind: "cod", name: "Bayar di tempat (COD)", hint: "Bayar tunai saat pesanan tiba" });
-  payMethods().forEach(m => o.push({ key: "m:" + m.id, kind: "transfer", name: m.name, hint: m.link ? "Transfer / bayar lewat tautan" : "Transfer ke rekening / e-wallet toko", method: m }));
+  payMethods().forEach(m => o.push({ key: "m:" + m.id, kind: "transfer", name: namaTampil(m), hint: m.link ? "Transfer / bayar lewat tautan" : "Transfer ke rekening / e-wallet toko", method: m }));
   if (s.payQris) o.push({ key: "qris", kind: "transfer", name: "QRIS", hint: "Scan dengan aplikasi bank / e-wallet apa pun", method: { id: "qris", name: "QRIS", detail: "", link: "", qris: true } });
   return o.length ? o : [{ key: "cod", kind: "cod", name: "Bayar di tempat (COD)", hint: "Bayar tunai saat pesanan tiba" }];
 }
