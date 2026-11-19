@@ -39,14 +39,16 @@ export function beep() {
   if (ls.get("sound", true) === false) return;
   try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); const o = ac.createOscillator(), g = ac.createGain(); o.connect(g); g.connect(ac.destination); o.frequency.value = 880; g.gain.setValueAtTime(.15, ac.currentTime); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + .5); o.start(); o.stop(ac.currentTime + .5); } catch {}
 }
-export function compressImage(file, max = 900, limit = 380000) {
+export function compressImage(file, max = 900, limit = 380000, tajam = false) {
   return new Promise((res, rej) => {
     if (!file || !/^image\//.test(file.type)) return rej(new Error("File harus berupa gambar."));
     const r = new FileReader();
     r.onload = () => { const im = new Image(); im.onload = () => {
       const k = Math.min(1, max / Math.max(im.width, im.height)), c = document.createElement("canvas");
       c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-      let q = .82, out = c.toDataURL("image/jpeg", q); while (out.length > limit && q > .3) { q -= .1; out = c.toDataURL("image/jpeg", q); } res(out);
+      // tajam: untuk QRIS / gambar bergaris tegas → coba PNG dulu (tidak buram), baru JPEG kualitas tinggi
+      if (tajam) { const png = c.toDataURL("image/png"); if (png.length <= limit) return res(png); }
+      let q = tajam ? .95 : .82, out = c.toDataURL("image/jpeg", q); while (out.length > limit && q > .3) { q -= .1; out = c.toDataURL("image/jpeg", q); } res(out);
     }; im.onerror = () => rej(new Error("Gambar tidak bisa dibaca.")); im.src = r.result; };
     r.onerror = () => rej(new Error("File tidak bisa dibaca.")); r.readAsDataURL(file);
   });

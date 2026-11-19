@@ -90,18 +90,20 @@ export function startAuth(onReady) {
   });
 }
 
+// Plugin Google di APK wajib di-initialize sebelum signIn/signOut, kalau tidak aplikasinya crash (tertutup).
+let googleSiap = null;
+const siapkanGoogle = () => googleSiap ||= window.Capacitor.Plugins.GoogleAuth.initialize({
+  clientId: '492656969625-ve14uoh2e4jo9v7f448skdga91uncr6q.apps.googleusercontent.com',
+  scopes: ['profile', 'email'],
+  grantOfflineAccess: true,
+}).catch(e => { googleSiap = null; throw e; });
 export const signIn = async () => {
   try {
     // Cek apakah berjalan di perangkat native Android/iOS
     if (window.Capacitor && window.Capacitor.isNativePlatform()) {
       const GoogleAuthPlugin = window.Capacitor.Plugins.GoogleAuth;
       
-      // WAJIB: Inisialisasi dulu plugin-nya agar tidak crash
-      await GoogleAuthPlugin.initialize({
-        clientId: '492656969625-ve14uoh2e4jo9v7f448skdga91uncr6q.apps.googleusercontent.com',
-        scopes: ['profile', 'email'],
-        grantOfflineAccess: true,
-      });
+      await siapkanGoogle();
 
       // Keluar dulu dari sesi Google di HP supaya daftar pilihan akun email selalu muncul
       try { await GoogleAuthPlugin.signOut(); } catch {}
@@ -124,9 +126,11 @@ export const signIn = async () => {
   }
 };
 export const signOutNow = async () => {
-  // Di APK: lepas juga sesi Google supaya saat masuk lagi bisa memilih akun email lain
-  if (window.Capacitor?.isNativePlatform?.()) { try { await window.Capacitor.Plugins.GoogleAuth?.signOut(); } catch {} }
-  return A.signOut(auth);
+  // Keluar dari Tubi dulu (akun Firebase), baru lepas sesi Google di HP supaya saat masuk lagi bisa memilih akun lain
+  await A.signOut(auth);
+  if (window.Capacitor?.isNativePlatform?.() && window.Capacitor.Plugins.GoogleAuth) {
+    try { await siapkanGoogle(); await window.Capacitor.Plugins.GoogleAuth.signOut(); } catch (e) { console.warn("Google signOut", e); }
+  }
 };
 
 // ---------- Hitungan ----------
