@@ -4,8 +4,8 @@
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ed1b2f",
+  "background_color": "#ffd23f",
+  "theme_color": "#c8232c",
   "description": "Aplikasi pemesanan makanan Tubi",
   "categories": [
     "food",

@@ -7,6 +7,8 @@ import { openThread } from "./data.js";
 import { toEnd } from "./chat.js";
 import { applyTheme } from "./ui.js";
 import { applySide } from "./palette.js";
+import { initNotif, cekPesanan, cekChat, cekLaporan } from "./notif.js";
+import { mulaiCekUpdate } from "./update.js";
 
 // tema (auto / terang / gelap) & sidebar admin
 applyTheme(); applySide();
@@ -31,6 +33,7 @@ function route() {
   const base = p.startsWith("/pay/") ? "/pay" : p.startsWith("/admin/settings") ? "/admin/settings" : p;
   views["/pay"] = C.pay;
   const v = views[base] || views["/"];
+  document.body.dataset.page = views[base] ? base : "/";
   if (S.openChat && p !== "/admin/chat") openThread(null);
   $("#view").innerHTML = v();
   document.title = (A.TITLES[base] ? A.TITLES[base] + " · " : "") + "Tubi";
@@ -42,26 +45,21 @@ function route() {
 setOnRoute(route);
 
 // ---- notifikasi realtime ----
-const prev = new Map(); let seen = null, unreadPrev = 0;
 onChange(k => {
   if (k === "auth") {
-    prev.clear(); seen = null; unreadPrev = 0; mode = "";
+    mode = ""; initNotif();
     if (S.isAdmin && (path() === "/" || path() === "")) go("/admin", true); else route();
   }
-  if (k === "orders") {
-    if (S.isAdmin) {
-      const ids = new Set(S.orders.map(o => o.id));
-      if (seen) S.orders.filter(o => !seen.has(o.id) && statusOf(o.status) === "menunggu").forEach(o => { beep(); toast(`🔔 Pesanan baru dari ${o.customerName || "pelanggan"}`); });
-      seen = ids;
-    } else {
-      S.orders.forEach(o => { const s = statusOf(o.status), was = prev.get(o.id); if (was && was !== s) toast(`Pesanan #${o.id.slice(0, 6).toUpperCase()}: ${STATUS_LABEL[s]}`); prev.set(o.id, s); });
-    }
-  }
-  if (k === "chats" && S.isAdmin) { const n = S.chats.reduce((a, c) => a + (+c.unreadAdmin || 0), 0); if (n > unreadPrev && path() !== "/admin/chat") { beep(); toast("💬 Pesan baru dari pelanggan"); } unreadPrev = n; }
+  if (k === "orders") cekPesanan();
+  if (k === "chats" || k === "chatMeta") cekChat();
+  if (k === "bugs") cekLaporan();
   if (k === "msgs" || k === "chatMeta") setTimeout(toEnd, 0);
 });
+// Ketuk notifikasi sistem → buka halaman terkait
+navigator.serviceWorker?.addEventListener("message", e => { if (e.data?.href) go(e.data.href); });
 
 startAuth(route);
+mulaiCekUpdate();
 setTimeout(() => { if (!S.ready) $("#app").innerHTML = `<div class="boot"><img src="./tubi-icon.png" alt=""><b>Koneksi lambat…</b><button class="btn pri" onclick="location.reload()">Muat ulang</button></div>`; }, 9000);
 
 // PWA: service worker network-first agar versi baru langsung terlihat

@@ -33,7 +33,7 @@ export const dropzone = (name, current = "", label = "Pilih foto atau seret ke s
 actions.filePrev = inp => {
   const f = inp.files?.[0], pv = inp.closest("label").querySelector(".drop-pv"); if (!f) return;
   pv.innerHTML = ""; const im = new Image(); im.src = URL.createObjectURL(f); im.onload = () => URL.revokeObjectURL(im.src); pv.appendChild(im);
-  const fi = document.getElementById("fitimg"); if (fi && inp.name === "image") { fi.src = URL.createObjectURL(f); fi.hidden = false; }
+  if (inp.name === "image") { const u = URL.createObjectURL(f); ["fitimg", "fitmini"].forEach(id => { const fi = document.getElementById(id); if (fi) { fi.src = u; fi.hidden = false; } }); }
   inp.closest("label").querySelector(".drop-tx b").textContent = f.name.length > 28 ? f.name.slice(0, 26) + "…" : f.name;
 };
 document.addEventListener("dragover", e => { const z = e.target.closest?.("[data-drop]"); if (z) { e.preventDefault(); z.classList.add("over"); } });
