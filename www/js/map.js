@@ -1,5 +1,5 @@
 // Peta (Leaflet + OpenStreetMap, dimuat lokal dari /vendor). Pemilih titik, pencarian alamat, pembalik alamat.
-import { esc, toast } from "./util.js";
+import { esc, toast, svg } from "./util.js";
 
 let lp;
 export function loadLeaflet() {
@@ -87,7 +87,7 @@ export const mapsView = o => o?.location?.lat ? `https://www.google.com/maps/sea
 // Widget pemilih lokasi lengkap (dipakai di checkout & profil)
 export const pickerHtml = id => `<div class="locbox" id="${id}"><div class="loc-q"><input type="search" data-enter="locsearch" placeholder="Cari jalan, gedung, atau patokan…" id="${id}-q"><button type="button" class="btn sm" data-act="locsearch">${"Cari"}</button></div>
   <div id="${id}-res" class="loc-res"></div><div class="locmap" id="${id}-map"><div class="muted sm" style="padding:20px;text-align:center">Memuat peta…</div></div>
-  <button type="button" class="btn alt full" data-act="locgps">◎ Pakai lokasi saya saat ini (GPS)</button>
+  <button type="button" class="btn alt full" data-act="locgps">${svg("pin", 18)} Pakai lokasi saya saat ini (GPS)</button>
   <div class="sm muted" id="${id}-st">Geser peta sampai pin merah tepat di rumah / pintu masuk.</div></div>`;
 
 // ---- Pengendali widget (satu pemilih aktif dalam satu waktu) ----
@@ -102,14 +102,14 @@ export async function mountLocation(id, start, onPick) {
       if (st) {
         const low = loc.accuracy > 50 && !loc.manual;
         st.className = "sm " + (low ? "loc-warn" : "loc-ok");
-        st.textContent = loc.manual ? "✓ Titik ditandai manual. Pastikan pin tepat di rumah / pintu masuk."
+        st.textContent = loc.manual ? "Titik ditandai manual. Pastikan pin tepat di rumah / pintu masuk."
           : low ? `GPS kurang akurat (±${Math.round(loc.accuracy)} m). Geser peta sampai pin tepat di rumahmu, atau nyalakan Wi‑Fi lalu tekan GPS lagi.`
-          : `✓ Titik GPS terpasang (±${Math.round(loc.accuracy || 0)} m). Geser peta bila kurang tepat.`;
+          : `Titik GPS terpasang (±${Math.round(loc.accuracy || 0)} m). Geser peta bila kurang tepat.`;
       }
       onPick(loc, null); clearTimeout(t); t = setTimeout(async () => { const a = await reverse(loc.lat, loc.lng); if (a) onPick(loc, a); }, 700);
     });
     cur = { id, pk };
-    if (start?.lat && st) { st.className = "sm loc-ok"; st.textContent = "✓ Titik tersimpan. Geser peta bila kurang tepat."; }
+    if (start?.lat && st) { st.className = "sm loc-ok"; st.textContent = "Titik tersimpan. Geser peta bila kurang tepat."; }
     // Belum ada titik & izin lokasi sudah pernah diberikan: langsung cari posisi GPS tanpa perlu menekan tombol.
     if (!start?.lat && navigator.permissions) navigator.permissions.query({ name: "geolocation" }).then(p => { if (p.state === "granted" && cur?.id === id && !pk.isPlaced()) actions.locgps().catch(() => {}); }).catch(() => {});
   } catch (e) { const m = $(`#${id}-map`); if (m) m.innerHTML = `<div class="alert">${esc(e.message)}</div>`; }

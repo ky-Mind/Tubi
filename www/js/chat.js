@@ -2,7 +2,7 @@
 // Lampiran disimpan langsung di dokumen pesan Firestore (foto dikompres, dokumen maks. ±600 KB).
 import { db, F } from "./firebase.js";
 import { S } from "./data.js";
-import { forms, actions, openOverlay, closeOverlay } from "./core.js";
+import { forms, actions, openOverlay, closeOverlay, backHandlers } from "./core.js";
 import { $, esc, hm, svg, toast, compressImage } from "./util.js";
 import { confirmBox } from "./ui.js";
 
@@ -55,6 +55,8 @@ export const toEnd = () => { const b = $(".msgs"); if (b) b.scrollTop = b.scroll
 
 // ---- Komposer: emoji, lampiran, balasan ----
 actions.emotoggle = () => $("#c-emoji")?.classList.toggle("hidden");
+// Tombol kembali Android: tutup panel emoji dulu sebelum pindah halaman
+backHandlers.push(() => { const e = $("#c-emoji"); if (e && !e.classList.contains("hidden")) { e.classList.add("hidden"); return true; } return false; });
 actions.emo = el => { const t = $(".cform textarea"); if (!t) return; const p = t.selectionStart ?? t.value.length; t.value = t.value.slice(0, p) + el.dataset.e + t.value.slice(t.selectionEnd ?? p); t.focus(); t.selectionStart = t.selectionEnd = p + el.dataset.e.length; };
 actions.attmenu = () => openOverlay(`<div class="sheet-head"><h3>Kirim lampiran</h3><button class="icon-btn" data-act="close" aria-label="Tutup">${svg("x")}</button></div>
   <div class="att-grid"><button data-act="attopen" data-id="c-gal"><i class="g1">${svg("image", 24)}</i>Galeri foto</button><button data-act="attcam"><i class="g2">${svg("camera", 24)}</i>Kamera</button><button data-act="attopen" data-id="c-doc"><i class="g3">${svg("file", 24)}</i>Dokumen</button></div>
