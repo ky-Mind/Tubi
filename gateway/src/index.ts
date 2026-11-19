@@ -29,4 +29,8 @@ export default {
     if (pathname === "/" || (pathname === "/qr.json" && lokal)) return ctx.exports.Gateway.getByName("utama").fetch(req);
     return new Response("Tidak ditemukan", { status: 404 });
   },
+  // Cron tiap menit: bangunkan Durable Object dan pastikan alarm detaknya hidup
+  async scheduled(_ev, env, ctx) {
+    ctx.waitUntil(ctx.exports.Gateway.getByName("utama").fetch("https://gateway/detak").catch((e) => console.error("cron:", e?.message || e)));
+  },
 };

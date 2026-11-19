@@ -978,3 +978,11 @@ body.dark .toast{background:#fff4e6;color:#2b1a17}
 .struk-ed .sk-potong-cek small{display:block;font-size:12px;margin-top:2px}
 .struk-ed .sk-potong-cek input{margin-top:2px;flex:none}
 .sk-aksi .ghost{border:1px solid var(--line,#e2d8cc)}
+/* v21c: tanda dibaca di pesan */
+.m-t{display:inline-flex;align-items:center;gap:3px}
+.m-baca{display:inline-flex;align-items:center;margin-left:2px}
+.m-baca .ck{display:block}
+.m-baca.kirim{opacity:.6}
+.m-baca.terkirim{opacity:.75}
+.m-baca.dibaca{color:#1d9bf0}
+.msg.me .bub p{margin-right:64px}
