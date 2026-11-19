@@ -1029,3 +1029,4 @@ textarea.terisi{box-shadow:0 0 0 3px #1d9bf055;transition:box-shadow .3s}
 .ptg-putar{display:flex;gap:8px}.ptg-putar .btn{background:#ffffff1a;color:#fff;border-color:#ffffff33}
 .ptg-bawah .muted{color:#fff9;text-align:center;margin:0}
 .foto-tb{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}.foto-tb .btn{gap:6px}.foto-tb [hidden]{display:none}
+.sb-kepala{display:grid;gap:8px}.sb-kepala input{font:800 15px ui-monospace,Menlo,monospace}

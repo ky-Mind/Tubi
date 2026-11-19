@@ -113,14 +113,14 @@ const lr = (a, b, w) => { a = ascii(a); b = ascii(b); const gap = w - a.length -
 export const LOGO_TUBI = "./assets/struk-logo.png";
 export const DOTS = () => (width() === 48 ? 576 : 384);
 export const JENIS = {
+  kepala: ["Logo + nama toko", "Logo kecil di samping nama, satu baris", "Logo+nama"],
   teks: ["Teks", "Teks bebas: nama toko, alamat, promo…", "Teks"], gambar: ["Logo / gambar", "Dicetak hitam-putih", "Logo"], garis: ["Garis", "Pemisah", "Garis"], kosong: ["Baris kosong", "Jarak", "Jarak"],
   pelanggan: ["Nama & nomor pelanggan", "Otomatis dari pesanan", "Pelanggan"], alamat: ["Alamat pengantaran", "Otomatis dari pesanan", "Alamat"], catatan: ["Catatan pesanan", "Hanya bila ada catatan", "Catatan"],
   item: ["Daftar menu", "Jumlah, nama menu, harga", "Daftar menu"], rincian: ["Rincian biaya", "Subtotal, ongkir, pajak, diskon", "Rincian"], total: ["Total", "Total yang dibayar", "Total"], bayar: ["Cara bayar", "COD / transfer (lunas)", "Cara bayar"]
 };
 function blokDariLama(c) {   // pengaturan versi sebelumnya (centang) → blok
   const v = k => c[k] !== false, B = [];
-  B.push({ jenis: "gambar", src: LOGO_TUBI, lebar: 40, al: "c" });
-  B.push({ jenis: "teks", isi: c.nama ?? "TUBI", al: "c", big: c.besar !== false, b: true });
+  B.push({ jenis: "kepala", src: LOGO_TUBI, isi: c.nama ?? "TUBI", ukuran: 52, al: "c" });
   if (c.info) B.push({ jenis: "teks", isi: c.info, al: "c" });
   if (v("kode")) B.push({ jenis: "teks", isi: "#{kode}  {waktu}", al: "c" });
   B.push({ jenis: "garis", ch: "-" });
@@ -135,7 +135,7 @@ function blokDariLama(c) {   // pengaturan versi sebelumnya (centang) → blok
   return B;
 }
 export const strukCfg = c => { c = c || {}; return { potong: c.potong !== false, blok: Array.isArray(c.blok) && c.blok.length ? c.blok : blokDariLama(c) }; };
-export const blokBaru = jenis => ({ teks: { jenis, isi: "Teks baru", al: "c" }, gambar: { jenis, src: LOGO_TUBI, lebar: 40, al: "c" }, garis: { jenis, ch: "-" }, kosong: { jenis, n: 1 } }[jenis] || { jenis });
+export const blokBaru = jenis => ({ teks: { jenis, isi: "Teks baru", al: "c" }, gambar: { jenis, src: LOGO_TUBI, lebar: 30, al: "c" }, kepala: { jenis, src: LOGO_TUBI, isi: "TUBI", ukuran: 52, al: "c" }, garis: { jenis, ch: "-" }, kosong: { jenis, n: 1 } }[jenis] || { jenis });
 const bayarTeks = o => o.payment?.method === "transfer" ? `${o.payment?.via || "Transfer"}${o.payment?.status === "paid" ? " (lunas)" : ""}` : "COD";
 const isian = (t, o) => String(t || "").replace(/\{(\w+)\}/g, (m, k) => ({
   kode: o.id.slice(0, 6).toUpperCase(), waktu: timeText(o.createdAt), nama: o.customerName || "", hp: hpLokal(o.phone), alamat: o.address || "", catatan: o.note || "",
@@ -149,6 +149,7 @@ function isiStruk(o, c) {
     else if (k.jenis === "garis") L.push({ garis: (k.ch || "-").slice(0, 1) });
     else if (k.jenis === "kosong") for (let i = 0; i < Math.min(5, +k.n || 1); i++) L.push({ t: "" });
     else if (k.jenis === "gambar") { if (k.src) L.push({ img: k }); }
+    else if (k.jenis === "kepala") L.push({ kepala: { ...k, isi: isian(k.isi, o) } });
     else if (k.jenis === "pelanggan") L.push({ t: [o.customerName || "", hpLokal(o.phone)].filter(Boolean).join("  "), al, b: k.b, big: k.big });
     else if (k.jenis === "alamat") { if (o.address) L.push({ t: o.address, al, b: k.b }); }
     else if (k.jenis === "catatan") { if (o.note) L.push({ t: "Catatan: " + o.note, al, b: k.b }); }
@@ -170,6 +171,7 @@ function susun(L, w) {
   L.forEach(x => {
     const lebar = x.big ? Math.floor(w / 2) : w;
     if (x.img) out.push({ img: x.img });
+    else if (x.kepala) out.push({ kepala: x.kepala });
     else if (x.garis) out.push({ s: x.garis.repeat(w) });
     else if (x.lr) out.push({ s: lr(x.lr[0], x.lr[1], lebar), b: x.b, big: x.big });
     else if (x.item) { const ls = wrap(x.item[0], w - 12); ls.forEach((l, k) => out.push({ s: k === ls.length - 1 ? lr(l, x.item[1], w) : l, b: x.b })); }
@@ -200,7 +202,20 @@ async function gambarBW(src, lebarPx) {
   const hasil = { w, h, bits, url: cv.toDataURL("image/png") };
   cacheGambar.set(kunci, hasil); return hasil;
 }
-const lebarGambar = k => Math.round(DOTS() * Math.min(100, Math.max(20, +k.lebar || 60)) / 100);
+// Logo + nama toko dalam satu baris: digambar ke kanvas (hitam di atas putih) lalu dicetak seperti gambar
+async function gambarKepala(k) {
+  const T = Math.min(96, Math.max(28, +k.ukuran || 52)), jarak = Math.round(T * 0.22), teks = String(k.isi || "").trim();
+  let lw = 0, im = null;
+  if (k.src) { im = await muatGambar(k.src).catch(() => null); if (im) lw = Math.round(im.width * T / im.height); }
+  const c = document.createElement("canvas"), g = c.getContext("2d"), font = `800 ${Math.round(T * 0.82)}px "DejaVu Sans Mono", "Courier New", monospace`;
+  g.font = font; const tw = teks ? Math.ceil(g.measureText(teks).width) : 0;
+  c.width = Math.min(DOTS(), Math.max(8, lw + (lw && tw ? jarak : 0) + tw)); c.height = T + 2;   // +2 titik di bawah (±1 px di pratinjau): jarak ke baris berikutnya
+  g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+  if (im) g.drawImage(im, 0, 0, lw, T);
+  if (teks) { g.font = font; g.fillStyle = "#000"; g.textBaseline = "middle"; g.fillText(teks, lw ? lw + jarak : 0, T / 2 + T * 0.04, c.width - (lw ? lw + jarak : 0)); }
+  return { src: c.toDataURL("image/png"), px: c.width, al: k.al || "c" };
+}
+const lebarGambar = k => k.px ? k.px : Math.round(DOTS() * Math.min(100, Math.max(20, +k.lebar || 60)) / 100);
 // Unggahan logo diperkecil dulu (maks 576 px, latar putih) supaya ringan disimpan di pengaturan
 export async function siapkanGambar(file) {
   const url = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(file); });
@@ -212,6 +227,7 @@ export async function siapkanGambar(file) {
 async function keBytes(rows, c) {
   const parts = [cmd(0x1b, 0x40)];
   for (const r of rows) {
+    if (r.kepala) r.img = await gambarKepala(r.kepala);
     if (r.img) {
       const g = await gambarBW(r.img.src, lebarGambar(r.img)), bpr = g.w / 8;
       parts.push(cmd(0x1b, 0x61, r.img.al === "l" ? 0 : r.img.al === "r" ? 2 : 1));
@@ -233,6 +249,7 @@ const escH = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;");
 export async function strukHtml(o, cfg) {
   const c = strukCfg(cfg), w = width(), rows = susun(isiStruk(o, c), w), h = [];
   for (const r of rows) {
+    if (r.kepala) r.img = await gambarKepala(r.kepala).catch(() => null);
     if (r.img) { try { const g = await gambarBW(r.img.src, lebarGambar(r.img)); h.push(`<div class="sk-img ${r.img.al || "c"}"><img src="${g.url}" style="width:${(g.w / DOTS() * 100).toFixed(1)}%" alt=""></div>`); } catch { h.push(`<div class="sk c">[gambar gagal dimuat]</div>`); } continue; }
     h.push(`<div class="sk${r.al === "c" ? " c" : r.al === "r" ? " r" : ""}${r.b ? " b" : ""}${r.big ? " big" : ""}">${escH(r.s) || "&nbsp;"}</div>`);
   }
