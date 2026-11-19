@@ -32,7 +32,8 @@ function route() {
     "/admin": A.dashboard, "/admin/orders": A.orders, "/admin/chat": A.chat, "/admin/products": A.products,
     "/admin/reports": A.reports, "/admin/settings": A.settings, "/admin/more": A.more
   };
-  const base = p.startsWith("/pay/") ? "/pay" : p.startsWith("/admin/settings") ? "/admin/settings" : p;
+  // Tautan dalam dari notifikasi: /orders/<id>[/ulas], /admin/orders/<id>, /admin/chat/<uid>
+  const base = p.startsWith("/pay/") ? "/pay" : p.startsWith("/admin/settings") ? "/admin/settings" : p.startsWith("/admin/orders/") ? "/admin/orders" : p.startsWith("/admin/chat/") ? "/admin/chat" : p.startsWith("/orders/") ? "/orders" : p;
   views["/pay"] = C.pay;
   const v = views[base] || views["/"];
   document.body.dataset.page = views[base] ? base : "/";
@@ -43,7 +44,17 @@ function route() {
   import("./data.js").then(d => d.emit("route"));
   if (p === "/chat" && S.user) C.afterChat();
   if (p === "/checkout") C.afterCheckout();
+  const seg = p.split("/").filter(Boolean);
+  if (base === "/orders" && seg[1]) C.bukaPesanan(seg[1], seg[2] === "ulas");
+  if (base === "/admin/orders" && seg[2]) A.bukaPesanan(seg[2]);
+  if (base === "/admin/chat" && seg[2]) A.bukaChat(seg[2]);
 }
+// Dipanggil MainActivity saat notifikasi diketuk (juga saat aplikasi dibuka dari keadaan mati): tunggu siap lalu buka
+window.tubiBuka = href => {
+  if (!href) return;
+  const coba = n => { if (S.ready) { if (location.hash.slice(1) === href) route(); else go(href); } else if (n < 120) setTimeout(() => coba(n + 1), 150); };
+  coba(0);
+};
 setOnRoute(route);
 
 // ---- notifikasi realtime ----

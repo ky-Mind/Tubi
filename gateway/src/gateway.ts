@@ -26,14 +26,15 @@ const ADMIN_UTAMA = "hilmykia@gmail.com";
 const TOKEN_SEGAR_MS = 60_000;
 // Field pesanan yang diambil (foto bukti bayar sengaja tidak ikut, supaya ringan)
 const FIELD_ORDER = ["userId", "email", "customerName", "recipientName", "phone", "address", "note", "mapsUrl", "location", "items", "subtotal", "discount",
-  "deliveryFee", "tax", "voucher", "total", "status", "createdAt", "updatedAt", "payment", "waNewSent", "waStatusSent"];
+  "deliveryFee", "tax", "voucher", "total", "status", "createdAt", "updatedAt", "payment", "waNewSent", "waStatusSent", "cancelledBy"];
 const kode = (id) => "#" + String(id).slice(0, 6).toUpperCase();
 const rp = (n) => "Rp " + Math.round(+n || 0).toLocaleString("id-ID");
 const STATUS_PUSH = {
-  diproses: ["Pesanan sedang diproses", "Pesananmu sedang disiapkan Tubi."],
+  diproses: ["Pesanan sedang diproses", "Dapur Tubi sedang menyiapkan pesananmu."],
   siap: ["Pesanan siap", "Pesananmu sudah siap diantar / diambil."],
   dikirim: ["Pesanan sedang diantar", "Pesananmu sedang dalam perjalanan."],
-  selesai: ["Pesanan selesai", "Terima kasih sudah jajan di Tubi! Beri ulasan ya."],
+  selesai: ["Pesanan selesai", "Terima kasih sudah jajan di Tubi! Ketuk untuk memberi ulasan."],
+  dibatalkan: ["Pesanan dibatalkan", "Pesananmu dibatalkan oleh Tubi. Hubungi admin bila ada pertanyaan."],
 };
 
 // Logger ringan untuk Baileys (pino tidak diperlukan di Workers). Hanya galat yang dicetak.
@@ -362,7 +363,7 @@ export class Gateway extends DurableObject {
     console.log("push:", pesan.title, "→", tujuan.length, "dari", semua.length, "perangkat");
     if (!tujuan.length) this.catatPush = [{ w: Date.now(), judul: pesan.title, ke: "-", hasil: "tidak ada perangkat tujuan" }, ...(this.catatPush || [])].slice(0, 10);
     for (const t of tujuan) {
-      const h = await this.db.push(t.id, pesan);
+      const h = await this.db.push(t.id, pesan, t.native === "data");
       console.log("push hasil:", h, t.email);
       this.catatPush = [{ w: Date.now(), judul: pesan.title, ke: t.email, hasil: h }, ...(this.catatPush || [])].slice(0, 10);
       if (h === "mati") { await this.db.hapus(`pushTokens/${t.id}`).catch(() => {}); this._tok = this._tok.filter((x) => x.id !== t.id); }
@@ -389,14 +390,16 @@ export class Gateway extends DurableObject {
     const k = kode(d.id), nama = d.customerName || d.recipientName || "Pelanggan", via = d.payment?.via || (d.payment?.method === "transfer" ? "Transfer" : "COD");
     if (!lama) {
       if (Date.now() - (d.createdAt || 0) < ORDER_SEGAR_MS && (kini.s === "menunggu" || kini.s === "baru"))
-        await this.keAdminPush({ title: `Pesanan baru ${k}`, body: `${nama} · ${rp(d.total)} · ${via}`, data: { href: "/admin/orders", order: d.id }, tag: "order-" + d.id });
+        await this.keAdminPush({ title: `Pesanan baru ${k}`, body: `${nama} · ${rp(d.total)} · ${via}`, data: { href: "/admin/orders/" + d.id, order: d.id }, tag: "order-" + d.id });
       return;
     }
     if (kini.b && kini.b !== lama.b && kini.p !== "paid")
-      await this.keAdminPush({ title: `Bukti pembayaran masuk ${k}`, body: `${nama} · ${rp(d.total)} · ${via}. Ketuk untuk memeriksa.`, data: { href: "/admin/orders", order: d.id }, tag: "proof-" + d.id });
+      await this.keAdminPush({ title: `Bukti pembayaran masuk ${k}`, body: `${nama} · ${rp(d.total)} · ${via}. Ketuk untuk memeriksa.`, data: { href: "/admin/orders/" + d.id, order: d.id }, tag: "proof-" + d.id });
     if (kini.s !== lama.s) {
-      if (kini.s === "dibatalkan") await this.keAdminPush({ title: `Pesanan dibatalkan ${k}`, body: nama, data: { href: "/admin/orders" }, tag: "order-" + d.id });
-      else if (STATUS_PUSH[kini.s]) { const [t, b] = STATUS_PUSH[kini.s]; await this.kePelangganPush(d.userId, { title: `${t} ${k}`, body: b, data: { href: "/orders" }, tag: "order-" + d.id }); }
+      // Dibatalkan pelanggan → kabari admin. Dibatalkan admin (atau setelah diproses, yang hanya bisa oleh admin) → kabari pelanggan.
+      const olehAdmin = kini.s === "dibatalkan" && (d.cancelledBy === "admin" || (d.cancelledBy !== "user" && !["menunggu", "baru", ""].includes(lama.s)));
+      if (kini.s === "dibatalkan" && !olehAdmin) await this.keAdminPush({ title: `Pesanan dibatalkan pelanggan ${k}`, body: nama, data: { href: "/admin/orders/" + d.id }, tag: "order-" + d.id });
+      else if (STATUS_PUSH[kini.s]) { const [t, b] = STATUS_PUSH[kini.s]; await this.kePelangganPush(d.userId, { title: `${t} ${k}`, body: b, data: { href: `/orders/${d.id}${kini.s === "selesai" ? "/ulas" : ""}` }, tag: "order-" + d.id }); }
     }
     if (kini.p !== lama.p) {
       if (kini.p === "paid") await this.kePelangganPush(d.userId, { title: `Pembayaran diterima ${k}`, body: `Pembayaran ${rp(d.total)} sudah dikonfirmasi. Terima kasih!`, data: { href: "/pay/" + d.id }, tag: "pay-" + d.id });
@@ -411,7 +414,7 @@ export class Gateway extends DurableObject {
     if (!lama && Date.now() - t > CHAT_SEGAR_MS) return;
     const isi = String(d.lastMessage || "").slice(0, 120);
     // Pengirim tidak dikabari pesannya sendiri (mis. admin yang juga chat sebagai pelanggan dari akunnya)
-    if (d.lastFrom === "user") await this.kePush((t) => this.adminEmail(t.email) && t.uid !== d.id, { title: `Pesan baru dari ${d.name || "Pelanggan"}`, body: isi, data: { href: "/admin/chat", uid: d.id }, tag: "chat-" + d.id });
-    if (d.lastFrom === "admin" && d.lastAdmin !== d.id) await this.kePelangganPush(d.id, { title: "Balasan dari Admin Tubi", body: isi, data: { href: "/chat" }, tag: "chat-" + d.id });
+    if (d.lastFrom === "user") await this.kePush((t) => this.adminEmail(t.email) && t.uid !== d.id, { title: `Pesan baru dari ${d.name || "Pelanggan"}`, body: isi, data: { href: "/admin/chat/" + d.id, uid: d.id, jenis: "chat" }, tag: "chat-" + d.id });
+    if (d.lastFrom === "admin" && d.lastAdmin !== d.id) await this.kePelangganPush(d.id, { title: "Balasan dari Admin Tubi", body: isi, data: { href: "/chat", jenis: "chat" }, tag: "chat-" + d.id });
   }
 }

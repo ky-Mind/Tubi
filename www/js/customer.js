@@ -258,7 +258,7 @@ const payChip = o => { const m = o.payment?.method; if (!m) return ""; const stt
   return m === "cod" ? `<span class="chip">COD</span>` : s === "paid" ? `<span class="chip st-selesai">Lunas${via}</span>` : s === "issue" ? `<span class="chip st-dibatalkan">Ada kendala pembayaran${via}</span>` : o.paymentProof ? `<span class="chip st-diproses">Bukti dicek admin${via}</span>` : `<span class="chip st-menunggu">Belum dibayar${via}</span>`; };
 const orderCard = o => {
   const st = statusOf(o.status), idx = FLOW.indexOf(st), needProof = o.payment?.method === "transfer" && o.payment?.status !== "paid" && st !== "dibatalkan";
-  return `<div class="card ord"><div class="ord-top"><div class="shop"><img src="./tubi-icon.png" alt="">Tubi <span class="muted xs" style="font-weight:600">#${esc(o.id.slice(0, 6).toUpperCase())} · ${timeText(o.createdAt)}</span></div><span class="chip st-${st}">${STATUS_LABEL[st]}</span></div>
+  return `<div class="card ord" id="ord-${o.id}"><div class="ord-top"><div class="shop"><img src="./tubi-icon.png" alt="">Tubi <span class="muted xs" style="font-weight:600">#${esc(o.id.slice(0, 6).toUpperCase())} · ${timeText(o.createdAt)}</span></div><span class="chip st-${st}">${STATUS_LABEL[st]}</span></div>
   ${st === "dibatalkan" ? "" : `<div class="steps">${FLOW.map((_, i) => `<i class="${i <= idx ? "on" : ""}"></i>`).join("")}</div>`}
   <div class="items">${(o.items || []).map(i => `<div class="it"><span class="thumb xs">${thumb(i.id)}</span><span class="sp">${i.qty}× ${esc(i.name)}</span><span>${rupiah(i.qty * i.price)}</span></div>`).join("")}</div>
   <div class="row wrap">${payChip(o)}${o.location?.lat ? `<a class="chip" target="_blank" rel="noopener" href="${esc(mapsView(o))}">${svg("pin", 14)} Lokasi terkirim</a>` : ""}</div>
@@ -281,8 +281,19 @@ export function orders() {
   if (!S.user) return loginCard("Masuk untuk melihat pesananmu", "Pesanan dan statusnya tampil real-time di sini.");
   return `${live("otabs", ["orders"], otabs)}${live("olist", ["orders", "errors", "products"], olist)}`;
 }
+// Tautan dalam: buka pesanan tertentu (dari notifikasi), opsional langsung form ulasan
+export function bukaPesanan(id, ulas) {
+  const coba = n => {
+    const o = myOrders().find(x => x.id === id);
+    if (!o) { if (n < 40) setTimeout(() => coba(n + 1), 150); return; }
+    if (V.ost !== "semua") { V.ost = "semua"; repaint("otabs"); repaint("olist"); }
+    setTimeout(() => { const el = document.getElementById("ord-" + id); if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); el.classList.add("sorot"); setTimeout(() => el.classList.remove("sorot"), 2200); } }, 80);
+    if (ulas && statusOf(o.status) === "selesai" && !o.review) setTimeout(() => actions.rate({ dataset: { id } }), 350);
+  };
+  coba(0);
+}
 actions.ost = el => { V.ost = el.dataset.k; repaint("otabs"); repaint("olist"); };
-actions.cancel = async el => { if (await confirmBox("Batalkan pesanan ini?", "Pesanan yang sudah dibatalkan tidak bisa diaktifkan lagi.", "Ya, batalkan") && abaikanNotif.add(el.dataset.id + ":dibatalkan")) await F.updateDoc(F.doc(db, "orders", el.dataset.id), { status: "dibatalkan", updatedAt: F.serverTimestamp() }); };
+actions.cancel = async el => { if (await confirmBox("Batalkan pesanan ini?", "Pesanan yang sudah dibatalkan tidak bisa diaktifkan lagi.", "Ya, batalkan") && abaikanNotif.add(el.dataset.id + ":dibatalkan")) await F.updateDoc(F.doc(db, "orders", el.dataset.id), { status: "dibatalkan", cancelledBy: "user", updatedAt: F.serverTimestamp() }); };
 actions.reorder = el => { const o = S.orders.find(x => x.id === el.dataset.id); (o?.items || []).forEach(i => { const p = prodOf(i.id); if (p && avail(p)) addToCart(p, i.qty); }); toast("Ditambahkan ke keranjang"); actions.cart(); };
 actions.rate = el => openOverlay(`<div class="sheet-head"><h3>Beri ulasan</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div>
   <form class="col" data-form="rateorder" data-id="${el.dataset.id}"><div class="pick" id="pick">${[1, 2, 3, 4, 5].map(i => `<button type="button" data-act="pick" data-n="${i}" class="on">★</button>`).join("")}</div><input type="hidden" name="rating" value="5"><textarea name="text" placeholder="Bagaimana rasanya? (opsional)" maxlength="500"></textarea><button class="btn pri" type="submit">Kirim</button></form>`);

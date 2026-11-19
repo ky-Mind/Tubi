@@ -50,8 +50,9 @@ async function siapkanNative() {
       { id: "balasan", actions: [balas, { id: "dibaca", title: "Tandai dibaca" }] }
     ] });
     izinNative = (await ln.checkPermissions()).display;
-    // Pertama kali dibuka: langsung minta izin notifikasi (Android 13+ menampilkan dialog izin)
-    if (izinNative === "prompt" || izinNative === "prompt-with-rationale") izinNative = (await ln.requestPermissions()).display;
+    // Izin diminta sekaligus oleh MainActivity (notifikasi, lokasi, kamera, Bluetooth) saat pertama buka / setelah update.
+    // Di sini cukup membaca hasilnya, dan membaca ulang setiap kali aplikasi kembali ke layar.
+    document.addEventListener("visibilitychange", async () => { if (!document.hidden) { const lama = izinNative; izinNative = (await ln.checkPermissions().catch(() => ({}))).display || izinNative; if (lama !== izinNative) { emit("notif"); if (izinNative === "granted") siapkanPush(); } } });
     ln.addListener("localNotificationActionPerformed", e => aksiNotif(e).catch(err => console.warn("aksi notifikasi", err)));
     emit("notif");
   } catch (e) { console.warn("notifikasi native", e); }
@@ -126,7 +127,7 @@ let tokenPush = null, pushDengar = false, pushAktif = false;
 async function simpanToken(t) {
   if (!S.user || !t) return;
   tokenPush = t;
-  try { await F.setDoc(F.doc(db, "pushTokens", t), { uid: S.user.uid, email: String(S.user.email || "").toLowerCase(), platform: "android", updatedAt: F.serverTimestamp() }); pushAktif = true; }
+  try { await F.setDoc(F.doc(db, "pushTokens", t), { uid: S.user.uid, email: String(S.user.email || "").toLowerCase(), platform: "android", native: "data", updatedAt: F.serverTimestamp() }); pushAktif = true; }
   catch (e) { console.warn("simpan token push", e); }
 }
 async function siapkanPush() {
@@ -138,9 +139,8 @@ async function siapkanPush() {
       pn.addListener("registrationError", e => console.warn("daftar push gagal", e));
       pn.addListener("pushNotificationActionPerformed", e => { const h = e?.notification?.data?.href; if (h) go(h); });
     }
-    let izin = (await pn.checkPermissions()).receive;
-    if (izin === "prompt" || izin === "prompt-with-rationale") izin = (await pn.requestPermissions()).receive;
-    if (izin === "granted") await pn.register();
+    // Token didaftarkan walau izin notifikasi belum diberikan: begitu izin diberikan, push langsung bisa tampil.
+    await pn.register();
   } catch (e) { console.warn("push", e); }
 }
 // Dipanggil sebelum keluar akun: HP ini berhenti menerima push untuk akun tersebut
@@ -162,11 +162,11 @@ export function cekPesanan() {
   S.orders.forEach(o => {
     const a = lama[o.id], b = baru[o.id], k = short(o.id);
     if (S.isAdmin) {
-      if (!a && b.s === "menunggu") tambah({ aksi: o.phone ? "pesanan" : "pesanan-nowa", ext: { order: o.id, uid: o.userId || "", phone: normPhone(o.phone) }, id: "new-" + o.id, icon: "receipt", tone: "red", title: `Pesanan baru ${k}`, body: `${o.customerName || "Pelanggan"} · ${rupiah(o.total)} · ${o.payment?.via || (o.payment?.method === "transfer" ? "Transfer" : "COD")}`, href: "/admin/orders" });
-      if (a && b.b && a.b !== b.b && b.p !== "paid") tambah({ aksi: "bukti", ext: { order: o.id }, id: `proof-${o.id}-${b.b}`, icon: "coin", tone: "teal", kind: "proof", order: o.id, title: `Bukti pembayaran masuk ${k}`, body: `${o.customerName || "Pelanggan"} · ${o.payment?.via || "Transfer"} · ${rupiah(o.total)}`, href: "/admin/orders" });
-      if (a && a.s !== "dibatalkan" && b.s === "dibatalkan") tambah({ id: "cancel-" + o.id, icon: "x", tone: "gray", title: `Pesanan dibatalkan ${k}`, body: o.customerName || "", href: "/admin/orders" }, true);
+      if (!a && b.s === "menunggu") tambah({ aksi: o.phone ? "pesanan" : "pesanan-nowa", ext: { order: o.id, uid: o.userId || "", phone: normPhone(o.phone) }, id: "new-" + o.id, icon: "receipt", tone: "red", title: `Pesanan baru ${k}`, body: `${o.customerName || "Pelanggan"} · ${rupiah(o.total)} · ${o.payment?.via || (o.payment?.method === "transfer" ? "Transfer" : "COD")}`, href: "/admin/orders/" + o.id });
+      if (a && b.b && a.b !== b.b && b.p !== "paid") tambah({ aksi: "bukti", ext: { order: o.id }, id: `proof-${o.id}-${b.b}`, icon: "coin", tone: "teal", kind: "proof", order: o.id, title: `Bukti pembayaran masuk ${k}`, body: `${o.customerName || "Pelanggan"} · ${o.payment?.via || "Transfer"} · ${rupiah(o.total)}`, href: "/admin/orders/" + o.id });
+      if (a && a.s !== "dibatalkan" && b.s === "dibatalkan") tambah({ id: "cancel-" + o.id, icon: "x", tone: "gray", title: `Pesanan dibatalkan ${k}`, body: o.customerName || "", href: "/admin/orders/" + o.id }, true);
     } else {
-      if (a && a.s !== b.s && CLIENT_TXT[b.s] && !abaikanNotif.has(o.id + ":" + b.s)) { const [ic, t, d] = CLIENT_TXT[b.s]; tambah({ id: `st-${o.id}-${b.s}`, icon: ic, tone: b.s === "dibatalkan" ? "gray" : "red", title: `${t} ${k}`, body: d, href: "/orders" }); }
+      if (a && a.s !== b.s && CLIENT_TXT[b.s] && !abaikanNotif.has(o.id + ":" + b.s)) { const [ic, t, d] = CLIENT_TXT[b.s]; tambah({ id: `st-${o.id}-${b.s}`, icon: ic, tone: b.s === "dibatalkan" ? "gray" : "red", title: `${t} ${k}`, body: d, href: `/orders/${o.id}${b.s === "selesai" ? "/ulas" : ""}` }); }
       if (a && a.p !== "paid" && b.p === "paid") tambah({ id: "paid-" + o.id, icon: "check", tone: "teal", title: `Pembayaran diterima ${k}`, body: `Pembayaran ${rupiah(o.total)} sudah dikonfirmasi. Terima kasih!`, href: "/pay/" + o.id });
       if (a && a.p !== "issue" && b.p === "issue") tambah({ id: `issue-${o.id}-${Date.now()}`, icon: "alert", tone: "yellow", title: `Ada kendala pembayaran ${k}`, body: o.payment?.note || "Silakan cek halaman pembayaran.", href: "/pay/" + o.id });
     }
@@ -179,7 +179,7 @@ export function cekChat() {
     S.chats.forEach(c => baru[c.id] = +c.unreadAdmin || 0); simpan("chat", baru);
     if (!lama) return;
     S.chats.forEach(c => { if ((baru[c.id] || 0) > (lama[c.id] || 0) && c.lastFrom === "user" && c.id !== S.user.uid)
-      tambah({ aksi: c.phone ? "chat" : "chat-nowa", ext: { uid: c.id, phone: normPhone(c.phone) }, id: `chat-${c.id}-${c.updatedAt?.seconds || Date.now()}`, icon: "chat", tone: "teal", title: `Pesan baru dari ${c.name || "Pelanggan"}`, body: String(c.lastMessage || "").slice(0, 90), href: "/admin/chat" }, location.hash === "#/admin/chat"); });
+      tambah({ aksi: c.phone ? "chat" : "chat-nowa", ext: { uid: c.id, phone: normPhone(c.phone) }, id: `chat-${c.id}-${c.updatedAt?.seconds || Date.now()}`, icon: "chat", tone: "teal", title: `Pesan baru dari ${c.name || "Pelanggan"}`, body: String(c.lastMessage || "").slice(0, 90), href: "/admin/chat/" + c.id }, location.hash === "#/admin/chat"); });
   } else {
     const lama = muat("chat", null), n = +S.chatMeta?.unreadUser || 0; simpan("chat", n);
     if (lama === null) return;
