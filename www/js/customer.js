@@ -1,7 +1,7 @@
 import { db, F, auth, A } from "./firebase.js";
 import { S, emit, signIn, signOutNow, avail, ratingOf, reviewsOf, cartCount, calc, saveCart, saveFavs, statusOf, STATUS_LABEL, isMain, payMethods, payOptions } from "./data.js";
 import { actions, forms, live, go, openOverlay, closeOverlay, repaint } from "./core.js";
-import { $, $$, esc, rupiah, svg, stars, toast, timeText, initial, normPhone, ls, compressImage } from "./util.js";
+import { $, $$, esc, rupiah, svg, stars, toast, timeText, initial, normPhone, hpLokal, ls, compressImage } from "./util.js";
 import { msgsHtml, chatForm, toEnd, markRead } from "./chat.js";
 import { confirmBox, ask, themePref, setTheme, dropzone } from "./ui.js";
 import { mountLocation, pickerHtml, mapsDir, mapsView } from "./map.js";
@@ -203,7 +203,7 @@ export function checkout() {
   return `<div class="two">
   <form class="col" data-form="order" id="coform"><div class="card col addr-card"><div class="sec-t">${svg("pin", 18)} Alamat pengantaran</div>
     ${S.user ? "" : `<div class="alert">Masuk dengan Google dulu untuk membuat pesanan. <button type="button" class="btn sm pri" data-act="login">Masuk</button></div>`}
-    <div class="grid2"><label>Nama penerima<input name="name" required value="${esc(p.recipientName || p.displayName || "")}"></label><label>No. WhatsApp<input name="phone" required inputmode="tel" placeholder="08xxxxxxxxxx" value="${esc(p.phone || "")}"></label></div>
+    <div class="grid2"><label>Nama penerima<input name="name" required value="${esc(p.recipientName || p.displayName || "")}"></label><label>No. WhatsApp<input name="phone" required data-hp inputmode="tel" autocomplete="tel" placeholder="08xx xxxx xxxx" value="${esc(hpLokal(p.phone))}"></label></div>
     <div><div class="lbl">Titik lokasi pengantaran</div>${pickerHtml("co")}</div>
     <label>Alamat lengkap <span class="hint">(terisi otomatis dari titik peta — tambahkan patokan / nomor rumah)</span><textarea name="address" id="coaddr" data-input="addrtype" placeholder="Jalan, nomor rumah, patokan…">${esc(p.address || "")}</textarea></label>
     <label>Catatan untuk penjual <span class="hint">(opsional)</span><input name="note" placeholder="Misal: pedas level 2"></label></div>
@@ -233,7 +233,7 @@ actions.copy = async el => {
 forms.order = async (f, fd) => {
   if (needLogin()) return;
   if (S.settings.open === false) throw new Error("Toko sedang tutup. Coba lagi nanti.");
-  const name = String(fd.get("name")).trim(), phone = String(fd.get("phone")).trim(), note = String(fd.get("note") || "").trim();
+  const name = String(fd.get("name")).trim(), phone = normPhone(fd.get("phone")), note = String(fd.get("note") || "").trim();
   let address = String(fd.get("address") || "").trim();
   if (normPhone(phone).length < 10) throw new Error("Nomor WhatsApp belum valid.");
   if (!address && !V.loc) throw new Error("Tandai titik lokasi di peta atau isi alamat.");
@@ -334,7 +334,7 @@ export function account() {
     ${S.isAdmin ? `<a class="btn yel" href="#/admin">${svg("grid", 18)} Buka dashboard admin</a>` : ""}</div>
     <div class="card"><div class="row" style="margin-bottom:10px"><b>Pesanan saya</b><span class="sp"></span><a class="xs muted" href="#/orders">Lihat riwayat ›</a></div>
     <div class="ostat">${[["menunggu", "receipt", "Menunggu"], ["diproses", "chef", "Diproses"], ["siap", "bike", "Siap"], ["selesai", "star", "Selesai"]].map(([k, e, l]) => `<a href="#/orders" data-act="ostgo" data-k="${k}"><i>${svg(e, 20)}</i>${l}${cnt(k) && k !== "selesai" ? `<span class="badge">${cnt(k)}</span>` : ""}</a>`).join("")}</div></div>
-    <div class="card"><form class="col" data-form="profile"><h3>Data pengantaran</h3><label>Nama penerima<input name="name" value="${esc(p.recipientName || p.displayName || "")}"></label><label>No. WhatsApp<input name="phone" inputmode="tel" value="${esc(p.phone || "")}"></label><label>Alamat<textarea name="address" placeholder="Alamat lengkap">${esc(p.address || "")}</textarea></label>
+    <div class="card"><form class="col" data-form="profile"><h3>Data pengantaran</h3><label>Nama penerima<input name="name" value="${esc(p.recipientName || p.displayName || "")}"></label><label>No. WhatsApp<input name="phone" data-hp inputmode="tel" autocomplete="tel" placeholder="08xx xxxx xxxx" value="${esc(hpLokal(p.phone))}"></label><label>Alamat<textarea name="address" placeholder="Alamat lengkap">${esc(p.address || "")}</textarea></label>
     <div class="row wrap"><button type="button" class="btn" data-act="proloc">${svg("pin", 18)} ${p.location?.lat ? "Ubah titik lokasi" : "Pilih titik lokasi"}</button>${p.location?.lat ? `<span class="chip st-selesai">✓ Titik tersimpan</span>` : ""}</div><button class="btn pri" type="submit">Simpan</button></form></div>
 </div>
   <div class="col">${prefsCard()}
@@ -343,7 +343,8 @@ export function account() {
     <button type="button" class="akun-hapus" data-act="delacct">Hapus akun saya</button></div>`;
 }
 forms.profile = async (f, fd) => {
-  const d = { recipientName: String(fd.get("name")).trim(), phone: String(fd.get("phone")).trim(), address: String(fd.get("address")).trim() };
+  const phone = normPhone(fd.get("phone")); if (phone && phone.length < 10) throw new Error("Nomor WhatsApp belum valid.");
+  const d = { recipientName: String(fd.get("name")).trim(), phone, address: String(fd.get("address")).trim() };
   await F.setDoc(F.doc(db, "users", S.user.uid), d, { merge: true }); Object.assign(S.profile, d); toast("Profil disimpan.");
 };
 forms.bug = async (f, fd) => {

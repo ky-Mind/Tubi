@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(GoogleAuth.class);
         registerPlugin(BukaAplikasiPlugin.class);
         registerPlugin(PembaruanPlugin.class);
+        registerPlugin(PrinterPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Tombol kembali Android: tanya dulu ke aplikasi web (tutup panel, mundur satu halaman, atau

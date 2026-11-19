@@ -86,7 +86,7 @@ export async function sendMsg(uid, from, msg) {
   try {
     await addDoc(collection(db, "chats", uid, "messages"), { from, senderId: S.user.uid, createdAt: serverTimestamp(), text: msg.text || "", ...(msg.image ? { image: msg.image } : {}), ...(msg.file ? { file: msg.file } : {}), ...(msg.replyTo ? { replyTo: msg.replyTo } : {}) });
     const meta = from === "admin"
-      ? { lastFrom: "admin", unreadUser: increment(1) }
+      ? { lastFrom: "admin", lastAdmin: S.user.uid, unreadUser: increment(1) }
       : { uid, name: S.profile.displayName || "Pelanggan", email: S.user.email || "", photoURL: S.profile.photoURL || "", phone: S.profile.phone || "", lastFrom: "user", unreadAdmin: increment(1) };
     await setDoc(doc(db, "chats", uid), { ...meta, lastMessage: (msg.image ? "[Foto] " : msg.file ? "[Dokumen] " : "") + (msg.text || (msg.file?.name || "")).slice(0, 110), updatedAt: serverTimestamp() }, { merge: true });
   } catch (e) {

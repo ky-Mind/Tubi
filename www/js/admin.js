@@ -1,7 +1,7 @@
 import { db, F, firebaseConfig, FIXED_ADMINS } from "./firebase.js";
 import { S, emit, openThread, avail, ratingOf, statusOf, STATUS_LABEL, STATUSES, isMain, payMethods } from "./data.js";
-import { actions, forms, live, go, openOverlay, closeOverlay, repaint } from "./core.js";
-import { $, $$, esc, rupiah, svg, stars, toast, timeText, ago, secs, initial, normPhone, compressImage, ls } from "./util.js";
+import { actions, forms, live, go, openOverlay, closeOverlay, repaint, kunci } from "./core.js";
+import { $, $$, esc, rupiah, svg, stars, toast, timeText, ago, secs, initial, normPhone, hpLokal, compressImage, ls } from "./util.js";
 import { msgsHtml, chatForm, toEnd, markRead, resetCompose, sendMsg } from "./chat.js";
 import { img, imgStyle, cropCss } from "./customer.js";
 import { ask, confirmBox, dropzone } from "./ui.js";
@@ -15,6 +15,10 @@ const path = () => location.hash.slice(1) || "/";
 export const TITLES = { "/admin": "Dashboard", "/admin/orders": "Pesanan", "/admin/chat": "Chat Pelanggan", "/admin/products": "Produk", "/admin/reports": "Omzet & Laporan", "/admin/settings": "Pengaturan", "/admin/more": "Menu lainnya" };
 const pending = () => S.orders.filter(o => statusOf(o.status) === "menunggu").length;
 const unreadChats = () => S.chats.reduce((a, c) => a + (+c.unreadAdmin || 0), 0);
+// Status "offline" bergantung pada waktu sinyal terakhir, jadi semua tampilan status digambar ulang tiap 30 detik
+// supaya chip header, sidebar pengaturan, kartu dashboard, dan halaman WhatsApp selalu sama.
+let waTerakhir = "";
+setInterval(() => { const k = waState(); if (k !== waTerakhir) { waTerakhir = k; emit("wa"); } }, 30000);
 export const waState = () => { const w = S.wa; if (!w) return "offline"; return (Date.now() - secs(w.updatedAt) * 1000) < 240000 ? (w.state || "offline") : "offline"; };
 const WA_LABEL = { offline: "Offline", starting: "Memulai", connecting: "Menghubungkan", qr: "Scan QR", pairing: "Kode pairing", connected: "Terhubung", logged_out: "Logout", idle: "Diam", error: "Error" };
 const setSettings = d => F.setDoc(F.doc(db, "settings", "store"), d, { merge: true });
@@ -102,7 +106,7 @@ const othumb = i => { const p = S.products.find(x => x.id === i.id); return `<sp
 const orderCard = o => {
   const st = statusOf(o.status), nx = nextOf[st], ph = normPhone(o.phone), unpaid = o.payment && o.payment.status !== "paid" && st !== "dibatalkan";
   return `<div class="card order-card o-${st}">
-  <div class="oc-h"><span class="av">${initial(o.customerName)}</span><div class="sp" style="min-width:0"><b>${esc(o.customerName || "Pelanggan")}</b><div class="muted xs">#${esc(o.id.slice(0, 6).toUpperCase())} · ${timeText(o.createdAt)}${o.phone ? " · " + esc(o.phone) : ""}</div></div><div class="row wrap" style="justify-content:flex-end">${payBadge(o)}<span class="chip st-${st}">${STATUS_LABEL[st]}</span></div></div>
+  <div class="oc-h"><span class="av">${initial(o.customerName)}</span><div class="sp" style="min-width:0"><b>${esc(o.customerName || "Pelanggan")}</b><div class="muted xs">#${esc(o.id.slice(0, 6).toUpperCase())} · ${timeText(o.createdAt)}${o.phone ? " · " + esc(hpLokal(o.phone)) : ""}</div></div><div class="row wrap" style="justify-content:flex-end">${payBadge(o)}<span class="chip st-${st}">${STATUS_LABEL[st]}</span></div></div>
   <div class="items">${(o.items || []).map(i => `<div class="it">${othumb(i)}<span class="sp">${esc(i.name)} <span class="muted">×${i.qty}</span></span><span>${rupiah(i.qty * i.price)}</span></div>`).join("")}
     <div class="oc-tot"><span class="muted">${(o.items || []).reduce((a, i) => a + i.qty, 0)} item${+o.deliveryFee ? ` · ongkir ${rupiah(o.deliveryFee)}` : ""}${+o.discount ? ` · diskon ${rupiah(o.discount)}` : ""}</span><span>Total <b class="money">${rupiah(o.total)}</b></span></div></div>
   <div class="addr"><div class="row" style="align-items:flex-start"><span class="addr-ic">${svg("pin", 18)}</span><div class="sp" style="min-width:0"><div class="row wrap" style="gap:6px"><b>Alamat pengantaran</b>${locChip(o)}</div><div>${esc(o.address || "-")}</div>${o.note ? `<div class="oc-note">${svg("note", 15)} ${esc(o.note)}</div>` : ""}</div></div>
@@ -162,10 +166,10 @@ actions.oclean = async () => {
 actions.oedit = el => {
   const o = S.orders.find(x => x.id === el.dataset.id);
   openOverlay(`<div class="sheet-head"><h3>Edit pesanan #${esc(o.id.slice(0, 6).toUpperCase())}</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div>
-  <form class="col" data-form="oedit" data-id="${o.id}"><div class="grid2"><label>Nama<input name="name" required value="${esc(o.customerName || "")}"></label><label>No. WhatsApp<input name="phone" value="${esc(o.phone || "")}"></label></div>
+  <form class="col" data-form="oedit" data-id="${o.id}"><div class="grid2"><label>Nama<input name="name" required value="${esc(o.customerName || "")}"></label><label>No. WhatsApp<input name="phone" data-hp inputmode="tel" autocomplete="tel" value="${esc(hpLokal(o.phone))}"></label></div>
   <label>Alamat<textarea name="address">${esc(o.address || "")}</textarea></label><label>Catatan<input name="note" value="${esc(o.note || "")}"></label><button class="btn pri" type="submit">Simpan perubahan</button></form>`);
 };
-forms.oedit = async (f, fd) => { await F.updateDoc(F.doc(db, "orders", f.dataset.id), { customerName: String(fd.get("name")).trim(), recipientName: String(fd.get("name")).trim(), phone: String(fd.get("phone")).trim(), address: String(fd.get("address")).trim(), note: String(fd.get("note")).trim() }); closeOverlay(); toast("Pesanan diperbarui."); };
+forms.oedit = async (f, fd) => { await F.updateDoc(F.doc(db, "orders", f.dataset.id), { customerName: String(fd.get("name")).trim(), recipientName: String(fd.get("name")).trim(), phone: normPhone(fd.get("phone")), address: String(fd.get("address")).trim(), note: String(fd.get("note")).trim() }); closeOverlay(); toast("Pesanan diperbarui."); };
 actions.proofview = el => { const o = S.orders.find(x => x.id === el.dataset.id); openOverlay(`<div class="sheet-head"><h3>Bukti pembayaran</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div><div class="muted sm" style="margin-bottom:8px">#${esc(o.id.slice(0, 6).toUpperCase())} · ${esc(o.customerName || "")} · ${esc(o.payment?.via || "Transfer")} · <b class="money">${rupiah(o.total)}</b></div><img src="${esc(o.paymentProof)}" alt="Bukti" style="width:100%;border-radius:14px">
   ${o.payment?.status !== "paid" ? `<div class="grid3" style="margin-top:12px"><button class="btn s-selesai" data-act="opaid" data-id="${o.id}">${svg("check", 16)} Terima</button><button class="btn" data-act="opissue" data-id="${o.id}">${svg("alert", 16)} Ada kendala</button><button class="btn danger" data-act="ostatus" data-id="${o.id}" data-s="dibatalkan">Batalkan</button></div>` : `<div class="alert ok" style="margin-top:12px">Pembayaran sudah diterima.</div>`}`, "wide"); };
 actions.omap = el => {
@@ -179,18 +183,17 @@ actions.omap = el => {
 actions.print = el => {
   const o = S.orders.find(x => x.id === el.dataset.id);
   openOverlay(`<div class="sheet-head"><h3>Struk pesanan</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div>
-  <div class="receipt" id="rcp"><div class="rc-h">TUBI</div><div class="rc-s">#${esc(o.id.slice(0, 6).toUpperCase())} · ${timeText(o.createdAt)}</div><hr>
-  <div>${esc(o.customerName || "")} · ${esc(o.phone || "")}</div><div>${esc(o.address || "")}</div><hr>
-  ${(o.items || []).map(i => `<div class="rc-r"><span>${i.qty}× ${esc(i.name)}</span><span>${rupiah(i.qty * i.price)}</span></div>`).join("")}<hr>
-  ${+o.deliveryFee ? `<div class="rc-r"><span>Ongkir</span><span>${rupiah(o.deliveryFee)}</span></div>` : ""}${+o.discount ? `<div class="rc-r"><span>Diskon</span><span>- ${rupiah(o.discount)}</span></div>` : ""}
-  <div class="rc-r rc-t"><span>TOTAL</span><span>${rupiah(o.total)}</span></div><div class="rc-s" style="margin-top:10px">Terima kasih sudah memesan di Tubi</div></div>
+  <div id="rcp" class="rcp-wrap"></div>
   <div class="col" style="margin-top:14px"><button class="btn pri" data-act="btprint" data-id="${o.id}">${svg("bt", 18)} Cetak via printer Bluetooth</button><button class="btn" data-act="doprint">${svg("print", 18)} Cetak lewat browser / PDF</button>
+  <a class="btn ghost sm" href="#/admin/settings/struk" data-act="kestruk">${svg("edit", 15)} Atur tata letak struk</a>
   <small class="muted">Printer Bluetooth dihubungkan sekali di Pengaturan → Printer Bluetooth. ${BT.connected() ? `Terhubung: <b>${esc(BT.printerName())}</b>.` : "Belum terhubung — tombol di atas akan meminta pairing."}</small></div>`);
+  BT.isiPratinjau($("#rcp"), o, S.settings.struk);
 };
+actions.kestruk = () => { closeOverlay(); go("/admin/settings/struk"); };
 actions.doprint = () => { let p = $("#print"); if (!p) { p = document.createElement("div"); p.id = "print"; document.body.appendChild(p); } p.innerHTML = $("#rcp").outerHTML; window.print(); };
 actions.btprint = async el => {
   const o = S.orders.find(x => x.id === el.dataset.id);
-  try { if (!BT.connected()) { const n = await BT.connect(); toast("Terhubung ke " + n); } await BT.printOrder(o, "TUBI"); toast("Struk dikirim ke printer ✓"); }
+  try { if (!BT.connected()) { const n = await BT.connect(); toast("Terhubung ke " + n); } await BT.printOrder(o, S.settings.struk); toast("Struk dikirim ke printer ✓"); }
   catch (e) { if (e.name === "NotFoundError") return; throw new Error(e.message || "Gagal mencetak via Bluetooth."); }
 };
 
@@ -257,9 +260,74 @@ forms.product = async (f, fd) => {
   closeOverlay(); toast("Produk disimpan.");
 };
 
+// ===== Tata letak struk (editor seperti aplikasi printer thermal) =====
+let SK = null;   // salinan kerja saat mengedit; null = tidak sedang mengedit
+const isiPrevStruk = () => BT.isiPratinjau($("#strukprev"), BT.CONTOH, SK || S.settings.struk);
+const IKON_BLOK = { teks: "edit", gambar: "image", garis: "menu", kosong: "menu", pelanggan: "user", alamat: "pin", catatan: "chat", item: "receipt", rincian: "receipt", total: "coin", bayar: "coin" };
+const segSb = (i, k, opsi, cur) => `<div class="seg sb-seg">${opsi.map(([v, l]) => `<button type="button" class="${String(cur) === String(v) ? "on" : ""}" data-act="sbset" data-i="${i}" data-k="${k}" data-v="${v}">${l}</button>`).join("")}</div>`;
+const togSb = (i, k, l, cur) => `<button type="button" class="sb-tog ${cur ? "on" : ""}" data-act="sbset" data-i="${i}" data-k="${k}" data-v="!">${l}</button>`;
+const RATA = [["l", "Kiri"], ["c", "Tengah"], ["r", "Kanan"]];
+const ISIAN = ["{kode}", "{waktu}", "{nama}", "{hp}", "{total}", "{bayar}"];
+function blokEditor(k, i, n) {
+  const J = BT.JENIS[k.jenis] || [k.jenis, ""], al = k.al || (["teks", "gambar"].includes(k.jenis) ? "c" : "l");
+  let isi = "";
+  if (k.jenis === "teks") isi = `<textarea rows="2" data-input="sbisi" data-i="${i}" placeholder="Tulis teks…">${esc(k.isi || "")}</textarea>
+    <div class="sb-ctl">${segSb(i, "al", RATA, al)}${togSb(i, "big", "Besar", k.big)}${togSb(i, "b", "Tebal", k.b)}</div>
+    <div class="sb-isian"><span class="muted xs">Isian otomatis</span>${ISIAN.map(v => `<button type="button" data-act="sbisian" data-i="${i}" data-v="${v}">${v}</button>`).join("")}</div>`;
+  else if (k.jenis === "gambar") isi = `<div class="sb-gbr">${k.src ? `<img src="${k.src}" alt="">` : `<span class="muted sm">Belum ada gambar</span>`}<label class="btn sm">${svg("image", 15)} ${k.src ? "Ganti" : "Pilih"} gambar<input type="file" accept="image/*" hidden data-change="sbgambar" data-i="${i}"></label></div>
+    <div class="sb-ctl"><span class="muted xs">Lebar</span>${segSb(i, "lebar", [[40, "40%"], [60, "60%"], [80, "80%"], [100, "Penuh"]], k.lebar || 60)}${segSb(i, "al", RATA, al)}</div>`;
+  else if (k.jenis === "garis") isi = `<div class="sb-ctl">${segSb(i, "ch", [["-", "- - -"], ["=", "= = ="], ["*", "* * *"], [".", ". . ."], ["_", "____"]], k.ch || "-")}</div>`;
+  else if (k.jenis === "kosong") isi = `<div class="sb-ctl"><span class="muted xs">Jumlah baris</span>${segSb(i, "n", [[1, "1"], [2, "2"], [3, "3"]], k.n || 1)}</div>`;
+  else if (["pelanggan", "alamat", "catatan"].includes(k.jenis)) isi = `<div class="sb-ctl">${segSb(i, "al", RATA, al)}${k.jenis === "pelanggan" ? togSb(i, "big", "Besar", k.big) : ""}${togSb(i, "b", "Tebal", k.b)}</div>`;
+  else if (k.jenis === "total") isi = `<div class="sb-ctl">${togSb(i, "big", "Besar", k.big)}</div>`;
+  else if (["item", "bayar"].includes(k.jenis)) isi = `<div class="sb-ctl">${togSb(i, "b", "Tebal", k.b)}</div>`;
+  return `<div class="sb" draggable="true" data-sb="${i}"><div class="sb-h"><span class="sb-grip" title="Seret untuk memindah">${svg("menu", 14)}</span><span class="sb-ic">${svg(IKON_BLOK[k.jenis] || "edit", 15)}</span><div class="sp"><b>${esc(J[0])}</b><small class="muted">${esc(J[1])}</small></div>
+    <button type="button" class="icon-btn sb-b" data-act="sbgeser" data-i="${i}" data-d="-1" aria-label="Naik" ${i ? "" : "disabled"}>&uarr;</button><button type="button" class="icon-btn sb-b" data-act="sbgeser" data-i="${i}" data-d="1" aria-label="Turun" ${i < n - 1 ? "" : "disabled"}>&darr;</button><button type="button" class="icon-btn sb-b danger" data-act="sbhapus" data-i="${i}" aria-label="Hapus">${svg("trash", 14)}</button></div>${isi ? `<div class="sb-isi">${isi}</div>` : ""}</div>`;
+}
+function strukKartu() {
+  setTimeout(isiPrevStruk, 0);   // pratinjau diisi setelah kartu masuk ke halaman
+  if (!SK) return `<div class="card"><div class="kf-head"><h3>Struk saat ini</h3><button type="button" class="btn sm" data-act="skubah">${svg("edit", 15)} Ubah tata letak</button></div>
+    <p class="muted sm" style="margin:6px 0 12px">Susun sendiri isi struk: logo, nama toko, alamat, garis, daftar menu, total, pesan penutup. Pratinjau ini sama persis dengan hasil printer ${BT.width() === 48 ? "80" : "58"} mm.</p>
+    <div class="struk-prev solo"><div id="strukprev"></div></div></div>`;
+  const n = SK.blok.length;
+  return `<div class="card struk-ed"><div class="kf-head"><h3>Susun struk</h3><button type="button" class="btn sm ghost" data-act="skbawaan">Kembalikan bawaan</button></div>
+    <p class="muted sm" style="margin:6px 0 12px">Seret atau pakai panah naik/turun untuk menyusun. Ketuk Besar, Tebal, atau rata untuk mengatur gaya. Pratinjau berubah langsung.</p>
+    <div class="struk-grid"><div class="col">
+      <div class="sb-list">${SK.blok.map((k, i) => blokEditor(k, i, n)).join("") || `<div class="empty">Struk masih kosong. Tambahkan blok di bawah.</div>`}</div>
+      <div class="sb-tambah"><span class="lbl">Tambah blok</span><div>${Object.entries(BT.JENIS).map(([j, [l, , pendek]]) => `<button type="button" data-act="sbtambah" data-j="${j}" title="${esc(l)}">${svg(IKON_BLOK[j] || "plus", 15)}<span>${esc(pendek || l)}</span></button>`).join("")}</div></div>
+      <label class="chk sk-potong-cek"><input type="checkbox" data-change="skpotong" ${SK.potong ? "checked" : ""}><span>Potong kertas otomatis di akhir<small class="muted">Untuk printer yang punya pemotong kertas</small></span></label>
+      <div class="sk-aksi"><button type="button" class="btn pri" data-act="sksimpan">Simpan tata letak</button><button type="button" class="btn" data-act="sktes">${svg("print", 16)} Tes cetak</button><button type="button" class="btn ghost" data-act="skbatal">Batal</button></div>
+    </div><div class="struk-prev"><div class="lbl">Pratinjau</div><div id="strukprev"></div></div></div></div>`;
+}
+const gambarUlang = () => repaint("sstruk");
+actions.skubah = () => { SK = structuredClone(BT.strukCfg(S.settings.struk)); gambarUlang(); };
+actions.skbatal = () => { SK = null; gambarUlang(); };
+actions.skbawaan = () => { SK = BT.strukCfg({}); gambarUlang(); };
+actions.skpotong = el => { SK.potong = el.checked; isiPrevStruk(); };
+actions.sksimpan = async () => { const c = SK; await setSettings({ struk: c }); SK = null; gambarUlang(); toast("Tata letak struk disimpan"); };
+actions.sktes = async () => { if (!BT.connected()) { try { await BT.connect(); } catch (e) { if (e.name === "NotFoundError") return; throw e; } } await BT.printTest(SK); toast("Contoh struk dikirim ke printer"); };
+actions.sbtambah = el => { SK.blok.push(BT.blokBaru(el.dataset.j)); gambarUlang(); setTimeout(() => $$(".sb").at(-1)?.scrollIntoView({ block: "center", behavior: "smooth" }), 50); };
+actions.sbhapus = el => { SK.blok.splice(+el.dataset.i, 1); gambarUlang(); };
+const pindahBlok = (dari, ke) => { if (ke < 0 || ke >= SK.blok.length || dari === ke) return; const [b] = SK.blok.splice(dari, 1); SK.blok.splice(ke, 0, b); gambarUlang(); };
+actions.sbgeser = el => pindahBlok(+el.dataset.i, +el.dataset.i + +el.dataset.d);
+actions.sbset = el => { const b = SK.blok[+el.dataset.i], k = el.dataset.k, v = el.dataset.v; b[k] = v === "!" ? !b[k] : (["lebar", "n"].includes(k) ? +v : v); gambarUlang(); };
+actions.sbisi = el => { SK.blok[+el.dataset.i].isi = el.value; isiPrevStruk(); };
+actions.sbisian = el => {
+  const ta = el.closest(".sb").querySelector("textarea"), v = el.dataset.v, a = ta.selectionStart ?? ta.value.length;
+  ta.value = ta.value.slice(0, a) + v + ta.value.slice(ta.selectionEnd ?? a); ta.focus(); ta.selectionStart = ta.selectionEnd = a + v.length; actions.sbisi(ta);
+};
+actions.sbgambar = async el => { const f = el.files?.[0]; if (!f) return; SK.blok[+el.dataset.i].src = await BT.siapkanGambar(f); gambarUlang(); };
+// Seret-lepas blok (komputer)
+let seretDari = -1;
+document.addEventListener("dragstart", e => { const b = e.target.closest?.(".sb[data-sb]"); if (!b || !SK) return; seretDari = +b.dataset.sb; b.classList.add("seret"); e.dataTransfer.effectAllowed = "move"; }, true);
+document.addEventListener("dragover", e => { if (seretDari < 0) return; const b = e.target.closest?.(".sb[data-sb]"); if (b) { e.preventDefault(); $$(".sb.atas").forEach(x => x.classList.remove("atas")); b.classList.add("atas"); } });
+document.addEventListener("drop", e => { if (seretDari < 0) return; const b = e.target.closest?.(".sb[data-sb]"); e.preventDefault(); const dari = seretDari; seretDari = -1; if (b) pindahBlok(dari, +b.dataset.sb); });
+document.addEventListener("dragend", () => { seretDari = -1; $$(".sb.seret,.sb.atas").forEach(x => x.classList.remove("seret", "atas")); });
+
 // ===== Chat =====
+actions.chatdibaca = async () => { const { tandaiChatDibaca } = await import("./notif.js"); await tandaiChatDibaca(); toast("Semua chat ditandai dibaca"); };
 export function chat() {
-  const list = () => S.chats.length ? `<div class="threads">${S.chats.map(c => `<button class="thread ${S.openChat === c.id ? "on" : ""}" data-act="thread" data-id="${c.id}"><span class="av">${c.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : initial(c.name)}</span><div class="mid"><b>${esc(c.name || "Pelanggan")}</b><small class="muted">${c.lastFrom === "admin" ? "Anda: " : ""}${esc(c.lastMessage || "")}</small></div>${+c.unreadAdmin ? `<span class="badge" style="position:static">${c.unreadAdmin}</span>` : ""}</button>`).join("")}</div>` : `<div class="empty">Belum ada chat dari pelanggan.</div>`;
+  const list = () => S.chats.length ? `${S.chats.some(c => +c.unreadAdmin > 0) ? `<div class="threads-top"><button class="btn sm ghost" data-act="chatdibaca">${svg("check", 15)} Tandai semua dibaca</button></div>` : ""}<div class="threads">${S.chats.map(c => `<button class="thread ${S.openChat === c.id ? "on" : ""}" data-act="thread" data-id="${c.id}"><span class="av">${c.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : initial(c.name)}</span><div class="mid"><b>${esc(c.name || "Pelanggan")}</b><small class="muted">${c.lastFrom === "admin" ? "Anda: " : ""}${esc(c.lastMessage || "")}</small></div>${+c.unreadAdmin ? `<span class="badge" style="position:static">${c.unreadAdmin}</span>` : ""}</button>`).join("")}</div>` : `<div class="empty">Belum ada chat dari pelanggan.</div>`;
   return `<div class="chat-split ${S.openChat ? "open" : ""}" id="csplit"><div class="threads-box card" style="padding:8px;align-self:start;max-height:calc(100vh - 150px);overflow:auto">${live("threads", ["chats", "errors"], () => S.errors.chats ? `<div class="alert">Chat ditolak Firestore. Publish rules.</div>` : list())}</div>
   <div class="chat-box chat adm">${live("chead", ["openchat", "chats"], head)}${live("cmsgs", ["openchat", "msgs"], () => S.openChat ? `<div class="msgs">${msgsHtml("admin")}</div>` : `<div class="m-empty" style="flex:1">${svg("chat", 34)}<b>Pilih percakapan</b><span>Pilih pelanggan di daftar untuk mulai membalas.</span></div>`, () => { toEnd(); const c = S.chats.find(x => x.id === S.openChat); if (c && +c.unreadAdmin > 0) markRead(c.id, "admin"); })}
   <div id="cformbox" class="${S.openChat ? "" : "hidden"}">${chatForm()}</div></div></div>`;
@@ -267,7 +335,7 @@ export function chat() {
 // Kepala, daftar pesan, dan kotak tulis dipisah: pesan baru tidak menghapus teks / lampiran yang sedang ditulis.
 function head() {
   const c = S.chats.find(x => x.id === S.openChat); if (!S.openChat) return "";
-  return `<div class="chat-head"><button class="icon-btn only-m" data-act="chatback" aria-label="Kembali">${svg("back")}</button><span class="av">${c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : initial(c?.name)}</span><div style="min-width:0"><b>${esc(c?.name || "Pelanggan")}</b><div class="muted xs">${esc(c?.email || "")}${c?.phone ? " · " + esc(c.phone) : ""}</div></div><span class="sp"></span>${c?.phone ? `<a class="icon-btn" target="_blank" rel="noopener" href="https://wa.me/${normPhone(c.phone)}" aria-label="WhatsApp pelanggan">${svg("wa", 18)}</a>` : ""}</div>`;
+  return `<div class="chat-head"><button class="icon-btn only-m" data-act="chatback" aria-label="Kembali">${svg("back")}</button><span class="av">${c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : initial(c?.name)}</span><div style="min-width:0"><b>${esc(c?.name || "Pelanggan")}</b><div class="muted xs">${esc(c?.email || "")}${c?.phone ? " · " + esc(hpLokal(c.phone)) : ""}</div></div><span class="sp"></span>${c?.phone ? `<a class="icon-btn" target="_blank" rel="noopener" href="https://wa.me/${normPhone(c.phone)}" aria-label="WhatsApp pelanggan">${svg("wa", 18)}</a>` : ""}</div>`;
 }
 actions.thread = el => { resetCompose(); openThread(el.dataset.id); markRead(el.dataset.id, "admin"); $("#csplit")?.classList.add("open"); $("#cformbox")?.classList.remove("hidden"); emit("openchat"); repaint("threads"); };
 actions.chatback = () => { openThread(null); $("#csplit")?.classList.remove("open"); $("#cformbox")?.classList.add("hidden"); emit("openchat"); repaint("threads"); };
@@ -314,7 +382,10 @@ export function waBody(mini) {
   let h = "";
   if (st === "qr" && w.qr) h = `<div class="qr"><img src="${w.qr}" alt="QR WhatsApp"><small class="muted">WhatsApp → Perangkat tertaut → Tautkan perangkat → scan</small></div>`;
   else if (st === "pairing" && w.pairingCode) h = `<div class="pair">${esc(w.pairingCode)}</div><small class="muted">WhatsApp → Perangkat tertaut → Tautkan dengan nomor telepon</small>`;
-  else if (st === "connected") h = `<p class="muted" style="margin-top:8px">Terhubung${w.me ? ` sebagai <b>+${esc(w.me)}</b>` : ""}. Notifikasi pesanan &amp; chat aktif.${!mini && w.lastTest ? ` Tes terakhir: <b>${w.lastTest === "ok" ? "berhasil ✓" : "gagal ✗"}</b>.` : ""}</p>`;
+  else if (st === "connected") h = `<p class="muted" style="margin-top:8px">Terhubung${w.me ? ` sebagai <b>${esc(hpLokal(w.me))}</b>` : ""}. Notifikasi pesanan &amp; chat aktif.${!mini && w.lastTest ? ` Tes terakhir: <b>${w.lastTest === "ok" ? "berhasil ✓" : "gagal ✗"}</b>.` : ""}</p>`;
+  else if (st === "starting" || st === "connecting" || st === "logged_out") h = `<p class="muted" style="margin-top:8px">Gateway aktif dan sedang menghubungkan ke WhatsApp. QR muncul di sini dalam ±30 detik.</p>`;
+  else if (st === "idle") h = `<p class="muted" style="margin-top:8px">Gateway aktif, bot sedang diam${mini ? "" : ". Tekan <b>Restart</b> untuk memunculkan QR baru"}.</p>`;
+  else if (st === "error") h = "";
   else h = mini ? `<p class="muted" style="margin-top:8px">Bot belum menyala (opsional). Panduan ada di Pengaturan → WhatsApp Bot.</p>` : `<div class="alert" style="margin-top:10px">${w ? "Gateway tidak mengirim sinyal lagi (lebih dari 4 menit)." : "Belum ada sinyal dari gateway."} Pastikan gateway sudah di-deploy (folder <code>gateway</code>, perintah <code>npm run deploy</code>) lalu buka alamat gateway sekali untuk membangunkannya; QR akan muncul di sini otomatis.</div>`;
   return h + (w?.error ? `<div class="alert" style="margin-top:8px">${esc(w.error)}</div>` : "");
 }
@@ -322,7 +393,7 @@ const waGuide = () => `<details class="guide" ${waState() === "connected" ? "" :
   <p><b>Bot</b> = satu nomor WhatsApp (boleh nomor toko) yang dihubungkan ke program kecil bernama <b>gateway</b> yang berjalan 24 jam di Cloudflare (gratis). Setelah terhubung, <b>setiap pesanan & chat baru otomatis dikirim ke WhatsApp admin</b>, dan <b>pelanggan dikabari saat status pesanan berubah</b>. Tubi tetap berjalan 100% tanpa bot.</p>
   <ol class="guide-steps"><li><span>1</span><div>Gateway ada di folder <code>gateway</code> pada repo Tubi dan sudah di-deploy ke Cloudflare (lihat README).</div></li><li><span>2</span><div>Bila status <b>Diam</b> (QR kedaluwarsa), tekan <b>Restart</b>.</div></li><li><span>3</span><div>Dalam ±30 detik <b>QR muncul di kartu ini</b>.</div></li><li><span>4</span><div>HP: WhatsApp → ⋮ → <b>Perangkat tertaut</b> → <b>Tautkan perangkat</b> → scan QR.</div></li><li><span>5</span><div>Status menjadi <b>Terhubung</b>. Selesai ✓</div></li></ol>
   <p class="muted sm">Gateway memeriksa pesanan, chat, dan perintah dari dashboard tiap ±30 detik, jadi perintah (tes, restart, pairing) butuh hingga setengah menit.</p></details>`;
-const phoneShow = p => p ? "+" + esc(p) : "belum diisi";
+const phoneShow = p => p ? esc(hpLokal(p)) : "belum diisi";
 const recipients = () => { const l = []; if (S.settings.whatsapp) l.push(`<b>${phoneShow(S.settings.whatsapp)}</b> (admin utama)`); S.admins.filter(a => a.phone).forEach(a => l.push(`<b>${phoneShow(a.phone)}</b> (${esc(a.name || a.id)})`)); return l.length ? l.join(", ") : "belum ada nomor"; };
 
 const GROUPS = [
@@ -332,58 +403,60 @@ const GROUPS = [
   ["admin", "shield", "Admin", "Admin tambahan & nomor penerima notifikasi"],
   ["wa", "wa", "WhatsApp Bot", "QR, status, dan notifikasi otomatis"],
   ["printer", "print", "Printer Bluetooth", "Hubungkan printer untuk cetak struk"],
+  ["struk", "receipt", "Tata letak struk", "Atur logo, teks, dan susunan struk"],
   ["sistem", "check", "Sistem & laporan", "Cek sistem dan laporan masalah pelanggan"]
 ];
 export const GROUP_TITLES = Object.fromEntries(GROUPS.map(g => [g[0], g[2]]));
-const groupStatus = k => k === "wa" ? `<span class="dot ${waState()}"></span>${WA_LABEL[waState()]}` : k === "printer" ? (BT.connected() ? `<span class="dot connected"></span>Terhubung` : `<span class="dot"></span>Belum`) : k === "sistem" ? (S.bugs.filter(b => b.status !== "selesai").length ? `<span class="badge-in">${S.bugs.filter(b => b.status !== "selesai").length} baru</span>` : "") : k === "admin" ? `${S.admins.length + 1} akun` : k === "bayar" ? `${payMethods().length + (S.settings.payQris ? 1 : 0) + (S.settings.payCod === false ? 0 : 1)} metode` : "";
+const groupStatus = k => k === "wa" ? `<span class="dot ${waState()}"></span>${WA_LABEL[waState()]}` : k === "struk" ? `${BT.strukCfg(S.settings.struk).blok.length} blok` : k === "printer" ? (BT.connected() ? `<span class="dot connected"></span>Terhubung` : `<span class="dot"></span>Belum`) : k === "sistem" ? (S.bugs.filter(b => b.status !== "selesai").length ? `<span class="badge-in">${S.bugs.filter(b => b.status !== "selesai").length} baru</span>` : "") : k === "admin" ? `${S.admins.length + 1} akun` : k === "bayar" ? `${payMethods().length + (S.settings.payQris ? 1 : 0) + (S.settings.payCod === false ? 0 : 1)} metode` : "";
 export const groupList = () => GROUPS.map(([k, ic, t, d]) => `<a class="menu-item" href="#/admin/settings/${k}"><span class="mi-ic">${svg(ic, 20)}</span><span class="mi-tx"><b>${t}</b><small class="muted">${d}</small></span><span class="mi-st">${groupStatus(k)}</span><span class="mi-ch">›</span></a>`).join("");
 
 const payCard = () => {
   const s = S.settings, ms = payMethods();
-  return `<div class="col"><form class="card col" data-form="paybase"><h3>Metode di checkout</h3><label class="chk"><input type="checkbox" name="cod" ${s.payCod === false ? "" : "checked"}> Bayar di tempat (COD)</label><button class="btn pri" type="submit">Simpan</button></form>
+  return `<div class="col">${kunci(`<form class="card col" data-form="paybase"><h3>Metode di checkout</h3><label class="chk"><input type="checkbox" name="cod" ${s.payCod === false ? "" : "checked"}> Bayar di tempat (COD)</label><button class="btn pri" type="submit">Simpan</button></form>`)}
   <div class="card"><div class="row"><h3 style="margin:0" class="sp">Rekening & e-wallet</h3><button class="btn pri sm" data-act="pmform">${svg("plus", 16)} Tambah</button></div>
     <p class="muted sm" style="margin:8px 0 4px">Pilih aplikasinya (GoPay, OVO, DANA, BCA, BRI, dan lain-lain), lalu isi nomor dan atas nama. Metode baru langsung muncul di checkout pelanggan, termasuk di aplikasi Android.</p>
     ${ms.length ? `<div class="tbl">${ms.map(m => `<div class="r">${badge(m, 40)}<div class="mid"><b>${esc(provOf(m) && provOf(m).key !== "lain" && /^(e-?wallet|transfer|bank|rekening)?$/i.test((m.name || "").trim()) ? provOf(m).name : m.name)}</b><small class="muted">${esc(nomorOf(m) || (m.detail || "").split("\n")[0])}${atasNamaOf(m) ? " · a.n. " + esc(atasNamaOf(m)) : ""}${provOf(m)?.pkg ? " · buka " + esc(appName(provOf(m))) : ""}</small>${!provOf(m) || provOf(m).key === "lain" ? `<span class="pm-warn">${svg("alert", 13)} Belum dipilih aplikasinya (DANA, GoPay, dll). Pelanggan hanya melihat "${esc(m.name)}". Ketuk Edit.</span>` : ""}</div><button class="btn sm" data-act="pmform" data-id="${esc(m.id)}">Edit</button><button class="btn sm danger" data-act="pmdel" data-id="${esc(m.id)}" aria-label="Hapus">${svg("trash", 14)}</button></div>`).join("")}</div>` : `<div class="empty" style="margin-top:10px">Belum ada. Tambahkan rekening atau e-wallet.</div>`}</div>
-  <form class="card col" data-form="qris"><h3>QRIS</h3>${dropzone("qris", s.payQris || "", "Unggah gambar QRIS")}<label class="chk"><input type="checkbox" name="qrisdel"> Hapus QRIS</label><button class="btn pri" type="submit">Simpan QRIS</button></form></div>`;
+  ${kunci(`<form class="card col" data-form="qris"><h3>QRIS</h3>${dropzone("qris", s.payQris || "", "Unggah gambar QRIS")}<label class="chk"><input type="checkbox" name="qrisdel"> Hapus QRIS</label><button class="btn pri" type="submit">Simpan QRIS</button></form>`)}</div>`;
 };
 
 export function settings() {
   const g = path().split("/")[3] || "", cur = GROUP_TITLES[g] ? g : "toko";
   const s = S.settings, main = isMain(S.user);
-  const storeForm = () => `<form class="card col" data-form="store"><h3>Toko & biaya</h3>
+  const storeForm = (s = S.settings) => kunci(`<form class="card col" data-form="store"><h3>Toko & biaya</h3>
     <label class="chk"><input type="checkbox" name="open" ${s.open === false ? "" : "checked"}> Toko buka (pelanggan bisa memesan)</label>
-    <div class="grid2"><label>Nomor WhatsApp admin utama<input name="number" required value="${esc(s.whatsapp || "")}" placeholder="08xxxxxxxxxx"></label><label>Nama kontak<input name="name" value="${esc(s.whatsappName || "Admin Tubi")}"></label></div>
-    <label>Nomor WhatsApp admin lain <span class="hint">(opsional, satu per baris: Nama - 08xxxxxxxxxx). Pelanggan bisa memilih mau chat ke admin yang mana.</span><textarea name="walain" rows="3" placeholder="Admin Sore - 0812xxxxxxx">${esc((s.waContacts || []).map(c => `${c.name} - ${c.number}`).join("\n"))}</textarea></label>
+    <div class="grid2"><label>Nomor WhatsApp admin utama<input name="number" required data-hp inputmode="tel" autocomplete="tel" value="${esc(hpLokal(s.whatsapp))}" placeholder="08xx xxxx xxxx"></label><label>Nama kontak<input name="name" value="${esc(s.whatsappName || "Admin Tubi")}"></label></div>
+    <label>Nomor WhatsApp admin lain <span class="hint">(opsional, satu per baris: Nama - 08xxxxxxxxxx). Pelanggan bisa memilih mau chat ke admin yang mana.</span><textarea name="walain" rows="3" placeholder="Admin Sore - 0812 3456 7890">${esc((s.waContacts || []).map(c => `${c.name} - ${hpLokal(c.number)}`).join("\n"))}</textarea></label>
     <label>Jam operasional<input name="hours" value="${esc(s.hours || "")}" placeholder="09.00–21.00"></label>
     <div class="grid2"><label>Ongkir (Rp)<input name="fee" type="number" min="0" value="${+s.deliveryFee || 0}"></label><label>Gratis ongkir min. belanja<input name="freeMin" type="number" min="0" value="${+s.freeShippingMin || 0}"></label></div>
     <div class="grid3"><label>Pajak (%)<input name="tax" type="number" min="0" max="100" value="${+s.taxPct || 0}"></label><label>Kode voucher<input name="vcode" value="${esc(s.voucherCode || "")}" placeholder="HEMAT10"></label><label>Diskon (%)<input name="vpct" type="number" min="0" max="100" value="${+s.voucherPct || 0}"></label></div>
-    <label>Maks. diskon (Rp)<input name="vmax" type="number" min="0" value="${+s.voucherMax || 0}"></label><button class="btn pri" type="submit">Simpan pengaturan</button></form>`;
-  const lookForm = () => `<form class="card col" data-form="look"><h3>Tampilan beranda toko</h3><p class="muted sm" style="margin:-6px 0 0">Teks dan gambar banner yang dilihat pelanggan di halaman depan.</p>
+    <label>Maks. diskon (Rp)<input name="vmax" type="number" min="0" value="${+s.voucherMax || 0}"></label><button class="btn pri" type="submit">Simpan pengaturan</button></form>`);
+  const lookForm = (s = S.settings) => kunci(`<form class="card col" data-form="look"><h3>Tampilan beranda toko</h3><p class="muted sm" style="margin:-4px 0 0">Teks dan gambar banner yang dilihat pelanggan di halaman depan.</p>
     <label>Judul besar <span class="hint">Enter = baris baru</span><textarea name="title" rows="2">${esc(s.heroTitle ?? "Lapar?\nPesan Tubi.")}</textarea></label>
     <label>Deskripsi<textarea name="text" rows="2">${esc(s.heroText ?? "Roti kukus, topokki, cilok, dan jajanan favorit — langsung dari HP, status pesanan terlihat real-time.")}</textarea></label>
     <label>Label singkat <span class="hint">pisahkan dengan koma · kosongkan untuk menyembunyikan</span><input name="tags" value="${esc(s.heroTags ?? "Fresh setiap hari, Antar cepat, Harga pelajar")}"></label>
-    <div><div class="lbl">Gambar banner</div>${dropzone("hero", s.heroImage || "", "Ganti gambar banner")}<label class="chk" style="margin-top:8px"><input type="checkbox" name="herodel"> Kembalikan ke gambar bawaan</label></div><button class="btn pri" type="submit">Simpan tampilan</button></form>`;
+    <div><div class="lbl">Gambar banner</div>${dropzone("hero", s.heroImage || "", "Ganti gambar banner")}<label class="chk" style="margin-top:8px"><input type="checkbox" name="herodel"> Kembalikan ke gambar bawaan</label></div><button class="btn pri" type="submit">Simpan tampilan</button></form>`);
   const adm = () => `<div class="card"><h3>Admin & penerima notifikasi</h3><div class="tbl">
     <div class="r"><span class="av">H</span><div class="mid"><b>hilmykia@gmail.com</b><small class="muted">Admin utama · WA ${phoneShow(s.whatsapp)}</small></div><span class="chip st-selesai">Utama</span></div>
     ${S.admins.filter(a => !FIXED_ADMINS.includes(a.id)).map(a => `<div class="r"><span class="av">${initial(a.name || a.id)}</span><div class="mid"><b>${esc(a.name || a.id)}</b><small class="muted">${esc(a.id)} · WA ${phoneShow(a.phone)}</small></div>${main ? `<button class="btn sm" data-act="admphone" data-id="${esc(a.id)}">Nomor WA</button><button class="btn sm danger" data-act="admdel" data-id="${esc(a.id)}">Hapus</button>` : ""}</div>`).join("")}</div>
-    ${main ? `<form class="col" data-form="admin" style="margin-top:12px"><div class="grid2"><input name="email" type="email" required placeholder="email@gmail.com"><input name="name" placeholder="Nama admin"></div><input name="phone" inputmode="tel" placeholder="Nomor WhatsApp admin (menerima notifikasi bot)"><button class="btn pri" type="submit">Tambah admin</button></form>` : `<p class="muted sm" style="margin-top:12px">Hanya admin utama yang dapat menambah atau menghapus admin.</p>`}</div>`;
+    ${main ? `<form class="col" data-form="admin" style="margin-top:12px"><div class="grid2"><input name="email" type="email" required placeholder="email@gmail.com"><input name="name" placeholder="Nama admin"></div><input name="phone" data-hp inputmode="tel" autocomplete="tel" placeholder="Nomor WhatsApp admin, mis. 0812 3456 7890"><button class="btn pri" type="submit">Tambah admin</button></form>` : `<p class="muted sm" style="margin-top:12px">Hanya admin utama yang dapat menambah atau menghapus admin.</p>`}</div>`;
   const wa = () => `<div class="card"><h3>WhatsApp Bot (Baileys)</h3>${waGuide()}<div class="row" style="margin-top:12px"><span class="dot ${waState()}"></span><b>Status: ${WA_LABEL[waState()]}</b></div>${waBody()}
     <div class="row wrap" style="margin-top:12px"><button class="btn sm" data-act="wacmd" data-a="test">Kirim pesan tes</button><button class="btn sm" data-act="wacmd" data-a="restart">Restart</button><button class="btn sm danger" data-act="wacmd" data-a="logout">Putuskan WhatsApp</button></div>
-    <details style="margin-top:10px"><summary class="b" style="cursor:pointer">Alternatif: kode pairing (tanpa QR)</summary><form class="row" style="margin-top:8px" data-form="wapair"><input name="phone" placeholder="Nomor akun WA bot, mis. 62812…" inputmode="tel"><button class="btn" type="submit">Minta kode</button></form></details>
+    <details style="margin-top:10px"><summary class="b" style="cursor:pointer">Alternatif: kode pairing (tanpa QR)</summary><form class="row" style="margin-top:8px" data-form="wapair"><input name="phone" placeholder="Nomor akun WA bot, mis. 0812 3456 7890" data-hp inputmode="tel" autocomplete="tel"><button class="btn" type="submit">Minta kode</button></form></details>
     <label class="chk" style="margin-top:12px"><input type="checkbox" data-change="wanotify" data-k="waNotifyAdmin" ${s.waNotifyAdmin !== false ? "checked" : ""}> Kirim pesanan &amp; chat baru ke WhatsApp admin</label>
     <label class="chk" style="margin-top:8px"><input type="checkbox" data-change="wanotify" data-k="waNotifyCustomer" ${s.waNotifyCustomer !== false ? "checked" : ""}> Kabari pelanggan saat pesanan diterima &amp; berubah status</label>
     <p class="muted sm" style="margin-top:10px">Penerima notifikasi: ${recipients()}.</p></div>`;
   const printer = () => `<div class="card"><h3>Printer Bluetooth</h3>
     <div class="row"><span class="dot ${BT.connected() ? "connected" : ""}"></span><b>${BT.connected() ? "Terhubung: " + esc(BT.printerName()) : "Belum terhubung"}</b></div>
-    ${BT.supported() ? "" : `<div class="alert" style="margin-top:10px">Browser ini tidak mendukung Web Bluetooth. Gunakan <b>Chrome / Edge</b> di Android atau komputer (lewat HTTPS). iPhone/iPad dan Firefox belum didukung — gunakan “Cetak lewat browser”.</div>`}
+    ${BT.supported() ? "" : `<div class="alert" style="margin-top:10px">${BT.alasanTidakDukung()}</div>`}
     <div class="row wrap" style="margin-top:12px"><span class="muted sm">Lebar kertas</span><div class="seg"><button class="${BT.width() === 32 ? "on" : ""}" data-act="btpaper" data-mm="58">58 mm</button><button class="${BT.width() === 48 ? "on" : ""}" data-act="btpaper" data-mm="80">80 mm</button></div></div>
     <div class="row wrap" style="margin-top:12px"><button class="btn pri sm" data-act="btconnect">${svg("bt", 16)} Hubungkan printer</button><button class="btn sm" data-act="bttest">Tes cetak</button><button class="btn sm danger" data-act="btdisc">Putuskan</button></div>
-    <details class="guide" style="margin-top:12px"><summary>${svg("shield", 18)} Cara menyambungkan printer</summary><ol class="guide-steps"><li><span>1</span><div>Nyalakan printer thermal dan aktifkan Bluetooth di HP/laptop.</div></li><li><span>2</span><div>Tekan <b>Hubungkan printer</b>, pilih nama printer dari daftar, lalu izinkan.</div></li><li><span>3</span><div>Tekan <b>Tes cetak</b>. Setelah itu tombol <b>Cetak via printer Bluetooth</b> di setiap struk siap dipakai.</div></li></ol>
-    <p class="muted sm">Mendukung printer thermal <b>BLE</b> berperintah ESC/POS (umumnya 58 mm). Printer Bluetooth <i>klasik</i> (SPP) tidak bisa disambung langsung oleh browser — pakai aplikasi pencetak Android (mis. RawBT) lalu “Cetak lewat browser”. Koneksi harus diulang bila halaman dimuat ulang.</p></details></div>`;
+    <a class="set-link" href="#/admin/settings/struk">${svg("receipt", 18)}<span class="sp"><b>Tata letak struk</b><small class="muted">Atur logo, teks, dan susunan struk yang dicetak</small></span>${svg("chev", 16)}</a>
+    <details class="guide" style="margin-top:12px"><summary>${svg("shield", 18)} Cara menyambungkan printer</summary><ol class="guide-steps">${BT.isNative() ? '<li><span>1</span><div>Nyalakan printer thermal, lalu pasangkan sekali di <b>pengaturan Bluetooth HP</b> (PIN biasanya 0000 atau 1234).</div></li><li><span>2</span><div>Tekan <b>Hubungkan printer</b>, izinkan "Perangkat di sekitar", lalu pilih printer dari daftar.</div></li>' : '<li><span>1</span><div>Nyalakan printer thermal dan aktifkan Bluetooth di HP/laptop.</div></li><li><span>2</span><div>Tekan <b>Hubungkan printer</b>, pilih nama printer dari daftar, lalu izinkan.</div></li>'}<li><span>3</span><div>Tekan <b>Tes cetak</b>. Setelah itu tombol <b>Cetak via printer Bluetooth</b> di setiap struk siap dipakai.</div></li></ol>
+    <p class="muted sm">${BT.isNative() ? "Di aplikasi Tubi, printer thermal Bluetooth biasa (klasik/SPP) maupun yang sudah dipasangkan bisa langsung dipakai. Printer yang terakhir dipakai tersambung lagi otomatis saat mencetak." : "Di browser hanya printer <b>BLE</b> berperintah ESC/POS yang bisa disambung, dan koneksi harus diulang bila halaman dimuat ulang. Printer Bluetooth <i>klasik</i> (SPP): cetak dari aplikasi Tubi di HP Android."}</p></details></div>`;
   const bugs = () => `<div class="card"><h3>Laporan masalah dari pelanggan (${S.bugs.filter(b => b.status !== "selesai").length} baru)</h3>${S.bugs.length ? `<div class="tbl">${S.bugs.slice(0, 15).map(b => `<div class="r"><div class="mid" style="white-space:normal"><b>${esc(b.type)} · ${esc(b.email || "")}</b><small class="muted" style="white-space:normal">${esc(b.description)}</small></div>${b.screenshot ? `<button class="btn sm" data-act="bugshot" data-id="${b.id}" aria-label="Lihat tangkapan layar">${svg("image", 15)}</button>` : ""}${b.status === "selesai" ? `<span class="chip st-selesai">Selesai</span>` : `<button class="btn sm" data-act="bugdone" data-id="${b.id}">Selesai</button>`}<button class="btn sm danger" data-act="bugdel" data-id="${b.id}" aria-label="Hapus">${svg("trash", 14)}</button></div>`).join("")}</div>` : `<div class="empty">Belum ada laporan.</div>`}</div>`;
   const diag = () => `<div class="card"><h3>Cek sistem</h3><p class="muted sm" style="margin-bottom:10px">Menguji koneksi ke Firestore, rules, akun, dan gateway WhatsApp.</p><button class="btn" data-act="diag">Jalankan pengecekan</button><div id="diag" class="tbl" style="margin-top:10px"></div></div>`;
   const body = { toko: () => live("sform", ["settings"], storeForm), tampilan: () => live("slook", ["settings"], lookForm), bayar: () => live("spay", ["settings"], payCard), admin: () => live("sadm", ["admins", "settings"], adm),
-    wa: () => live("swa", ["wa", "errors", "settings", "admins"], wa), printer: () => live("sprint", ["bt"], printer), sistem: () => `<div class="col">${diag()}${live("sbugs", ["bugs"], bugs)}</div>` }[cur]();
+    wa: () => live("swa", ["wa", "errors", "settings", "admins"], wa), printer: () => live("sprint", ["bt"], printer), struk: () => live("sstruk", ["bt", "settings"], strukKartu, isiPrevStruk), sistem: () => `<div class="col">${diag()}${live("sbugs", ["bugs"], bugs)}</div>` }[cur]();
   return `<div class="set-wrap ${g ? "has-group" : ""}"><nav class="set-nav card">${live("snav", ["wa", "bt", "settings", "admins", "bugs", "route"], () => GROUPS.map(([k, ic, t]) => `<a class="set-link ${cur === k && (g || window.innerWidth >= 1000) ? "on" : ""}" href="#/admin/settings/${k}"><span class="mi-ic">${svg(ic, 19)}</span><span class="sp">${t}</span><span class="mi-st">${groupStatus(k)}</span></a>`).join(""))}</nav>
     <section class="set-body"><a class="back-link only-m" href="#/admin/more">‹ Menu lainnya</a><h3 class="set-title only-m">${GROUP_TITLES[cur]}</h3>${body}</section>
     <div class="set-hub only-m">${more()}</div></div>`;   // di HP: sama lengkapnya dengan menu Lainnya (laporan, pengaturan, lihat toko, keluar)
@@ -446,12 +519,12 @@ forms.admin = async (f, fd) => {
   await F.setDoc(F.doc(db, "admins", email), { email, name: String(fd.get("name") || "").trim().slice(0, 60), phone, createdAt: F.serverTimestamp(), by: S.user.email }); f.reset(); toast("Admin ditambahkan ✓ — akses langsung aktif.");
 };
 actions.admdel = async el => { if (await confirmBox("Hapus admin ini?", `${el.dataset.id} langsung kehilangan akses admin, bahkan jika sedang membuka dashboard.`, "Hapus admin")) { await F.deleteDoc(F.doc(db, "admins", el.dataset.id)); toast("Admin dihapus."); } };
-actions.admphone = async el => { const a = S.admins.find(x => x.id === el.dataset.id), v = await ask({ title: "Nomor WhatsApp admin", text: "Bot mengirim notifikasi ke nomor ini.", input: "", value: a?.phone || "", placeholder: "08xxxxxxxxxx", ok: "Simpan", cancel: "Batal" }); if (v === null) return; const p = normPhone(v); if (v.trim() && p.length < 10) throw new Error("Nomor belum valid."); await F.setDoc(F.doc(db, "admins", el.dataset.id), { phone: p }, { merge: true }); toast("Nomor disimpan ✓"); };
+actions.admphone = async el => { const a = S.admins.find(x => x.id === el.dataset.id), v = await ask({ title: "Nomor WhatsApp admin", text: "Bot mengirim notifikasi ke nomor ini.", input: "", value: hpLokal(a?.phone), placeholder: "0812 3456 7890", ok: "Simpan", cancel: "Batal" }); if (v === null) return; const p = normPhone(v); if (v.trim() && p.length < 10) throw new Error("Nomor belum valid."); await F.setDoc(F.doc(db, "admins", el.dataset.id), { phone: p }, { merge: true }); toast("Nomor disimpan ✓"); };
 actions.bugdone = async el => { await F.updateDoc(F.doc(db, "bugReports", el.dataset.id), { status: "selesai" }); };
 actions.bugdel = async el => { if (await confirmBox("Hapus laporan ini?", "", "Hapus")) await F.deleteDoc(F.doc(db, "bugReports", el.dataset.id)); };
 actions.bugshot = el => { const b = S.bugs.find(x => x.id === el.dataset.id); openOverlay(`<div class="sheet-head"><h3>Tangkapan layar</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div><img src="${esc(b.screenshot)}" alt="" style="width:100%;border-radius:14px">`, "wide"); };
 actions.btconnect = async () => { try { const n = await BT.connect(); toast("Terhubung ke " + n + " ✓"); } catch (e) { if (e.name === "NotFoundError") return; throw e; } finally { emit("bt"); } };
-actions.bttest = async () => { if (!BT.connected()) { try { await BT.connect(); } catch (e) { if (e.name === "NotFoundError") return; throw e; } } await BT.printTest(); toast("Tes cetak dikirim ✓"); emit("bt"); };
+actions.bttest = async () => { if (!BT.connected()) { try { await BT.connect(); } catch (e) { if (e.name === "NotFoundError") return; throw e; } } await BT.printTest(S.settings.struk); toast("Tes cetak dikirim ✓"); emit("bt"); };
 actions.btdisc = () => { BT.disconnect(); emit("bt"); toast("Printer diputuskan."); };
 actions.btpaper = el => { BT.setPaper(+el.dataset.mm); emit("bt"); };
 actions.diag = async () => {
