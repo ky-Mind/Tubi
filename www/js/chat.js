@@ -1,7 +1,7 @@
 // Chat pelanggan <-> admin ala WhatsApp: teks, emoji, foto (galeri / kamera), dokumen, balas pesan, reaksi, hapus.
 // Lampiran disimpan langsung di dokumen pesan Firestore (foto dikompres, dokumen maks. ±600 KB).
 import { db, F } from "./firebase.js";
-import { S } from "./data.js";
+import { S, onChange } from "./data.js";
 import { forms, actions, openOverlay, closeOverlay, backHandlers } from "./core.js";
 import { $, esc, hm, svg, toast, compressImage } from "./util.js";
 import { confirmBox } from "./ui.js";
@@ -25,7 +25,33 @@ const fileBox = f => `<a class="m-file" href="${esc(f.data)}" download="${esc(f.
 const reacts = m => { const r = Object.values(m.reactions || {}); if (!r.length) return ""; const c = {}; r.forEach(e => c[e] = (c[e] || 0) + 1);
   return `<div class="m-react" data-act="msgmenu" data-id="${m.id}">${Object.entries(c).map(([e, n]) => `<span>${e}${n > 1 ? n : ""}</span>`).join("")}</div>`; };
 
+// ---------- Tanda dibaca (seperti WhatsApp) ----------
+// Pesan kita = "terkirim" (satu centang) selama masih termasuk hitungan belum dibaca pihak lain
+// (unreadAdmin / unreadUser di dokumen chat), "dibaca" (dua centang merah) setelah lawan bicara membukanya,
+// dan jam kecil saat masih dikirim (belum sampai ke server).
+const CENTANG1 = '<svg class="ck" width="15" height="11" viewBox="0 0 15 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 6l3 3 6.5-7.5"/></svg>';
+const CENTANG2 = '<svg class="ck" width="18" height="11" viewBox="0 0 18 11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 6l3 3 6.5-7.5"/><path d="M8.5 8.6l.9.9 6.5-7.5"/></svg>';
+const JAM = '<svg class="ck" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+function statusBaca(me) {
+  const meta = me === "admin" ? S.chats.find(c => c.id === S.openChat) : S.chatMeta;
+  const belum = +(me === "admin" ? meta?.unreadUser : meta?.unreadAdmin) || 0;
+  const milikku = visible().filter(m => m.from === me && m.createdAt);
+  const terkirim = new Set(belum > 0 ? milikku.slice(-belum).map(m => m.id) : []);
+  return m => !m.createdAt ? "kirim" : terkirim.has(m.id) ? "terkirim" : "dibaca";
+}
+const ikonBaca = st => st === "kirim" ? JAM : st === "terkirim" ? CENTANG1 : CENTANG2;
+const LABEL_BACA = { kirim: "Mengirim", terkirim: "Terkirim, belum dibaca", dibaca: "Dibaca" };
+// Perbarui centang di tempat (tanpa menggambar ulang daftar pesan, supaya posisi gulir tidak lompat)
+function perbaruiCentang() {
+  const box = document.querySelector(".msgs"); if (!box || !S.user) return;
+  const me = S.isAdmin && location.hash.startsWith("#/admin") ? "admin" : "user", st = statusBaca(me);
+  visible().forEach(m => { if (m.from !== me) return; const el = document.querySelector(`#m-${m.id} .m-baca`); if (!el) return;
+    const s = st(m); if (el.dataset.st !== s) { el.dataset.st = s; el.className = "m-baca " + s; el.innerHTML = ikonBaca(s); el.title = LABEL_BACA[s]; } });
+}
+onChange(k => { if (k === "chats" || k === "chatMeta" || k === "openchat") setTimeout(perbaruiCentang, 0); });
+
 export const msgsHtml = me => {
+  const baca = statusBaca(me);
   const l = visible();
   if (!l.length) return `<div class="m-empty">${svg("chat", 34)}<b>${me === "admin" ? "Belum ada pesan" : "Halo! Ada yang bisa kami bantu?"}</b><span>${me === "admin" ? "Pesan dari pelanggan akan muncul di sini." : "Tanya menu, stok, atau status pesanan. Admin Tubi akan membalas secepatnya."}</span></div>`;
   let last = "";
@@ -34,7 +60,7 @@ export const msgsHtml = me => {
     const mine = m.from === me;
     return `${sep}<div class="msg ${mine ? "me" : "th"}${m.image && !m.text ? " pic" : ""}" id="m-${m.id}"><div class="bub" data-act="msgmenu" data-id="${m.id}">
       ${replyBox(m.replyTo)}${m.image ? `<img class="m-img" src="${esc(m.image)}" alt="Foto" data-act="msgimg" data-id="${m.id}" loading="lazy">` : ""}${m.file ? fileBox(m.file) : ""}
-      ${m.text ? `<p>${esc(m.text)}</p>` : ""}<small class="m-t">${hm(m.createdAt)}</small></div>${reacts(m)}</div>`;
+      ${m.text ? `<p>${esc(m.text)}</p>` : ""}<small class="m-t">${hm(m.createdAt)}${mine ? (st => `<span class="m-baca ${st}" data-st="${st}" title="${LABEL_BACA[st]}">${ikonBaca(st)}</span>`)(baca(m)) : ""}</small></div>${reacts(m)}</div>`;
   }).join("");
 };
 
@@ -82,6 +108,7 @@ actions.replyclear = () => { C.reply = null; drawReply(); };
 export const resetCompose = () => { C.reply = null; C.att = null; };
 
 export async function sendMsg(uid, from, msg) {
+  window.__tubiKirim = Date.now();   // notifikasi chat sesaat setelah mengirim tidak berbunyi
   const { addDoc, setDoc, doc, collection, serverTimestamp, increment } = F;
   try {
     await addDoc(collection(db, "chats", uid, "messages"), { from, senderId: S.user.uid, createdAt: serverTimestamp(), text: msg.text || "", ...(msg.image ? { image: msg.image } : {}), ...(msg.file ? { file: msg.file } : {}), ...(msg.replyTo ? { replyTo: msg.replyTo } : {}) });

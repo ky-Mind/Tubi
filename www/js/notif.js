@@ -108,6 +108,8 @@ function tambah(n, diam) {
   if (N.list.some(x => x.id === item.id)) return;
   N.list.unshift(item); N.list = N.list.slice(0, MAX); simpan("notif", N.list); emit("notif");
   if (diam) return;
+  // Baru saja mengirim pesan dari perangkat ini: kabar chat yang muncul berbarengan tidak berbunyi (bunyi hanya untuk pesan masuk)
+  if (String(item.id).startsWith("chat-") && Date.now() - (window.__tubiKirim || 0) < 8000) return;
   // Kartu pop-up di dalam aplikasi sudah dihapus: kabar muncul sebagai notifikasi HP (dan di lonceng).
   if (native() && pushAktif && document.hidden) return;   // di latar belakang: push dari server sudah mengabari
   sysShow(item).then(ok => { if (!(ok && native())) playSound(); });   // tanpa toast di dalam aplikasi: kabar cukup lewat notifikasi HP + lonceng
