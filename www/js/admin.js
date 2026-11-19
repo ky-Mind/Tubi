@@ -279,19 +279,21 @@ forms.product = async (f, fd) => {
 // ===== Tata letak struk (editor seperti aplikasi printer thermal) =====
 let SK = null;   // salinan kerja saat mengedit; null = tidak sedang mengedit
 const isiPrevStruk = () => BT.isiPratinjau($("#strukprev"), BT.CONTOH, SK || S.settings.struk);
-const IKON_BLOK = { teks: "edit", gambar: "image", garis: "menu", kosong: "menu", pelanggan: "user", alamat: "pin", catatan: "chat", item: "receipt", rincian: "receipt", total: "coin", bayar: "coin" };
+const IKON_BLOK = { kepala: "store", teks: "edit", gambar: "image", garis: "menu", kosong: "menu", pelanggan: "user", alamat: "pin", catatan: "chat", item: "receipt", rincian: "receipt", total: "coin", bayar: "coin" };
 const segSb = (i, k, opsi, cur) => `<div class="seg sb-seg">${opsi.map(([v, l]) => `<button type="button" class="${String(cur) === String(v) ? "on" : ""}" data-act="sbset" data-i="${i}" data-k="${k}" data-v="${v}">${l}</button>`).join("")}</div>`;
 const togSb = (i, k, l, cur) => `<button type="button" class="sb-tog ${cur ? "on" : ""}" data-act="sbset" data-i="${i}" data-k="${k}" data-v="!">${l}</button>`;
 const RATA = [["l", "Kiri"], ["c", "Tengah"], ["r", "Kanan"]];
 const ISIAN = ["{kode}", "{waktu}", "{nama}", "{hp}", "{total}", "{bayar}"];
 function blokEditor(k, i, n) {
-  const J = BT.JENIS[k.jenis] || [k.jenis, ""], al = k.al || (["teks", "gambar"].includes(k.jenis) ? "c" : "l");
+  const J = BT.JENIS[k.jenis] || [k.jenis, ""], al = k.al || (["teks", "gambar", "kepala"].includes(k.jenis) ? "c" : "l");
   let isi = "";
   if (k.jenis === "teks") isi = `<textarea rows="2" data-input="sbisi" data-i="${i}" placeholder="Tulis teks…">${esc(k.isi || "")}</textarea>
     <div class="sb-ctl">${segSb(i, "al", RATA, al)}${togSb(i, "big", "Besar", k.big)}${togSb(i, "b", "Tebal", k.b)}</div>
     <div class="sb-isian"><span class="muted xs">Isian otomatis</span>${ISIAN.map(v => `<button type="button" data-act="sbisian" data-i="${i}" data-v="${v}">${v}</button>`).join("")}</div>`;
   else if (k.jenis === "gambar") isi = `<div class="sb-gbr">${k.src ? `<img src="${k.src}" alt="">` : `<span class="muted sm">Belum ada gambar</span>`}<div class="sb-gbr-tb">${k.src === BT.LOGO_TUBI ? "" : `<button type="button" class="btn sm" data-act="sblogo" data-i="${i}">Pakai logo Tubi</button>`}<label class="btn sm">${svg("image", 15)} ${k.src ? "Ganti" : "Pilih"} gambar sendiri<input type="file" accept="image/*" hidden data-change="sbgambar" data-i="${i}"></label></div></div>
     <div class="sb-ctl"><span class="muted xs">Lebar</span>${segSb(i, "lebar", [[40, "40%"], [60, "60%"], [80, "80%"], [100, "Penuh"]], k.lebar || 60)}${segSb(i, "al", RATA, al)}</div>`;
+  else if (k.jenis === "kepala") isi = `<div class="sb-kepala"><input value="${esc(k.isi || "")}" data-input="sbisi" data-i="${i}" placeholder="Nama toko" maxlength="20"><div class="sb-gbr-tb">${k.src === BT.LOGO_TUBI ? "" : `<button type="button" class="btn sm" data-act="sblogo" data-i="${i}">Pakai logo Tubi</button>`}<label class="btn sm">${svg("image", 15)} Ganti logo<input type="file" accept="image/*" hidden data-change="sbgambar" data-i="${i}"></label></div></div>
+    <div class="sb-ctl"><span class="muted xs">Ukuran</span>${segSb(i, "ukuran", [[40, "Kecil"], [52, "Sedang"], [68, "Besar"]], k.ukuran || 52)}${segSb(i, "al", RATA, al)}</div>`;
   else if (k.jenis === "garis") isi = `<div class="sb-ctl">${segSb(i, "ch", [["-", "- - -"], ["=", "= = ="], ["*", "* * *"], [".", ". . ."], ["_", "____"]], k.ch || "-")}</div>`;
   else if (k.jenis === "kosong") isi = `<div class="sb-ctl"><span class="muted xs">Jumlah baris</span>${segSb(i, "n", [[1, "1"], [2, "2"], [3, "3"]], k.n || 1)}</div>`;
   else if (["pelanggan", "alamat", "catatan"].includes(k.jenis)) isi = `<div class="sb-ctl">${segSb(i, "al", RATA, al)}${k.jenis === "pelanggan" ? togSb(i, "big", "Besar", k.big) : ""}${togSb(i, "b", "Tebal", k.b)}</div>`;
@@ -326,7 +328,7 @@ actions.sbtambah = el => { SK.blok.push(BT.blokBaru(el.dataset.j)); gambarUlang(
 actions.sbhapus = el => { SK.blok.splice(+el.dataset.i, 1); gambarUlang(); };
 const pindahBlok = (dari, ke) => { if (ke < 0 || ke >= SK.blok.length || dari === ke) return; const [b] = SK.blok.splice(dari, 1); SK.blok.splice(ke, 0, b); gambarUlang(); };
 actions.sbgeser = el => pindahBlok(+el.dataset.i, +el.dataset.i + +el.dataset.d);
-actions.sbset = el => { const b = SK.blok[+el.dataset.i], k = el.dataset.k, v = el.dataset.v; b[k] = v === "!" ? !b[k] : (["lebar", "n"].includes(k) ? +v : v); gambarUlang(); };
+actions.sbset = el => { const b = SK.blok[+el.dataset.i], k = el.dataset.k, v = el.dataset.v; b[k] = v === "!" ? !b[k] : (["lebar", "n", "ukuran"].includes(k) ? +v : v); gambarUlang(); };
 actions.sbisi = el => { SK.blok[+el.dataset.i].isi = el.value; isiPrevStruk(); };
 actions.sbisian = el => {
   const ta = el.closest(".sb").querySelector("textarea"), v = el.dataset.v, a = ta.selectionStart ?? ta.value.length;
