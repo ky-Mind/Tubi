@@ -875,3 +875,106 @@ body.dark .toast{background:#fff4e6;color:#2b1a17}
 /* kolom ketik chat: tanpa batang gulir merah */
 .cform textarea,.c-compose textarea{scrollbar-width:none;overflow-y:auto}
 .cform textarea::-webkit-scrollbar,.c-compose textarea::-webkit-scrollbar{display:none;width:0}
+/* v21: tandai semua chat dibaca */
+.threads-top{display:flex;justify-content:flex-end;padding:6px 8px 4px}
+.threads-top .btn{gap:6px}
+/* v21: form pengaturan terkunci, tekan Ubah untuk mengedit */
+.kf-head{display:flex;align-items:center;gap:10px}
+.kf-head h3{margin:0;flex:1}
+.kf-head .btn{gap:6px}
+.kf-isi{border:0;padding:0;margin:0;min-width:0;gap:inherit}
+.kf-isi:disabled [type=submit]{display:none}
+.kf-isi:disabled input:not([type=checkbox]),.kf-isi:disabled textarea,.kf-isi:disabled select{background:transparent;border-style:dashed;color:var(--ink,inherit);opacity:.85;cursor:default;resize:none}
+.kf-isi:disabled label,.kf-isi:disabled .chk{cursor:default}
+.kf-isi:disabled .drop{pointer-events:none;opacity:.8}
+/* v21: pilih printer Bluetooth (APK) */
+.bt-list{display:grid;gap:8px}
+.bt-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;border-radius:14px;border:1px solid var(--line,#e8e0d4);background:var(--card,#fff);color:inherit;cursor:pointer}
+.bt-item:active{transform:scale(.99)}
+.bt-item .bt-ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--soft,#fbeaea);color:var(--red,#c8232c);flex:none}
+.bt-item b{display:block}
+.bt-item small{color:var(--muted,#8a8178);font-size:12px}
+/* v21: struk thermal (pratinjau = hasil cetak) */
+.struk{--kol:32;width:calc(var(--kol) * 1ch + 28px);max-width:100%;margin:0 auto;padding:16px 14px 18px;background:#fff;color:#111;font:13px/1.35 ui-monospace,"DejaVu Sans Mono",Menlo,Consolas,monospace;border-radius:4px;box-shadow:0 1px 0 #0001,0 8px 24px -12px #0004;overflow:hidden}
+.struk .sk{white-space:pre;overflow:hidden}
+.struk .sk.c{text-align:center}
+.struk .sk.b{font-weight:800}
+.struk .sk.big{font-size:2em;line-height:1.15;letter-spacing:0}
+.struk .sk-potong{margin:12px -14px -18px;height:10px;background:linear-gradient(-45deg,transparent 6px,#fff 0) 0 0/12px 10px,linear-gradient(45deg,transparent 6px,#fff 0) 6px 0/12px 10px;filter:drop-shadow(0 2px 0 #0001)}
+.rcp-wrap{background:var(--soft,#f4ede4);border-radius:14px;padding:16px 8px}
+.struk-grid{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:start}
+.struk-prev{background:var(--soft,#f4ede4);border-radius:14px;padding:12px;position:sticky;top:90px}
+.struk-prev .lbl{margin-bottom:8px}
+.struk-cek{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px 14px}
+@media (max-width:900px){.struk-grid{grid-template-columns:minmax(0,1fr)}.struk-prev{position:static}}
+#print .struk{box-shadow:none;width:auto;padding:0}
+#print .rcp-wrap{background:none;padding:0}
+/* v21: editor tata letak struk */
+.struk .sk.r{text-align:right}
+.struk .sk-img{display:flex;justify-content:center;margin:2px 0}
+.struk .sk-img.l{justify-content:flex-start}.struk .sk-img.r{justify-content:flex-end}
+.struk .sk-img img{display:block;image-rendering:pixelated}
+.struk-prev.solo{display:flex;justify-content:center;padding:18px 10px}
+.struk-ed .struk-grid{grid-template-columns:minmax(0,1fr) minmax(280px,auto)}
+.sb-list{display:grid;gap:8px}
+.sb{border:1px solid var(--line,#e8e0d4);border-radius:14px;background:var(--card,#fff);overflow:hidden;transition:box-shadow .15s,opacity .15s}
+.sb.seret{opacity:.45}.sb.atas{box-shadow:0 -3px 0 var(--red,#c8232c)}
+.sb-h{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 6px}
+.sb-h .sp{min-width:0}.sb-h b{display:block;font-size:14px}.sb-h small{display:block;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-grip{cursor:grab;color:var(--muted,#999);display:grid;place-items:center;width:18px}
+.sb-ic{width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--soft,#fbeaea);color:var(--red,#c8232c);flex:none}
+.sb-b{width:32px;height:32px;font-size:16px}.sb-b:disabled{opacity:.3}
+.sb-isi{padding:0 10px 10px;display:grid;gap:8px}
+.sb-isi textarea{min-height:0;font-family:ui-monospace,Menlo,monospace}
+.sb-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.sb-seg button{padding:5px 10px;font-size:12.5px}
+.sb-tog{border:1px solid var(--line,#e8e0d4);background:transparent;color:inherit;border-radius:999px;padding:5px 12px;font:600 12.5px var(--fb,inherit);cursor:pointer}
+.sb-tog.on{background:var(--red,#c8232c);border-color:var(--red,#c8232c);color:#fff}
+.sb-isian{display:flex;flex-wrap:wrap;align-items:center;gap:5px}
+.sb-isian button{border:1px dashed var(--line,#d8cfc4);background:transparent;color:inherit;border-radius:8px;padding:3px 7px;font:12px ui-monospace,Menlo,monospace;cursor:pointer}
+.sb-gbr{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.sb-gbr img{max-height:64px;max-width:160px;border-radius:8px;border:1px solid var(--line,#e8e0d4);background:#fff}
+.sb-tambah{display:grid;gap:8px;padding:12px;border-radius:14px;background:var(--soft,#f4ede4)}
+.sb-tambah>div{display:flex;flex-wrap:wrap;gap:6px}
+.sb-tambah button{border:1px solid var(--line,#e2d8cc);background:var(--card,#fff);color:inherit;border-radius:999px;padding:6px 12px;font:600 12.5px var(--fb,inherit);cursor:pointer}
+.sb-tambah button:hover{border-color:var(--red,#c8232c);color:var(--red,#c8232c)}
+@media (max-width:900px){.struk-ed .struk-grid{grid-template-columns:minmax(0,1fr)}.struk-ed .struk-prev{order:-1;position:sticky;top:calc(env(safe-area-inset-top) + 64px);z-index:3;max-height:34vh;overflow:auto;box-shadow:0 10px 20px -14px #0006}}
+.set-link{display:flex;align-items:center;gap:12px;margin-top:12px;padding:12px 14px;border-radius:14px;border:1px solid var(--line,#e8e0d4);color:inherit;text-decoration:none}
+.set-link:hover{border-color:var(--red,#c8232c)}
+.set-link>svg:first-child{color:var(--red,#c8232c)}
+.set-link small{display:block}
+/* v21b: editor struk dirapikan (ukuran & jarak seragam) */
+.struk-ed{--sk-h:34px}
+.struk-ed .sb-ctl{gap:8px}
+.struk-ed .sb-seg{display:inline-flex;height:var(--sk-h);padding:3px;border-radius:10px;align-items:stretch}
+.struk-ed .sb-seg button{display:grid;place-items:center;min-width:44px;padding:0 10px;font-size:12.5px;line-height:1;border-radius:7px}
+.struk-ed .sb-tog{height:var(--sk-h);display:inline-grid;place-items:center;min-width:64px;padding:0 14px;border-radius:10px;line-height:1}
+.struk-ed .sb-ctl .muted.xs{min-width:auto;margin-right:2px}
+.struk-ed .sb-isi{gap:10px;padding:0 12px 12px}
+.struk-ed .sb-h{padding:10px 10px 10px 8px;min-height:52px}
+.struk-ed .sb-b{width:34px;height:34px;flex:none;border-radius:10px}
+.struk-ed .sb-isian{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.struk-ed .sb-isian::-webkit-scrollbar{display:none}
+.struk-ed .sb-isian button{flex:none;height:28px}
+.struk-ed .sb-isi textarea{padding:10px 12px;line-height:1.4;resize:vertical}
+.struk-ed .sb-tambah>div{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px}
+.struk-ed .sb-tambah button{height:38px;text-align:left;padding:0 14px;border-radius:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.struk-ed .sk-potong-cek{align-items:flex-start;line-height:1.4}
+.sk-aksi{display:grid;grid-template-columns:auto auto 1fr;gap:8px;align-items:center}
+.sk-aksi .btn{justify-content:center;gap:6px}
+.sk-aksi .ghost{justify-self:end}
+.struk-prev .lbl{font-weight:700}
+@media (max-width:600px){
+  .sk-aksi{grid-template-columns:1fr 1fr}
+  .sk-aksi .pri{grid-column:1/-1}
+  .sk-aksi .ghost{justify-self:stretch}
+  .struk-ed .sb-tambah>div{grid-template-columns:1fr 1fr}
+  .struk-ed .sb-seg button{min-width:0;padding:0 9px}
+}
+.struk-ed .sb-isian .muted.xs{flex:none;white-space:nowrap;margin-right:2px}
+.struk-ed .sb-tambah button{display:flex;align-items:center;gap:8px}
+.struk-ed .sb-tambah button svg{flex:none;color:var(--red,#c8232c)}
+.struk-ed .sk-potong-cek{display:flex;gap:10px}
+.struk-ed .sk-potong-cek small{display:block;font-size:12px;margin-top:2px}
+.struk-ed .sk-potong-cek input{margin-top:2px;flex:none}
+.sk-aksi .ghost{border:1px solid var(--line,#e2d8cc)}

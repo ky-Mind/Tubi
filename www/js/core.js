@@ -75,6 +75,21 @@ export function closeOverlay() {
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeOverlay(); });
 
+// ---------- Form terkunci (pengaturan): baca saja, tekan "Ubah" untuk mengedit ----------
+const formDibuka = new Set();
+const PENSIL = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
+const tombolKunci = (n, buka) => buka ? `<button type="button" class="btn sm ghost" data-act="kfbatal" data-f="${n}">Batal</button>` : `<button type="button" class="btn sm" data-act="kfubah" data-f="${n}">${PENSIL} Ubah</button>`;
+// kunci(`<form ... data-form="nama"><h3>Judul</h3> ...isi... </form>`) → judul + tombol Ubah, isi dikunci sampai Ubah ditekan
+export const kunci = html => html.replace(/^(\s*<form[^>]*data-form="(\w+)"[^>]*)>\s*<h3>([\s\S]*?)<\/h3>([\s\S]*)<\/form>\s*$/, (_, buka, n, judul, isi) =>
+  `${buka} data-kunci><div class="kf-head"><h3>${judul}</h3><span class="kf-tb">${tombolKunci(n, formDibuka.has(n))}</span></div><fieldset class="kf-isi col" ${formDibuka.has(n) ? "" : "disabled"}>${isi}</fieldset></form>`);
+function aturKunci(f, buka) {
+  const n = f.dataset.form; if (buka) formDibuka.add(n); else formDibuka.delete(n);
+  const fs = f.querySelector(".kf-isi"); if (fs) fs.disabled = !buka;
+  const tb = f.querySelector(".kf-tb"); if (tb) tb.innerHTML = tombolKunci(n, buka);
+}
+actions.kfubah = el => { const f = el.closest("form"); aturKunci(f, true); f.querySelector(".kf-isi input:not([type=checkbox]):not([type=file]),.kf-isi textarea")?.focus(); };
+actions.kfbatal = el => { const f = el.closest("form"); f.reset(); delete f.dataset.dirty; aturKunci(f, false); const r = f.closest("[data-live]")?.dataset.live; if (r) repaint(r); };
+
 // ---------- Delegasi event ----------
 document.addEventListener("click", async e => {
   if (e.target.id === "overlay") return closeOverlay();
@@ -92,7 +107,7 @@ document.addEventListener("submit", async e => {
   const fn = forms[f.dataset.form]; if (!fn) return;
   const btn = f.querySelector("[type=submit]"); if (btn) btn.disabled = true;
   const wasDirty = f.dataset.dirty; delete f.dataset.dirty;   // dilepas dulu: fn() bisa berpindah halaman setelah berhasil
-  try { await fn(f, new FormData(f)); setTimeout(flush, 0); }
+  try { await fn(f, new FormData(f)); if (f.hasAttribute("data-kunci")) aturKunci(f, false); setTimeout(flush, 0); }
   catch (err) { if (wasDirty) f.dataset.dirty = wasDirty; console.error(err); import("./util.js").then(u => u.toast(err?.message || "Terjadi kesalahan.", "err")); }
   finally { if (btn) btn.disabled = false; }
 });
