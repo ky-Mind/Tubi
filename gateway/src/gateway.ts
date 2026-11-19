@@ -60,6 +60,8 @@ export class Gateway extends DurableObject {
     this.nomorPairing = null;
     this.ulang = 0;                   // hitungan sambung ulang beruntun (untuk jeda bertahap)
     ctx.blockConcurrencyWhile(async () => {
+      // Sekali saja: lepas tanda "diam" yang dulu dipasang otomatis saat deploy ulang (bukan oleh admin)
+      if (!(await ctx.storage.get("migrasi:diam-deploy"))) { await ctx.storage.delete("diam"); await ctx.storage.put("migrasi:diam-deploy", Date.now()); }
       if (!(await ctx.storage.getAlarm())) await ctx.storage.setAlarm(Date.now() + 1_000);
     });
   }
@@ -89,7 +91,9 @@ export class Gateway extends DurableObject {
       return Response.json({ state, qr, pairingCode, me, error });
     }
     const { state, connected, me, error } = this.st;
-    return Response.json({ app: "tubi", ok: true, state, connected, me, error, firebase: !!this.db });
+    const alarm = await this.ctx.storage.getAlarm();
+    return Response.json({ app: "tubi", ok: true, state, connected, me, error, firebase: !!this.db,
+      detak: { terakhir: this.detakTerakhir || 0, sedang: !!this.sedangDetak, mulai: this.mulaiDetak || 0, alarm, sekarang: Date.now() }, push: (this.catatPush || []).map(({ w, hasil }) => ({ w, hasil })) });
   }
 
   async alarm() {
@@ -185,7 +189,13 @@ export class Gateway extends DurableObject {
       } else if (!terdaftar && kode === DisconnectReason.timedOut) {
         await this.diam("QR kedaluwarsa karena tidak dipindai. Tekan Restart untuk QR baru.");
       } else if (kode === DisconnectReason.connectionReplaced) {
-        await this.diam("Sesi WhatsApp dipakai di gateway lain. Tekan Restart untuk mengambil alih.");
+        // Terjadi wajar saat gateway di-deploy ulang (instance lama digantikan instance baru). Soket ini cukup
+        // dilepas; bot TIDAK didiamkan, supaya instance baru tetap tersambung. Bila terus berebut (>3x / 10 menit),
+        // berarti memang ada gateway lain yang memakai sesi ini → baru diam.
+        this.putus();
+        const kali = ((await this.ctx.storage.get("ganti")) || []).filter((x) => Date.now() - x < 600_000).concat(Date.now());
+        await this.ctx.storage.put("ganti", kali);
+        if (kali.length > 3) await this.diam("Sesi WhatsApp dipakai di gateway lain. Tekan Restart untuk mengambil alih.");
       } else {
         this.ulang++;
         await this.status({ state: "connecting", connected: false });
@@ -348,9 +358,13 @@ export class Gateway extends DurableObject {
     return !!e && (e === ADMIN_UTAMA || this.adminDocs.some((a) => String(a.id || a.email || "").toLowerCase() === e));
   }
   async kePush(pilih, pesan) {
-    const tujuan = (await this.tokens()).filter(pilih);
+    const semua = await this.tokens(), tujuan = semua.filter(pilih);
+    console.log("push:", pesan.title, "→", tujuan.length, "dari", semua.length, "perangkat");
+    if (!tujuan.length) this.catatPush = [{ w: Date.now(), judul: pesan.title, ke: "-", hasil: "tidak ada perangkat tujuan" }, ...(this.catatPush || [])].slice(0, 10);
     for (const t of tujuan) {
       const h = await this.db.push(t.id, pesan);
+      console.log("push hasil:", h, t.email);
+      this.catatPush = [{ w: Date.now(), judul: pesan.title, ke: t.email, hasil: h }, ...(this.catatPush || [])].slice(0, 10);
       if (h === "mati") { await this.db.hapus(`pushTokens/${t.id}`).catch(() => {}); this._tok = this._tok.filter((x) => x.id !== t.id); }
     }
     return tujuan.length;
