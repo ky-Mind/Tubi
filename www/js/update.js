@@ -5,7 +5,7 @@ import { openOverlay, closeOverlay, actions } from "./core.js";
 import { esc, svg } from "./util.js";
 import { playSound, notifSistem } from "./notif.js";
 
-export const APP_VERSION = "1.3.4";   // samakan dengan versionName di android/app/build.gradle setiap rilis
+export const APP_VERSION = "1.3.5";   // samakan dengan versionName di android/app/build.gradle setiap rilis
 const API = "https://api.github.com/repos/ky-Mind/Tubi/releases/latest";
 const native = () => !!window.Capacitor?.isNativePlatform?.();
 const angka = v => String(v || "").replace(/^v/i, "").split(".").map(n => parseInt(n, 10) || 0);

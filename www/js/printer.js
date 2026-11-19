@@ -109,6 +109,8 @@ const lr = (a, b, w) => { a = ascii(a); b = ascii(b); const gap = w - a.length -
 //   teks {isi, al l|c|r, big, b}   garis {ch}   kosong {n}   gambar {src, lebar %, al}
 //   pelanggan {b}  alamat  catatan  item  rincian  total {big}  bayar
 // Teks boleh berisi isian otomatis: {kode} {waktu} {nama} {hp} {alamat} {catatan} {total} {bayar} {item}
+// Logo Tubi hitam-putih untuk struk (siap dicetak printer thermal)
+export const LOGO_TUBI = "./assets/struk-logo.png";
 export const DOTS = () => (width() === 48 ? 576 : 384);
 export const JENIS = {
   teks: ["Teks", "Teks bebas: nama toko, alamat, promo…", "Teks"], gambar: ["Logo / gambar", "Dicetak hitam-putih", "Logo"], garis: ["Garis", "Pemisah", "Garis"], kosong: ["Baris kosong", "Jarak", "Jarak"],
@@ -117,6 +119,7 @@ export const JENIS = {
 };
 function blokDariLama(c) {   // pengaturan versi sebelumnya (centang) → blok
   const v = k => c[k] !== false, B = [];
+  B.push({ jenis: "gambar", src: LOGO_TUBI, lebar: 40, al: "c" });
   B.push({ jenis: "teks", isi: c.nama ?? "TUBI", al: "c", big: c.besar !== false, b: true });
   if (c.info) B.push({ jenis: "teks", isi: c.info, al: "c" });
   if (v("kode")) B.push({ jenis: "teks", isi: "#{kode}  {waktu}", al: "c" });
@@ -132,7 +135,7 @@ function blokDariLama(c) {   // pengaturan versi sebelumnya (centang) → blok
   return B;
 }
 export const strukCfg = c => { c = c || {}; return { potong: c.potong !== false, blok: Array.isArray(c.blok) && c.blok.length ? c.blok : blokDariLama(c) }; };
-export const blokBaru = jenis => ({ teks: { jenis, isi: "Teks baru", al: "c" }, gambar: { jenis, src: "", lebar: 60, al: "c" }, garis: { jenis, ch: "-" }, kosong: { jenis, n: 1 } }[jenis] || { jenis });
+export const blokBaru = jenis => ({ teks: { jenis, isi: "Teks baru", al: "c" }, gambar: { jenis, src: LOGO_TUBI, lebar: 40, al: "c" }, garis: { jenis, ch: "-" }, kosong: { jenis, n: 1 } }[jenis] || { jenis });
 const bayarTeks = o => o.payment?.method === "transfer" ? `${o.payment?.via || "Transfer"}${o.payment?.status === "paid" ? " (lunas)" : ""}` : "COD";
 const isian = (t, o) => String(t || "").replace(/\{(\w+)\}/g, (m, k) => ({
   kode: o.id.slice(0, 6).toUpperCase(), waktu: timeText(o.createdAt), nama: o.customerName || "", hp: hpLokal(o.phone), alamat: o.address || "", catatan: o.note || "",

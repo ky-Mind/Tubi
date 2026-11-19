@@ -988,3 +988,44 @@ body.dark .toast{background:#fff4e6;color:#2b1a17}
 .msg.me .bub p{margin-right:64px}
 textarea.terisi{box-shadow:0 0 0 3px #1d9bf055;transition:box-shadow .3s}
 .card.sorot{box-shadow:0 0 0 3px #c8232c66,0 10px 30px -12px #c8232c66;transition:box-shadow .4s}
+/* v25: kartu WhatsApp Bot ringkas */
+.wa-kartu .kf-head .chip{gap:6px}
+.wa-qr{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:center;margin-top:14px}
+.wa-qr .qr{margin:0;padding:10px;border-radius:16px;border:3px solid var(--yellow,#ffd23f);background:#fff}
+.wa-qr .qr img{display:block;width:220px;height:220px}
+.wa-langkah{margin:0;padding:0;list-style:none;counter-reset:l;display:grid;gap:10px}
+.wa-langkah li{counter-increment:l;display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;align-items:start;line-height:1.45;font-size:14px}
+.wa-langkah li::before{content:counter(l);width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--teal,#178a95);color:#fff;font:700 13px var(--fb,inherit)}
+.wa-catatan{margin:10px 0 0}
+.wa-siap{display:flex;align-items:center;gap:10px}
+.wa-siap .spin{width:16px;height:16px;border-radius:50%;border:2.5px solid currentColor;border-right-color:transparent;animation:waputar .8s linear infinite;flex:none}
+@keyframes waputar{to{transform:rotate(360deg)}}
+.wa-aksi{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.wa-aksi .btn{gap:6px}
+.wa-pair{margin-top:12px}.wa-pair summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--muted)}
+.wa-set{display:grid;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line,#ecdfcf)}
+@media (max-width:600px){.wa-qr{grid-template-columns:minmax(0,1fr);justify-items:center}.wa-qr .qr img{width:min(240px,62vw);height:auto}.wa-langkah{justify-self:stretch}}
+.sb-gbr-tb{display:flex;flex-wrap:wrap;gap:8px}
+/* v25: alat potong foto */
+.overlay.dlg:has(.ptg){padding:0;background:#0d0706;backdrop-filter:none}
+.ptg{width:100%;height:100%;max-width:720px;margin:auto;display:grid;grid-template-rows:auto minmax(0,1fr) auto;color:#fff}
+.ptg-head{display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top) + 12px) 16px 12px}
+.ptg-head b{font:700 17px var(--fd,inherit)}
+.ptg-tx{background:none;border:0;color:#fff;font:600 15px var(--fb,inherit);padding:8px 6px;cursor:pointer}
+.ptg-tx.kuat{color:#ffd23f;font-weight:800}
+.ptg-area{display:grid;place-items:center;padding:8px 16px;min-height:0;overflow:hidden}
+.ptg-wadah{position:relative;touch-action:none;user-select:none;line-height:0}
+.ptg-wadah img{display:block;max-width:none}
+.ptg-box{position:absolute;outline:2px solid #fff;box-shadow:0 0 0 9999px #000a;cursor:move;touch-action:none}
+.ptg-grid{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,transparent calc(33.33% - .5px),#fff7 calc(33.33% - .5px) calc(33.33% + .5px),transparent 0,transparent calc(66.66% - .5px),#fff7 0 calc(66.66% + .5px),transparent 0),linear-gradient(transparent calc(33.33% - .5px),#fff7 calc(33.33% - .5px) calc(33.33% + .5px),transparent 0,transparent calc(66.66% - .5px),#fff7 0 calc(66.66% + .5px),transparent 0)}
+.ptg-box span{position:absolute;width:26px;height:26px;border:4px solid #fff;touch-action:none}
+.ptg-box span[data-h=tl]{left:-5px;top:-5px;border-right:0;border-bottom:0;cursor:nwse-resize}
+.ptg-box span[data-h=tr]{right:-5px;top:-5px;border-left:0;border-bottom:0;cursor:nesw-resize}
+.ptg-box span[data-h=bl]{left:-5px;bottom:-5px;border-right:0;border-top:0;cursor:nesw-resize}
+.ptg-box span[data-h=br]{right:-5px;bottom:-5px;border-left:0;border-top:0;cursor:nwse-resize}
+.ptg-box span::after{content:"";position:absolute;inset:-12px}
+.ptg-bawah{display:grid;gap:12px;justify-items:center;padding:12px 16px calc(env(safe-area-inset-bottom) + 16px)}
+.ptg-rasio{background:#ffffff1a}.ptg-rasio button{color:#fff}.ptg-rasio button.on{background:#fff;color:#2b1a17}
+.ptg-putar{display:flex;gap:8px}.ptg-putar .btn{background:#ffffff1a;color:#fff;border-color:#ffffff33}
+.ptg-bawah .muted{color:#fff9;text-align:center;margin:0}
+.foto-tb{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}.foto-tb .btn{gap:6px}.foto-tb [hidden]{display:none}
