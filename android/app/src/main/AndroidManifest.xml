@@ -1,6 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Aplikasi e-wallet & bank yang bisa dibuka dari halaman pembayaran (lihat www/js/pay.js) -->
+    <queries>
+        <package android:name="com.gojek.gopay" />
+        <package android:name="ovo.id" />
+        <package android:name="id.dana" />
+        <package android:name="com.shopeepay.id" />
+        <package android:name="com.telkom.mwallet" />
+        <package android:name="com.ada.astrapay" />
+        <package android:name="com.isaku.app" />
+        <package android:name="com.bca" />
+        <package android:name="id.bmri.livin" />
+        <package android:name="id.co.bri.brimo" />
+        <package android:name="id.bni.wondr" />
+        <package android:name="com.bsm.activity2" />
+        <package android:name="id.co.cimbniaga.mobile.android" />
+        <package android:name="net.myinfosys.PermataMobileX" />
+        <package android:name="com.dbank.mobile" />
+        <package android:name="id.com.uiux.mobile" />
+        <package android:name="id.co.bankbkemobile.digitalbank" />
+        <package android:name="com.jago.digitalBanking" />
+        <package android:name="com.bcadigital.blu" />
+        <package android:name="com.alloapp.yump" />
+        <package android:name="com.btpn.dc" />
+        <package android:name="id.co.linebank" />
+        <package android:name="com.android.vending" />
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

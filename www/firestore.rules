@@ -76,8 +76,9 @@ service cloud.firestore {
       allow update: if isAdmin() ||
         // pelanggan boleh membatalkan selama belum diproses
         (isOwner(resource.data.userId) &&
-         changed().hasOnly(["status"]) &&
+         changed().hasOnly(["status", "updatedAt"]) &&
          request.resource.data.status == "dibatalkan" &&
+         (!("updatedAt" in request.resource.data) || request.resource.data.updatedAt == request.time) &&
          resource.data.status in ["menunggu", "baru"]) ||
         // pelanggan boleh memberi ulasan setelah pesanan selesai
         (isOwner(resource.data.userId) &&
@@ -90,7 +91,19 @@ service cloud.firestore {
          resource.data.get("payment", {}).get("method", "") == "transfer" &&
          resource.data.get("payment", {}).get("status", "") != "paid" &&
          resource.data.status != "dibatalkan" &&
-         text(request.resource.data.paymentProof, 450000));
+         text(request.resource.data.paymentProof, 450000)) ||
+        // pelanggan boleh mengunggah (ulang) bukti dan/atau mengganti metode bayar selama belum lunas.
+        // Status pembayaran yang ditulis pelanggan selalu "unpaid": hanya admin yang bisa menandai lunas / ada kendala.
+        (isOwner(resource.data.userId) &&
+         changed().hasOnly(["payment", "paymentProof", "updatedAt"]) &&
+         resource.data.get("payment", {}).get("status", "") != "paid" &&
+         resource.data.status in ["menunggu", "diproses", "siap"] &&
+         request.resource.data.payment is map &&
+         request.resource.data.payment.method in ["cod", "transfer"] &&
+         request.resource.data.payment.status == "unpaid" &&
+         request.resource.data.payment.keys().hasOnly(["method", "status", "via", "viaKey", "note", "proofAt"]) &&
+         (!changed().hasAny(["updatedAt"]) || request.resource.data.updatedAt == request.time) &&
+         (!changed().hasAny(["paymentProof"]) || text(request.resource.data.paymentProof, 450000)));
       allow delete: if isAdmin();
     }
 
@@ -158,17 +171,22 @@ service cloud.firestore {
       match /messages/{messageId} {
         allow read: if isOwner(uid) || isAdmin();
         allow create: if signedIn() &&
-          request.resource.data.keys().hasOnly(["from", "text", "senderId", "createdAt"]) &&
+          request.resource.data.keys().hasOnly(["from", "text", "senderId", "createdAt", "image", "file", "replyTo"]) &&
           request.resource.data.senderId == request.auth.uid &&
           request.resource.data.createdAt == request.time &&
-          request.resource.data.text is string &&
-          request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 2000 &&
+          request.resource.data.text is string && request.resource.data.text.size() <= 2000 &&
+          // pesan boleh berupa teks, foto, atau dokumen (minimal salah satu)
+          (request.resource.data.text.size() > 0 || "image" in request.resource.data || "file" in request.resource.data) &&
+          (!("image" in request.resource.data) || (request.resource.data.image is string && request.resource.data.image.size() <= 450000)) &&
+          (!("file" in request.resource.data) || (request.resource.data.file is map && request.resource.data.file.data is string && request.resource.data.file.data.size() <= 850000)) &&
+          (!("replyTo" in request.resource.data) || request.resource.data.replyTo is map) &&
           ((isOwner(uid) && request.resource.data.from == "user") ||
            (isAdmin() && request.resource.data.from == "admin"));
-        // "Hapus untuk saya": peserta chat hanya boleh menambah penanda hiddenFor
+        // Peserta chat boleh: "hapus untuk saya" (hiddenFor) dan memberi reaksi (reactions.{uid})
         allow update: if (isOwner(uid) || isAdmin()) &&
-          changed().hasOnly(["hiddenFor"]) &&
-          request.resource.data.hiddenFor is list && request.resource.data.hiddenFor.size() <= 20;
+          changed().hasOnly(["hiddenFor", "reactions"]) &&
+          (!("hiddenFor" in request.resource.data) || (request.resource.data.hiddenFor is list && request.resource.data.hiddenFor.size() <= 20)) &&
+          (!("reactions" in request.resource.data) || (request.resource.data.reactions is map && request.resource.data.reactions.size() <= 4));
         // "Hapus untuk semua": admin, atau pemilik chat (pesan di thread-nya sendiri)
         allow delete: if isAdmin() || isOwner(uid);
       }

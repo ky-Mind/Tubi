@@ -1,0 +1,9 @@
+node_modules/
+.dev.vars
+.env
+*.serviceAccount.json
+*-serviceAccount.json
+src/vendor/
+dist/
+.wrangler/
+.cloudflare/

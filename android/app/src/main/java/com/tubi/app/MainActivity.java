@@ -7,8 +7,9 @@ import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        
+        // Plugin harus didaftarkan sebelum super.onCreate agar langsung tersedia di JavaScript
         registerPlugin(GoogleAuth.class);
+        registerPlugin(BukaAplikasiPlugin.class);
+        super.onCreate(savedInstanceState);
     }
 }

@@ -1,0 +1,8 @@
+node_modules/
+.idea/
+_lama/
+.env
+.dev.vars
+*serviceAccount*.json
+rilis-apk/*.apk
+rilis-apk/*.idsig

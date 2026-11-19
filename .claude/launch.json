@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tubi-web",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "5500", "-d", "www"],
+      "port": 5500
+    },
+    {
+      "name": "tubi-gateway",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--prefix", "gateway", "--", "--port", "8790"],
+      "port": 8790
+    }
+  ]
+}
