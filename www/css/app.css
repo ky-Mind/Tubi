@@ -867,3 +867,11 @@ body.dark .toast{background:#fff4e6;color:#2b1a17}
 .alert.closed{display:flex;align-items:center;gap:8px;font-weight:700}
 .toasts{width:min(92vw,400px);max-width:none}
 .toast{width:fit-content;max-width:100%}
+/* geser untuk membalas */
+.msgs .msg{position:relative}
+.msgs .bub{transition:transform .2s cubic-bezier(.2,1.3,.4,1);touch-action:pan-y}
+.msgs .bub.geser{transition:none}
+.geser-ic{position:absolute;left:6px;top:50%;margin-top:-16px;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--red);box-shadow:0 2px 8px #0002;opacity:0;pointer-events:none}
+/* kolom ketik chat: tanpa batang gulir merah */
+.cform textarea,.c-compose textarea{scrollbar-width:none;overflow-y:auto}
+.cform textarea::-webkit-scrollbar,.c-compose textarea::-webkit-scrollbar{display:none;width:0}

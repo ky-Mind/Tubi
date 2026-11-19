@@ -2,7 +2,8 @@
 /* Klien Firestore lewat REST, masuk dengan akun layanan Firebase (tanpa firebase-admin, yang butuh gRPC).
    Nilai Timestamp dibaca sebagai angka milidetik. */
 
-const SCOPE = "https://www.googleapis.com/auth/datastore";
+// Satu token akses untuk Firestore dan Firebase Cloud Messaging (push ke HP).
+const SCOPE = "https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/firebase.messaging";
 const b64url = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const b64urlTeks = (s) => b64url(new TextEncoder().encode(s));
 
@@ -95,8 +96,17 @@ export class Firestore {
     return out;
   }
 
-  /** Dokumen di `koleksi` yang `field` (Timestamp) > `sejakMs`, urut naik. */
-  async sejak(koleksi, field, sejakMs, batas = 50) {
+  /** Semua dokumen satu koleksi, hanya field `pilih` (hemat: foto bukti bayar tidak ikut diunduh). */
+  async semua(koleksi, pilih) {
+    const j = await this.#panggil(`${this.dasar}:runQuery`, {
+      method: "POST",
+      body: JSON.stringify({ structuredQuery: { from: [{ collectionId: koleksi }], ...(pilih ? { select: { fields: pilih.map((f) => ({ fieldPath: f })) } } : {}) } }),
+    });
+    return (j || []).filter((x) => x.document).map((x) => dariDok(x.document));
+  }
+
+  /** Dokumen di `koleksi` yang `field` (Timestamp) > `sejakMs`, urut naik. `pilih` = hanya field ini. */
+  async sejak(koleksi, field, sejakMs, batas = 50, pilih) {
     const j = await this.#panggil(`${this.dasar}:runQuery`, {
       method: "POST",
       body: JSON.stringify({
@@ -105,10 +115,34 @@ export class Firestore {
           where: { fieldFilter: { field: { fieldPath: field }, op: "GREATER_THAN", value: { timestampValue: new Date(sejakMs).toISOString() } } },
           orderBy: [{ field: { fieldPath: field }, direction: "ASCENDING" }],
           limit: batas,
+          ...(pilih ? { select: { fields: pilih.map((f) => ({ fieldPath: f })) } } : {}),
         },
       }),
     });
     return (j || []).filter((x) => x.document).map((x) => dariDok(x.document));
+  }
+
+  async hapus(jalur) {
+    await fetch(`${this.dasar}/${jalur}`, { method: "DELETE", headers: { Authorization: `Bearer ${await this.#akses()}` } });
+  }
+
+  /** Kirim satu notifikasi push (FCM HTTP v1). Mengembalikan "ok", "mati" (token tidak berlaku lagi), atau "gagal". */
+  async push(token, { title, body, data = {}, tag }) {
+    const r = await fetch(`https://fcm.googleapis.com/v1/projects/${this.proyek}/messages:send`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${await this.#akses()}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ message: {
+        token, notification: { title, body },
+        data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v ?? "")])),
+        android: { priority: "HIGH", notification: { channel_id: "tubi-pesanan", icon: "ic_stat_tubi", color: "#C8232C", sound: "tubi", tag: tag || undefined, default_vibrate_timings: true } },
+      } }),
+    });
+    if (r.ok) return "ok";
+    const j = await r.json().catch(() => ({}));
+    const kode = j.error?.details?.find?.((d) => d.errorCode)?.errorCode || j.error?.status;
+    if (r.status === 404 || kode === "UNREGISTERED" || kode === "INVALID_ARGUMENT") return "mati";
+    console.warn("push gagal:", r.status, j.error?.message || "");
+    return "gagal";
   }
 
   /** Seperti set(..., { merge: true }). `waktuServer` = daftar field yang diisi waktu server. */
