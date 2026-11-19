@@ -192,6 +192,19 @@ service cloud.firestore {
       }
     }
 
+    // ================= Token push HP (FCM) =================
+    // Aplikasi menyimpan token HP-nya sendiri. Hanya gateway (Admin SDK) yang membaca untuk mengirim notifikasi.
+    match /pushTokens/{token} {
+      allow create, update: if signedIn() &&
+        request.resource.data.keys().hasOnly(["uid", "email", "platform", "updatedAt"]) &&
+        request.resource.data.uid == request.auth.uid &&
+        request.resource.data.email == mail() &&
+        request.resource.data.updatedAt == request.time &&
+        token.size() < 400;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      allow read: if false;
+    }
+
     // ================= WhatsApp Gateway =================
     // Gateway Baileys memakai Admin SDK (tidak terikat rules). Dashboard hanya membaca status & mengirim perintah.
     match /waGateway/{docId} {

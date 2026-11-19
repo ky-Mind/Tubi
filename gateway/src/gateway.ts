@@ -21,6 +21,19 @@ const CHAT_SEGAR_MS = 10 * 60_000;
 const TUMPANG_MS = 30_000;            // kueri mundur sedikit supaya dokumen yang telat tercatat tidak terlewat
 
 const tidur = (ms) => new Promise((r) => setTimeout(r, ms));
+const ADMIN_UTAMA = "hilmykia@gmail.com";
+const TOKEN_SEGAR_MS = 60_000;
+// Field pesanan yang diambil (foto bukti bayar sengaja tidak ikut, supaya ringan)
+const FIELD_ORDER = ["userId", "email", "customerName", "recipientName", "phone", "address", "note", "mapsUrl", "location", "items", "subtotal", "discount",
+  "deliveryFee", "tax", "voucher", "total", "status", "createdAt", "updatedAt", "payment", "waNewSent", "waStatusSent"];
+const kode = (id) => "#" + String(id).slice(0, 6).toUpperCase();
+const rp = (n) => "Rp " + Math.round(+n || 0).toLocaleString("id-ID");
+const STATUS_PUSH = {
+  diproses: ["Pesanan sedang diproses", "Pesananmu sedang disiapkan Tubi."],
+  siap: ["Pesanan siap", "Pesananmu sudah siap diantar / diambil."],
+  dikirim: ["Pesanan sedang diantar", "Pesananmu sedang dalam perjalanan."],
+  selesai: ["Pesanan selesai", "Terima kasih sudah jajan di Tubi! Beri ulasan ya."],
+};
 
 // Logger ringan untuk Baileys (pino tidak diperlukan di Workers). Hanya galat yang dicetak.
 const logBaileys = {
@@ -88,7 +101,7 @@ export class Gateway extends DurableObject {
       await this.periksaPerintah();
       if (!this.sock && !this.mulai && !(await this.ctx.storage.get("diam"))) await this.mulaiWA();
       if (Date.now() - this.terakhirPengaturan > SEGAR_PENGATURAN_MS) await this.muatPengaturan();
-      if (this.st.connected) await this.periksaFirestore();
+      await this.periksaFirestore();   // push HP jalan terus; WhatsApp hanya dikirim bila terhubung
       if (Date.now() - this.terakhirSinyal > SINYAL_MS) await this.status({ gateway: "online", heartbeat: Date.now() });
     } finally { this.sedangDetak = false; }
   }
@@ -267,8 +280,9 @@ export class Gateway extends DurableObject {
     try {
       // Pesanan baru (createdAt) dan perubahan status (updatedAt), digabung per id supaya tidak diproses dua kali.
       const kBaru = await this.kursor("orderBaru", ORDER_SEGAR_MS), kUbah = await this.kursor("orderUbah", ORDER_SEGAR_MS);
-      const baru = await this.db.sejak("orders", "createdAt", kBaru - TUMPANG_MS);
-      const ubah = await this.db.sejak("orders", "updatedAt", kUbah - TUMPANG_MS);
+      await this.dasarPush();
+      const baru = await this.db.sejak("orders", "createdAt", kBaru - TUMPANG_MS, 50, FIELD_ORDER);
+      const ubah = await this.db.sejak("orders", "updatedAt", kUbah - TUMPANG_MS, 50, FIELD_ORDER);
       const pesanan = new Map([...baru, ...ubah].map((d) => [d.id, d]));
       for (const d of pesanan.values()) await this.prosesOrder(d);
       if (baru.length) await this.ctx.storage.put("kursor:orderBaru", Math.max(kBaru, ...baru.map((d) => d.createdAt || 0)));
@@ -282,6 +296,7 @@ export class Gateway extends DurableObject {
   }
 
   async prosesOrder(d) {
+    await this.pushOrder(d).catch((e) => console.error("push pesanan:", e.message));
     if (!this.st.connected) return;
     const p = this.pengaturan, patch = {};
     if (!d.waNewSent) {
@@ -299,10 +314,77 @@ export class Gateway extends DurableObject {
   }
 
   async prosesChat(d) {
+    await this.pushChat(d).catch((e) => console.error("push chat:", e.message));
     if (!this.st.connected || this.pengaturan.waNotifyAdmin === false || !this.nomorAdmin().length) return;
     const t = d.updatedAt || 0;
     if (d.lastFrom !== "user" || t <= (d.waChatAt || 0)) return;
     await this.db.gabung(`chats/${d.id}`, { waChatAt: t });
     if (Date.now() - t <= CHAT_SEGAR_MS) await this.keAdmin(pesanChat(d));
+  }
+
+  // ---------- Notifikasi push ke HP (Firebase Cloud Messaging) ----------
+  // Token HP disimpan aplikasi di koleksi pushTokens/{token} = { uid, email }. Admin dikenali dari emailnya.
+  async tokens() {
+    if (!this._tok || Date.now() - this._tokAt > TOKEN_SEGAR_MS) {
+      this._tok = (await this.db.daftar("pushTokens")).filter((t) => t.uid);
+      this._tokAt = Date.now();
+    }
+    return this._tok;
+  }
+  adminEmail(e) {
+    e = String(e || "").toLowerCase();
+    return !!e && (e === ADMIN_UTAMA || this.adminDocs.some((a) => String(a.id || a.email || "").toLowerCase() === e));
+  }
+  async kePush(pilih, pesan) {
+    const tujuan = (await this.tokens()).filter(pilih);
+    for (const t of tujuan) {
+      const h = await this.db.push(t.id, pesan);
+      if (h === "mati") { await this.db.hapus(`pushTokens/${t.id}`).catch(() => {}); this._tok = this._tok.filter((x) => x.id !== t.id); }
+    }
+    return tujuan.length;
+  }
+  keAdminPush(pesan) { return this.kePush((t) => this.adminEmail(t.email), pesan); }
+  kePelangganPush(uid, pesan) { return uid ? this.kePush((t) => t.uid === uid, pesan) : 0; }
+
+  /** Saat pertama kali jalan: catat keadaan semua pesanan, supaya pesanan lama tidak dikabarkan ulang. */
+  async dasarPush() {
+    if (await this.ctx.storage.get("p:init")) return;
+    const semua = await this.db.semua("orders", ["status", "payment", "createdAt"]);
+    for (const d of semua) await this.ctx.storage.put("p:o:" + d.id, { s: d.status || "", p: d.payment?.status || "", b: d.payment?.proofAt || 0 });
+    await this.ctx.storage.put("p:init", Date.now());
+    console.log("dasar push dicatat untuk", semua.length, "pesanan");
+  }
+
+  async pushOrder(d) {
+    if (this.adminDocs.length === 0 && Date.now() - this.terakhirPengaturan > SEGAR_PENGATURAN_MS) await this.muatPengaturan();
+    const kunci = "p:o:" + d.id, lama = await this.ctx.storage.get(kunci);
+    const kini = { s: d.status || "", p: d.payment?.status || "", b: d.payment?.proofAt || 0 };
+    await this.ctx.storage.put(kunci, kini);
+    const k = kode(d.id), nama = d.customerName || d.recipientName || "Pelanggan", via = d.payment?.via || (d.payment?.method === "transfer" ? "Transfer" : "COD");
+    if (!lama) {
+      if (Date.now() - (d.createdAt || 0) < ORDER_SEGAR_MS && (kini.s === "menunggu" || kini.s === "baru"))
+        await this.keAdminPush({ title: `Pesanan baru ${k}`, body: `${nama} · ${rp(d.total)} · ${via}`, data: { href: "/admin/orders", order: d.id }, tag: "order-" + d.id });
+      return;
+    }
+    if (kini.b && kini.b !== lama.b && kini.p !== "paid")
+      await this.keAdminPush({ title: `Bukti pembayaran masuk ${k}`, body: `${nama} · ${rp(d.total)} · ${via}. Ketuk untuk memeriksa.`, data: { href: "/admin/orders", order: d.id }, tag: "proof-" + d.id });
+    if (kini.s !== lama.s) {
+      if (kini.s === "dibatalkan") await this.keAdminPush({ title: `Pesanan dibatalkan ${k}`, body: nama, data: { href: "/admin/orders" }, tag: "order-" + d.id });
+      else if (STATUS_PUSH[kini.s]) { const [t, b] = STATUS_PUSH[kini.s]; await this.kePelangganPush(d.userId, { title: `${t} ${k}`, body: b, data: { href: "/orders" }, tag: "order-" + d.id }); }
+    }
+    if (kini.p !== lama.p) {
+      if (kini.p === "paid") await this.kePelangganPush(d.userId, { title: `Pembayaran diterima ${k}`, body: `Pembayaran ${rp(d.total)} sudah dikonfirmasi. Terima kasih!`, data: { href: "/pay/" + d.id }, tag: "pay-" + d.id });
+      if (kini.p === "issue") await this.kePelangganPush(d.userId, { title: `Ada kendala pembayaran ${k}`, body: d.payment?.note || "Cek halaman pembayaran.", data: { href: "/pay/" + d.id }, tag: "pay-" + d.id });
+    }
+  }
+
+  async pushChat(d) {
+    const t = d.updatedAt || 0, kunci = "p:c:" + d.id, lama = await this.ctx.storage.get(kunci);
+    if (lama && t <= lama) return;
+    await this.ctx.storage.put(kunci, t);
+    if (!lama && Date.now() - t > CHAT_SEGAR_MS) return;
+    const isi = String(d.lastMessage || "").slice(0, 120);
+    if (d.lastFrom === "user") await this.keAdminPush({ title: `Pesan baru dari ${d.name || "Pelanggan"}`, body: isi, data: { href: "/admin/chat", uid: d.id }, tag: "chat-" + d.id });
+    if (d.lastFrom === "admin") await this.kePelangganPush(d.id, { title: "Balasan dari Admin Tubi", body: isi, data: { href: "/chat" }, tag: "chat-" + d.id });
   }
 }

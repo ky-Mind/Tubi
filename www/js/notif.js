@@ -108,11 +108,44 @@ function tambah(n, diam) {
   N.list.unshift(item); N.list = N.list.slice(0, MAX); simpan("notif", N.list); emit("notif");
   if (diam) return;
   // Kartu pop-up di dalam aplikasi sudah dihapus: kabar muncul sebagai notifikasi HP (dan di lonceng).
+  if (native() && pushAktif && document.hidden) return;   // di latar belakang: push dari server sudah mengabari
   sysShow(item).then(ok => { if (!(ok && native())) playSound(); });   // tanpa toast di dalam aplikasi: kabar cukup lewat notifikasi HP + lonceng
 }
 // ---------- Deteksi perubahan ----------
 let siap = false;
-export function initNotif() { N.list = muat("notif", []); siap = true; emit("notif"); }
+export function initNotif() { N.list = muat("notif", []); siap = true; emit("notif"); if (native() && S.user) siapkanPush(); }
+
+// ---------- Push dari server (FCM) ----------
+// Notifikasi tetap masuk walau Tubi tertutup: HP didaftarkan ke Firebase Cloud Messaging, tokennya disimpan di
+// pushTokens/{token} = { uid, email }. Gateway Tubi (Cloudflare) yang mengirim push saat ada pesanan / chat.
+const PN = () => window.Capacitor?.Plugins?.PushNotifications;
+let tokenPush = null, pushDengar = false, pushAktif = false;
+async function simpanToken(t) {
+  if (!S.user || !t) return;
+  tokenPush = t;
+  try { await F.setDoc(F.doc(db, "pushTokens", t), { uid: S.user.uid, email: String(S.user.email || "").toLowerCase(), platform: "android", updatedAt: F.serverTimestamp() }); pushAktif = true; }
+  catch (e) { console.warn("simpan token push", e); }
+}
+async function siapkanPush() {
+  const pn = PN(); if (!pn) return;
+  try {
+    if (!pushDengar) {
+      pushDengar = true;
+      pn.addListener("registration", t => simpanToken(t.value));
+      pn.addListener("registrationError", e => console.warn("daftar push gagal", e));
+      pn.addListener("pushNotificationActionPerformed", e => { const h = e?.notification?.data?.href; if (h) go(h); });
+    }
+    let izin = (await pn.checkPermissions()).receive;
+    if (izin === "prompt" || izin === "prompt-with-rationale") izin = (await pn.requestPermissions()).receive;
+    if (izin === "granted") await pn.register();
+  } catch (e) { console.warn("push", e); }
+}
+// Dipanggil sebelum keluar akun: HP ini berhenti menerima push untuk akun tersebut
+export async function lepasPush() {
+  if (!tokenPush) return;
+  try { await F.deleteDoc(F.doc(db, "pushTokens", tokenPush)); } catch {}
+  pushAktif = false;
+}
 const short = id => "#" + id.slice(0, 6).toUpperCase();
 const CLIENT_TXT = { diproses: ["chef", "Pesanan sedang diproses", "Dapur Tubi sedang menyiapkan pesananmu."], siap: ["bike", "Pesanan siap", "Pesananmu siap diantar / diambil."], selesai: ["star", "Pesanan selesai", "Terima kasih! Yuk beri ulasan untuk menu yang kamu pesan."], dibatalkan: ["x", "Pesanan dibatalkan", "Pesananmu dibatalkan. Hubungi admin bila ada pertanyaan."] };
 

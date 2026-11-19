@@ -5,7 +5,7 @@ import { $, $$, esc, rupiah, svg, stars, toast, timeText, initial, normPhone, ls
 import { msgsHtml, chatForm, toEnd, markRead } from "./chat.js";
 import { confirmBox, ask, themePref, setTheme, dropzone } from "./ui.js";
 import { mountLocation, pickerHtml, mapsDir, mapsView } from "./map.js";
-import { bell, abaikanNotif } from "./notif.js";
+import { bell, abaikanNotif, lepasPush } from "./notif.js";
 import { badge, provOf, nomorOf, atasNamaOf, appName, salin, bukaAplikasi } from "./pay.js";
 import { APP_VERSION, cekUpdate } from "./update.js";
 
@@ -137,7 +137,7 @@ actions.fav = el => { const id = el.dataset.id, i = S.favs.indexOf(id); i < 0 ? 
 actions.login = () => signIn().catch(e => toast(e.message, "err"));
 actions.logout = async () => {
   if (!await confirmBox("Keluar dari akun?", "Kamu bisa masuk lagi kapan saja dengan Google.", "Keluar", false)) return;
-  await signOutNow(); go("/", true); toast("Kamu sudah keluar.");
+  await lepasPush(); await signOutNow(); go("/", true); toast("Kamu sudah keluar.");
 };
 actions.add = el => { const p = prodOf(el.dataset.id); if (!p || !avail(p)) return; addToCart(p, 1); toast(`${p.name} ditambahkan`); };
 export function addToCart(p, n) { const x = S.cart.find(c => c.id === p.id); x ? (x.qty += n) : S.cart.push({ id: p.id, name: p.name, price: +p.price, qty: n }); mutCart(); }
