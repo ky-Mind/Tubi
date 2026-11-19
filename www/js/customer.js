@@ -1,6 +1,6 @@
 import { db, F, auth, A } from "./firebase.js";
 import { S, emit, signIn, signOutNow, avail, ratingOf, reviewsOf, cartCount, calc, saveCart, saveFavs, statusOf, STATUS_LABEL, isMain, payMethods, payOptions } from "./data.js";
-import { actions, forms, live, go, openOverlay, closeOverlay, repaint } from "./core.js";
+import { actions, forms, live, go, openOverlay, closeOverlay, repaint, kunci } from "./core.js";
 import { $, $$, esc, rupiah, svg, stars, toast, timeText, initial, normPhone, hpLokal, ls, compressImage } from "./util.js";
 import { msgsHtml, chatForm, toEnd, markRead } from "./chat.js";
 import { confirmBox, ask, themePref, setTheme, dropzone } from "./ui.js";
@@ -334,8 +334,8 @@ export function account() {
     ${S.isAdmin ? `<a class="btn yel" href="#/admin">${svg("grid", 18)} Buka dashboard admin</a>` : ""}</div>
     <div class="card"><div class="row" style="margin-bottom:10px"><b>Pesanan saya</b><span class="sp"></span><a class="xs muted" href="#/orders">Lihat riwayat ›</a></div>
     <div class="ostat">${[["menunggu", "receipt", "Menunggu"], ["diproses", "chef", "Diproses"], ["siap", "bike", "Siap"], ["selesai", "star", "Selesai"]].map(([k, e, l]) => `<a href="#/orders" data-act="ostgo" data-k="${k}"><i>${svg(e, 20)}</i>${l}${cnt(k) && k !== "selesai" ? `<span class="badge">${cnt(k)}</span>` : ""}</a>`).join("")}</div></div>
-    <div class="card"><form class="col" data-form="profile"><h3>Data pengantaran</h3><label>Nama penerima<input name="name" value="${esc(p.recipientName || p.displayName || "")}"></label><label>No. WhatsApp<input name="phone" data-hp inputmode="tel" autocomplete="tel" placeholder="08xx xxxx xxxx" value="${esc(hpLokal(p.phone))}"></label><label>Alamat<textarea name="address" placeholder="Alamat lengkap">${esc(p.address || "")}</textarea></label>
-    <div class="row wrap"><button type="button" class="btn" data-act="proloc">${svg("pin", 18)} ${p.location?.lat ? "Ubah titik lokasi" : "Pilih titik lokasi"}</button>${p.location?.lat ? `<span class="chip st-selesai">✓ Titik tersimpan</span>` : ""}</div><button class="btn pri" type="submit">Simpan</button></form></div>
+    <div class="card">${kunci(`<form class="col" data-form="profile"><h3>Data pengantaran</h3><label>Nama penerima<input name="name" value="${esc(p.recipientName || p.displayName || "")}"></label><label>No. WhatsApp<input name="phone" data-hp inputmode="tel" autocomplete="tel" placeholder="08xx xxxx xxxx" value="${esc(hpLokal(p.phone))}"></label><label>Alamat<textarea name="address" placeholder="Alamat lengkap">${esc(p.address || "")}</textarea></label>
+    <div class="row wrap"><button type="button" class="btn" data-act="proloc">${svg("pin", 18)} ${p.location?.lat ? "Ubah titik lokasi" : "Pilih titik lokasi"}</button>${p.location?.lat ? `<span class="chip st-selesai">✓ Titik tersimpan</span>` : ""}</div><button class="btn pri" type="submit">Simpan</button></form>`)}</div>
 </div>
   <div class="col">${prefsCard()}
     <form class="card col" data-form="bug"><h3>Laporkan masalah</h3><p class="muted sm" style="margin:-6px 0 0">Ada yang tidak berjalan? Ceritakan, tim Tubi akan memeriksanya.</p><label>Jenis<select name="type"><option>Pesanan</option><option>Pembayaran</option><option>Login</option><option>Produk</option><option>Lokasi / peta</option><option>Lainnya</option></select></label><label>Deskripsi<textarea name="description" required placeholder="Apa yang terjadi?"></textarea></label><label>Tangkapan layar <span class="hint">(opsional)</span>${dropzone("shot", "", "Unggah tangkapan layar")}</label><button class="btn pri" type="submit">${svg("send", 17)} Kirim laporan</button></form></div></div>
@@ -345,7 +345,7 @@ export function account() {
 forms.profile = async (f, fd) => {
   const phone = normPhone(fd.get("phone")); if (phone && phone.length < 10) throw new Error("Nomor WhatsApp belum valid.");
   const d = { recipientName: String(fd.get("name")).trim(), phone, address: String(fd.get("address")).trim() };
-  await F.setDoc(F.doc(db, "users", S.user.uid), d, { merge: true }); Object.assign(S.profile, d); toast("Profil disimpan.");
+  await F.setDoc(F.doc(db, "users", S.user.uid), d, { merge: true }); Object.assign(S.profile, d); toast("Data pengantaran disimpan");
 };
 forms.bug = async (f, fd) => {
   const sh = fd.get("shot"); const shot = sh && sh.size ? await compressImage(sh, 900) : "";

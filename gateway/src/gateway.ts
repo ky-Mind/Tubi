@@ -77,6 +77,11 @@ export class Gateway extends DurableObject {
     if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(Date.now() + 1_000);
     if (this.st.state === "starting" && !this.sock && (await this.ctx.storage.get("diam"))) this.st.state = "idle";
     const jalur = new URL(req.url).pathname;
+    // Dari cron tiap menit: bila detak terakhir sudah lewat 90 detik, alarm dianggap macet → jadwalkan ulang sekarang
+    if (jalur === "/detak") {
+      if (Date.now() - (this.detakTerakhir || 0) > 90_000) { this.sedangDetak = false; await this.ctx.storage.setAlarm(Date.now() + 500); }
+      return Response.json({ ok: true, detak: this.detakTerakhir || 0 });
+    }
     // /qr.json hanya dipakai halaman QR lokal (index.ts menolaknya di production). Membuka halaman itu = minta QR baru.
     if (jalur === "/qr.json") {
       if (!this.st.connected && !this.sock && !this.mulai) this.ctx.waitUntil(this.restartWA());
@@ -89,14 +94,17 @@ export class Gateway extends DurableObject {
 
   async alarm() {
     const diam = await this.ctx.storage.get("diam");
-    try { await this.detak(); }
+    try { await Promise.race([this.detak(), tidur(100_000)]); }
     catch (e) { console.error("detak gagal:", e?.message || e); }
     finally { await this.ctx.storage.setAlarm(Date.now() + (diam && !this.sock ? DETAK_DIAM_MS : DETAK_MS)); }
   }
 
   async detak() {
-    if (this.sedangDetak) return;
+    // Detak yang menggantung (mis. menunggu WhatsApp) tidak boleh menghentikan detak berikutnya selamanya
+    if (this.sedangDetak && Date.now() - (this.mulaiDetak || 0) < 120_000) return;
     this.sedangDetak = true;
+    this.mulaiDetak = Date.now();
+    this.detakTerakhir = Date.now();
     try {
       if (!this.db) return this.status({ state: "error", error: "FIREBASE_SA belum diisi di gateway." }, false);
       await this.periksaPerintah();
