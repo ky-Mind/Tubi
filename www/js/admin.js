@@ -29,7 +29,7 @@ export function shell() {
   return `<aside class="a-side"><div class="logo"><button type="button" class="side-tg" data-act="sidebar" title="Buka / tutup sidebar (Ctrl+B)" aria-label="Buka / tutup sidebar"><img src="./tubi-icon.png" alt=""><span class="side-ic">${svg("sidebar", 22)}</span></button><span class="logo-tx">tubi <small>ADMIN</small></span></div>
     ${live("aside", ["route", "orders", "chats"], side)}<span class="gap"></span>
     <button class="lnk" data-act="pintasan" title="Pintasan keyboard (?)">${svg("keyboard", 20)}<span class="sl">Pintasan keyboard</span></button><a href="#/" title="Lihat toko">${svg("store", 20)}<span class="sl">Lihat toko</span></a><button class="lnk" data-act="themetoggle" title="Mode gelap/terang">${svg("moon", 20)}<span class="sl">Mode gelap/terang</span></button><button class="lnk" data-act="logout" title="Keluar">${svg("logout", 20)}<span class="sl">Keluar</span></button></aside>
-  <header class="a-top"><div class="in">    ${live("atitle", ["route"], () => `<h2>${TITLES[path()] || "Admin"}</h2>`)}
+  <header class="a-top"><div class="in">    ${live("atitle", ["route"], () => `<h2>${TITLES[path()] || (path().startsWith("/admin/settings") ? "Pengaturan" : "Admin")}</h2>`)}
     <button class="btn sm pal-btn" data-act="palette" title="Cari & perintah (${/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl"}+K)">${svg("search", 17)}<span class="only-d pal-tx">Cari pesanan, produk, atau perintah…</span><span class="only-d pal-k"><kbd>${/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl"}</kbd><kbd>K</kbd></span></button><span class="sp"></span>${bell("a")}
     ${live("achip", ["wa", "errors"], () => `<a class="chip" href="#/admin/settings" style="padding:7px 13px"><span class="dot ${waState()}"></span><span class="only-d">WhatsApp:&nbsp;</span>${WA_LABEL[waState()]}</a>`)}
     ${live("aav", ["profile", "auth"], () => `<span class="av" title="${esc(S.profile.displayName)} · ${isMain(S.user) ? "Admin utama" : "Admin"}">${S.profile.photoURL ? `<img src="${esc(S.profile.photoURL)}" alt="">` : initial(S.profile.displayName)}</span>`)}</div></header>
@@ -74,7 +74,14 @@ export function dashboard() {
     <div class="card"><h3>Aksi cepat</h3><div class="grid2"><button class="btn" data-act="pform">${svg("plus", 18)} Tambah produk</button><a class="btn" href="#/admin/chat">${svg("chat", 18)} Balas chat</a><a class="btn" href="#/admin/reports">${svg("chart", 18)} Laporan</a><a class="btn" href="#/admin/settings/toko">${svg("cog", 18)} Atur toko</a></div><p class="muted xs only-d" style="margin-top:12px">Tips: <kbd>Ctrl</kbd>+<kbd>K</kbd> mencari perintah, <kbd>Ctrl</kbd>+<kbd>B</kbd> menyembunyikan sidebar.</p></div></div></div>`;
 }
 actions.gofilter = el => { const f = el.dataset.f; if (f === "chat") return go("/admin/chat"); if (f === "habis") { PF = "habis"; return go("/admin/products"); } OF = f === "unpaid" ? "semua" : f; OU = f === "unpaid"; go("/admin/orders"); if (path() === "/admin/orders") { repaint("otabs"); repaint("olist"); } };
-actions.storeopen = async () => { const open = S.settings.open === false; if (!open || await confirmBox("Tutup toko?", "Pelanggan tetap bisa melihat menu, tapi tidak bisa memesan sampai toko dibuka lagi.", "Tutup toko")) { await setSettings({ open }); toast(open ? "Toko dibuka ✓" : "Toko ditutup"); } };
+actions.storeopen = async el => {
+  const open = S.settings.open === false;
+  if (!open && !await confirmBox("Tutup toko?", "Pelanggan tetap bisa melihat menu, tapi tombol pesan dimatikan sampai toko dibuka lagi.", "Tutup toko")) return;
+  // saklar langsung berubah; dikembalikan bila gagal disimpan
+  const sw = el?.closest?.(".store-sw"); if (sw) { sw.classList.toggle("on", open); const b = sw.querySelector("b"); if (b) b.textContent = open ? "Toko buka" : "Toko tutup"; }
+  try { await setSettings({ open }); toast(open ? "Toko dibuka. Pelanggan bisa memesan lagi." : "Toko ditutup. Pelanggan tidak bisa memesan."); }
+  catch (e) { if (sw) { sw.classList.toggle("on", !open); const b = sw.querySelector("b"); if (b) b.textContent = !open ? "Toko buka" : "Toko tutup"; } throw e; }
+};
 
 // ===== Pesanan =====
 let OF = "semua", OQ = "", OU = false;
@@ -336,7 +343,7 @@ const payCard = () => {
   return `<div class="col"><form class="card col" data-form="paybase"><h3>Metode di checkout</h3><label class="chk"><input type="checkbox" name="cod" ${s.payCod === false ? "" : "checked"}> Bayar di tempat (COD)</label><button class="btn pri" type="submit">Simpan</button></form>
   <div class="card"><div class="row"><h3 style="margin:0" class="sp">Rekening & e-wallet</h3><button class="btn pri sm" data-act="pmform">${svg("plus", 16)} Tambah</button></div>
     <p class="muted sm" style="margin:8px 0 4px">Pilih aplikasinya (GoPay, OVO, DANA, BCA, BRI, dan lain-lain), lalu isi nomor dan atas nama. Metode baru langsung muncul di checkout pelanggan, termasuk di aplikasi Android.</p>
-    ${ms.length ? `<div class="tbl">${ms.map(m => `<div class="r">${badge(m, 40)}<div class="mid"><b>${esc(m.name)}</b><small class="muted">${esc(nomorOf(m) || (m.detail || "").split("\n")[0])}${atasNamaOf(m) ? " · a.n. " + esc(atasNamaOf(m)) : ""}${provOf(m)?.pkg ? " · buka " + esc(appName(provOf(m))) : ""}</small>${!provOf(m) || provOf(m).key === "lain" ? `<span class="pm-warn">${svg("alert", 13)} Belum dipilih aplikasinya (DANA, GoPay, dll). Pelanggan hanya melihat "${esc(m.name)}". Ketuk Edit.</span>` : ""}</div><button class="btn sm" data-act="pmform" data-id="${esc(m.id)}">Edit</button><button class="btn sm danger" data-act="pmdel" data-id="${esc(m.id)}" aria-label="Hapus">${svg("trash", 14)}</button></div>`).join("")}</div>` : `<div class="empty" style="margin-top:10px">Belum ada. Tambahkan rekening atau e-wallet.</div>`}</div>
+    ${ms.length ? `<div class="tbl">${ms.map(m => `<div class="r">${badge(m, 40)}<div class="mid"><b>${esc(provOf(m) && provOf(m).key !== "lain" && /^(e-?wallet|transfer|bank|rekening)?$/i.test((m.name || "").trim()) ? provOf(m).name : m.name)}</b><small class="muted">${esc(nomorOf(m) || (m.detail || "").split("\n")[0])}${atasNamaOf(m) ? " · a.n. " + esc(atasNamaOf(m)) : ""}${provOf(m)?.pkg ? " · buka " + esc(appName(provOf(m))) : ""}</small>${!provOf(m) || provOf(m).key === "lain" ? `<span class="pm-warn">${svg("alert", 13)} Belum dipilih aplikasinya (DANA, GoPay, dll). Pelanggan hanya melihat "${esc(m.name)}". Ketuk Edit.</span>` : ""}</div><button class="btn sm" data-act="pmform" data-id="${esc(m.id)}">Edit</button><button class="btn sm danger" data-act="pmdel" data-id="${esc(m.id)}" aria-label="Hapus">${svg("trash", 14)}</button></div>`).join("")}</div>` : `<div class="empty" style="margin-top:10px">Belum ada. Tambahkan rekening atau e-wallet.</div>`}</div>
   <form class="card col" data-form="qris"><h3>QRIS</h3>${dropzone("qris", s.payQris || "", "Unggah gambar QRIS")}<label class="chk"><input type="checkbox" name="qrisdel"> Hapus QRIS</label><button class="btn pri" type="submit">Simpan QRIS</button></form></div>`;
 };
 
@@ -378,8 +385,8 @@ export function settings() {
   const body = { toko: () => live("sform", ["settings"], storeForm), tampilan: () => live("slook", ["settings"], lookForm), bayar: () => live("spay", ["settings"], payCard), admin: () => live("sadm", ["admins", "settings"], adm),
     wa: () => live("swa", ["wa", "errors", "settings", "admins"], wa), printer: () => live("sprint", ["bt"], printer), sistem: () => `<div class="col">${diag()}${live("sbugs", ["bugs"], bugs)}</div>` }[cur]();
   return `<div class="set-wrap ${g ? "has-group" : ""}"><nav class="set-nav card">${live("snav", ["wa", "bt", "settings", "admins", "bugs", "route"], () => GROUPS.map(([k, ic, t]) => `<a class="set-link ${cur === k && (g || window.innerWidth >= 1000) ? "on" : ""}" href="#/admin/settings/${k}"><span class="mi-ic">${svg(ic, 19)}</span><span class="sp">${t}</span><span class="mi-st">${groupStatus(k)}</span></a>`).join(""))}</nav>
-    <section class="set-body"><a class="back-link only-m" href="#/admin/settings">‹ Semua pengaturan</a><h3 class="set-title only-m">${GROUP_TITLES[cur]}</h3>${body}</section>
-    <div class="set-hub only-m">${live("shub", ["wa", "bt", "settings", "admins", "bugs"], groupList)}</div></div>`;
+    <section class="set-body"><a class="back-link only-m" href="#/admin/more">‹ Menu lainnya</a><h3 class="set-title only-m">${GROUP_TITLES[cur]}</h3>${body}</section>
+    <div class="set-hub only-m">${more()}</div></div>`;   // di HP: sama lengkapnya dengan menu Lainnya (laporan, pengaturan, lihat toko, keluar)
 }
 actions.pmform = el => {
   const m = payMethods().find(x => x.id === el.dataset?.id) || {}, cur = provOf(m)?.key || "";
