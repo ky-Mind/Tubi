@@ -12,13 +12,29 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
-<link rel="stylesheet" href="./css/app.css?v=15">
+<link rel="stylesheet" href="./css/app.css?v=16">
 </head>
 <body>
 <div id="app"><div class="boot"><img src="./tubi-icon.png" alt="Tubi"><b>Memuat Tubi…</b></div></div>
 <div id="overlay" class="overlay" hidden></div>
 <div id="dialog" class="overlay dlg" hidden></div>
 <div id="toasts" class="toasts" aria-live="polite"></div>
-<script type="module" src="./js/main.js?v=15"></script>
+<script type="module" src="./js/main.js?v=16"></script>
+<script>
+// Dibuka tanpa internet: modul Firebase tidak bisa dimuat, jadi tampilkan layar offline dari sini
+(function () {
+  function masihMemuat() { return !!document.querySelector("#app .boot"); }
+  function offline() {
+    if (!masihMemuat() || document.querySelector(".offline")) return;
+    var d = document.createElement("div"); d.className = "offline show";
+    d.innerHTML = '<div class="off-card"><div class="off-ic"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8.8a15 15 0 0 1 4.2-2.6M9.9 5.2A15 15 0 0 1 22 8.8M5 12.6a10 10 0 0 1 4.3-2.4M14.6 10.3A10 10 0 0 1 19 12.6M8.6 16.3a5 5 0 0 1 6.8 0"/><circle cx="12" cy="20" r="1"/><path d="M3 3l18 18"/></svg></div><h2>Kamu sedang offline</h2><p>Tubi butuh internet untuk memuat menu. Nyalakan data seluler atau Wi\u2011Fi, lalu coba lagi.</p><button type="button" class="btn pri" onclick="location.reload()">Coba lagi</button></div>';
+    document.body.appendChild(d);
+  }
+  if (!navigator.onLine) addEventListener("DOMContentLoaded", offline);
+  setTimeout(function () { if (masihMemuat()) offline(); }, 12000);
+  addEventListener("error", function (e) { if (e.target && e.target.tagName === "SCRIPT") offline(); }, true);
+  addEventListener("online", function () { if (masihMemuat()) location.reload(); });
+})();
+</script>
 </body>
 </html>
