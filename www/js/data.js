@@ -103,6 +103,8 @@ export const signIn = async () => {
         grantOfflineAccess: true,
       });
 
+      // Keluar dulu dari sesi Google di HP supaya daftar pilihan akun email selalu muncul
+      try { await GoogleAuthPlugin.signOut(); } catch {}
       const googleUser = await GoogleAuthPlugin.signIn();
       const idToken = googleUser.authentication.idToken;
       const credential = A.GoogleAuthProvider.credential(idToken);
@@ -121,7 +123,11 @@ export const signIn = async () => {
     }
   }
 };
-export const signOutNow = () => A.signOut(auth);
+export const signOutNow = async () => {
+  // Di APK: lepas juga sesi Google supaya saat masuk lagi bisa memilih akun email lain
+  if (window.Capacitor?.isNativePlatform?.()) { try { await window.Capacitor.Plugins.GoogleAuth?.signOut(); } catch {} }
+  return A.signOut(auth);
+};
 
 // ---------- Hitungan ----------
 export const avail = p => p && p.available !== false && p.availability !== "habis";

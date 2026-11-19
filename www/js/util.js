@@ -21,10 +21,18 @@ export const normPhone = v => { let n = String(v || "").replace(/\D/g, ""); if (
 export const initial = n => esc((String(n || "?").trim()[0] || "?").toUpperCase());
 export const debounce = (fn, ms = 200) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
+// Pemberitahuan kecil ala aplikasi: logo Tubi + pesan. Pesan yang sama tidak ditumpuk (cukup diperpanjang).
 export function toast(msg, type = "") {
   const box = $("#toasts"); if (!box) return;
-  const el = document.createElement("div"); el.className = "toast " + type; el.textContent = msg; box.appendChild(el);
-  setTimeout(() => el.classList.add("out"), 3200); setTimeout(() => el.remove(), 3600);
+  msg = String(msg ?? "");
+  const sama = [...box.children].find(x => x.dataset.msg === msg && !x.classList.contains("out"));
+  const tutup = el => { clearTimeout(el._t); el._t = setTimeout(() => { el.classList.add("out"); setTimeout(() => el.remove(), 350); }, type === "err" ? 4200 : 3000); };
+  if (sama) { sama.classList.remove("bump"); void sama.offsetWidth; sama.classList.add("bump"); tutup(sama); return; }
+  const el = document.createElement("div"); el.className = "toast " + type; el.dataset.msg = msg; el.setAttribute("role", type === "err" ? "alert" : "status");
+  el.innerHTML = `<img src="./tubi-icon.png" alt=""><span><small>${type === "err" ? "Perhatian" : "Tubi"}</small></span>`;
+  el.querySelector("span").append(document.createTextNode(msg));
+  box.appendChild(el); [...box.children].slice(0, -3).forEach(x => x.remove());
+  tutup(el);
 }
 let ac;
 export function beep() {
@@ -80,6 +88,7 @@ const P = {
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
   heart: '<path d="M12 21s-8-5.3-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.7-8 11-8 11z"/>',
   star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  sidebar: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16M5.5 8h1M5.5 11h1"/>', keyboard: '<rect x="2" y="6" width="20" height="12" rx="2.5"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
   check: '<path d="M5 12l5 5L20 6"/>', clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   send: '<path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/>', logout: '<path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4M16 8l4 4-4 4M20 12H9"/>',
   moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>', sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/>',

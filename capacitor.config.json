@@ -1,5 +1,11 @@
 {
   "appId": "com.tubi.app",
   "appName": "Tubi",
-  "webDir": "www"
+  "webDir": "www",
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_tubi",
+      "iconColor": "#C8232C"
+    }
+  }
 }
