@@ -412,6 +412,8 @@ async function bayarSekarang(d) {
     text: `${d.nama} ${d.no}${d.an ? " a.n. " + d.an : ""}\nTotal yang dibayar: ${d.total}\n\n${d.pkg ? `Aplikasi ${d.app} akan terbuka. Tempel nomornya, kirim tepat ${d.total}, lalu kembali ke Tubi untuk unggah bukti.` : `Buka aplikasi ${d.nama} kamu, tempel nomornya, lalu kirim tepat ${d.total}.`}` });
   if (lanjut && d.pkg) bukaAplikasi(d.pkg);
 }
+actions.buktibesar = el => { const o = S.orders.find(x => x.id === el.dataset.id); if (!o?.paymentProof) return;
+  openOverlay(`<div class="sheet-head"><h3>Bukti pembayaran #${esc(o.id.slice(0, 6).toUpperCase())}</h3><button class="icon-btn" data-act="close" aria-label="Tutup">${svg("x")}</button></div><div class="qris-full"><img src="${esc(o.paymentProof)}" alt="Bukti pembayaran"></div>`); };
 actions.qrisbesar = () => openOverlay(`<div class="sheet-head"><h3>QRIS Tubi</h3><button class="icon-btn" data-act="close" aria-label="Tutup">${svg("x")}</button></div>
   <div class="qris-full"><img src="${esc(S.settings.payQris)}" alt="Kode QRIS Tubi"></div><a class="btn pri full" href="${esc(S.settings.payQris)}" download="QRIS-Tubi.jpg">${svg("download", 16)} Simpan QRIS</a>`);
 const payBody = id => {
@@ -428,7 +430,7 @@ const payBody = id => {
     : `<div class="pay-due"><div><small>Pesanan ${kode}</small><b class="pay-total">${rupiah(o.total)}</b></div><span class="chip st-menunggu">Menunggu pembayaran</span></div>`;
   return `<div class="card col pay-card">${status}
     ${o.paymentProof && ps !== "issue" ? "" : `<div class="pay-via"><span>Bayar lewat <b>${esc(m?.qris ? "QRIS" : m ? namaMetode(m, provOf(m)) : (o.payment?.via || "Transfer"))}</b></span>${st === "menunggu" ? `<button class="btn sm ghost" data-act="paychange" data-id="${o.id}">${svg("edit", 15)} Ganti metode</button>` : ""}</div>${howToPay(o, m)}`}
-    <form class="col proof-box" data-form="proof" data-id="${o.id}"><div class="lbl" style="margin:0">Bukti pembayaran</div>${o.paymentProof ? `<img class="proof-img" src="${esc(o.paymentProof)}" alt="Bukti pembayaran">` : ""}${dropzone("proof", "", o.paymentProof ? "Ganti foto bukti" : "Unggah foto bukti bayar")}<button class="btn pri" type="submit">${o.paymentProof ? "Kirim ulang bukti" : "Kirim bukti pembayaran"}</button></form>
+    <form class="col proof-box" data-form="proof" data-id="${o.id}"><div class="lbl" style="margin:0">Bukti pembayaran</div>${o.paymentProof ? `<button type="button" class="proof-view" data-act="buktibesar" data-id="${o.id}" aria-label="Lihat bukti pembayaran"><img src="${esc(o.paymentProof)}" alt="Bukti pembayaran"><span class="proof-tag">${svg("check", 14)} Terkirim${o.payment?.proofAt ? " · " + new Date(o.payment.proofAt).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : ""}</span><span class="qris-zoom">${svg("search", 14)} Lihat penuh</span></button>` : ""}${dropzone("proof", "", o.paymentProof ? "Ganti foto bukti" : "Unggah foto bukti bayar")}<button class="btn pri" type="submit">${o.paymentProof ? "Kirim ulang bukti" : "Kirim bukti pembayaran"}</button></form>
     ${aksi}</div>`;
 };
 actions.payapp = async el => { const ok = await salin(el.dataset.no); toast(ok ? "Nomor tujuan disalin. Membuka aplikasi…" : "Nomor belum tersalin, salin manual ya."); setTimeout(() => bukaAplikasi(el.dataset.pkg), 450); };
