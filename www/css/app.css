@@ -816,3 +816,18 @@ kbd{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 
  .a-top .av img{width:100%;height:100%;object-fit:cover}
 }
 @media(max-width:999px){.a-top .pal-btn{margin-left:auto}.a-top .in>.sp{display:none}}
+/* ===== v17: halaman bayar ===== */
+.acc-act .paynow{width:100%;height:50px;font-size:16px;border-radius:14px}
+.btn.tersalin{border-color:#16a34a!important;color:#16a34a!important;background:#e9f9ef!important}
+.qris-card{background:var(--surface);gap:14px;padding:16px;border-radius:18px;border:1.5px solid var(--line);justify-items:stretch;text-align:left}
+.qris-head{display:flex;align-items:center;gap:12px}
+.qris-logo{flex:none;font:800 15px var(--fd);letter-spacing:1.5px;color:#fff;background:var(--red);padding:8px 10px;border-radius:10px}
+.qris-head span{display:grid}.qris-head b{font:700 17px var(--fd)}.qris-head small{color:var(--muted);font-size:12.5px;line-height:1.35}
+.qris-img{position:relative;justify-self:center;display:block;width:min(360px,100%);padding:12px;background:#fff;border-radius:16px;border:1px solid #eee;box-shadow:0 6px 20px rgba(80,30,10,.10);cursor:zoom-in}
+.qris-img img{display:block;width:100%;height:auto;border-radius:8px;image-rendering:-webkit-optimize-contrast}
+.qris-zoom{position:absolute;right:20px;bottom:20px;display:flex;align-items:center;gap:4px;background:#000a;color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:99px}
+.qris-amt{justify-items:center;text-align:center;background:var(--redsoft);border-radius:14px;padding:10px}
+.qris-act{display:grid;grid-template-columns:1fr 1fr;gap:8px}.qris-act .btn{width:100%}
+.qris-card .pay-steps{margin:0}
+.qris-full{background:#fff;border-radius:14px;padding:10px;margin-bottom:12px}.qris-full img{display:block;width:100%;height:auto}
+.pm-warn{display:flex;align-items:center;gap:5px;margin-top:4px;font-size:12px;font-weight:700;color:#b45309}

@@ -5,7 +5,7 @@ import { $, $$, esc, rupiah, svg, stars, toast, timeText, initial, normPhone, ls
 import { msgsHtml, chatForm, toEnd, markRead } from "./chat.js";
 import { confirmBox, ask, themePref, setTheme, dropzone } from "./ui.js";
 import { mountLocation, pickerHtml, mapsDir, mapsView } from "./map.js";
-import { bell } from "./notif.js";
+import { bell, abaikanNotif } from "./notif.js";
 import { badge, provOf, nomorOf, atasNamaOf, appName, salin, bukaAplikasi } from "./pay.js";
 import { APP_VERSION, cekUpdate } from "./update.js";
 
@@ -222,7 +222,11 @@ function sumHtml() {
   <div class="sum" style="margin-top:10px"><div><span class="muted">Subtotal</span><span>${rupiah(c.subtotal)}</span></div>${c.discount ? `<div><span class="muted">Voucher</span><span class="ok">− ${rupiah(c.discount)}</span></div>` : ""}<div><span class="muted">Ongkir</span><span>${c.fee ? rupiah(c.fee) : "Gratis"}</span></div>${c.tax ? `<div><span class="muted">Pajak</span><span>${rupiah(c.tax)}</span></div>` : ""}<div class="t"><span>Total</span><span>${rupiah(c.total)}</span></div></div>`;
 }
 actions.voucher = () => { V.voucher = ($("#vch").value || "").trim().toUpperCase(); const c = calc(V.voucher); toast(c.vOk ? "Voucher berhasil dipakai" : "Kode voucher tidak valid.", c.vOk ? "" : "err"); repaint("sum"); repaint("cocta"); };
-actions.copy = async el => { toast(await salin(el.dataset.t) ? "Disalin" : "Tidak bisa menyalin otomatis.", ""); };
+actions.copy = async el => {
+  const ok = await salin(el.dataset.t); if (!ok) return toast("Tidak bisa menyalin otomatis.", "err");
+  if (!el._asli) el._asli = el.innerHTML; el.innerHTML = `${svg("check", 16)} Tersalin`; el.classList.add("tersalin");
+  clearTimeout(el._t); el._t = setTimeout(() => { el.innerHTML = el._asli; el.classList.remove("tersalin"); }, 1800);
+};
 forms.order = async (f, fd) => {
   if (needLogin()) return;
   if (S.settings.open === false) throw new Error("Toko sedang tutup. Coba lagi nanti.");
@@ -240,12 +244,14 @@ forms.order = async (f, fd) => {
   F.addDoc(F.collection(db, "notifications"), { type: "new_order", orderId: ref.id, userId: S.user.uid, title: "Pesanan baru", body: `Pesanan baru dari ${name}`, read: false, createdAt: F.serverTimestamp() }).catch(() => {});
   const keep = { recipientName: name, phone, address, ...(V.loc ? { location: V.loc } : {}) };
   F.setDoc(F.doc(db, "users", S.user.uid), keep, { merge: true }).catch(() => {}); Object.assign(S.profile, keep);
-  S.cart = []; V.voucher = ""; mutCart(); toast("Pesanan berhasil dibuat. Admin segera memprosesnya."); go(method === "transfer" ? "/pay/" + ref.id : "/orders");
+  S.cart = []; V.voucher = ""; mutCart(); go(method === "transfer" ? "/pay/" + ref.id : "/orders");
 };
 
 // ===== Pesanan =====
 const FLOW = ["menunggu", "diproses", "siap", "selesai"];
-const payChip = o => { const m = o.payment?.method; if (!m) return ""; const via = o.payment?.via ? ` · ${esc(o.payment.via)}` : "", s = o.payment?.status;
+const payChip = o => { const m = o.payment?.method; if (!m) return ""; const stt = statusOf(o.status);
+  if (stt === "dibatalkan") return o.payment?.status === "paid" ? `<span class="chip">Sudah dibayar · hubungi admin</span>` : "";
+  if (stt === "selesai" && m === "cod") return `<span class="chip st-selesai">COD · Lunas</span>`; const via = o.payment?.via ? ` · ${esc(o.payment.via)}` : "", s = o.payment?.status;
   return m === "cod" ? `<span class="chip">COD</span>` : s === "paid" ? `<span class="chip st-selesai">Lunas${via}</span>` : s === "issue" ? `<span class="chip st-dibatalkan">Ada kendala pembayaran${via}</span>` : o.paymentProof ? `<span class="chip st-diproses">Bukti dicek admin${via}</span>` : `<span class="chip st-menunggu">Belum dibayar${via}</span>`; };
 const orderCard = o => {
   const st = statusOf(o.status), idx = FLOW.indexOf(st), needProof = o.payment?.method === "transfer" && o.payment?.status !== "paid" && st !== "dibatalkan";
@@ -271,7 +277,7 @@ export function orders() {
   return `${live("otabs", ["orders"], otabs)}${live("olist", ["orders", "errors", "products"], olist)}`;
 }
 actions.ost = el => { V.ost = el.dataset.k; repaint("otabs"); repaint("olist"); };
-actions.cancel = async el => { if (await confirmBox("Batalkan pesanan ini?", "Pesanan yang sudah dibatalkan tidak bisa diaktifkan lagi.", "Ya, batalkan")) await F.updateDoc(F.doc(db, "orders", el.dataset.id), { status: "dibatalkan", updatedAt: F.serverTimestamp() }); };
+actions.cancel = async el => { if (await confirmBox("Batalkan pesanan ini?", "Pesanan yang sudah dibatalkan tidak bisa diaktifkan lagi.", "Ya, batalkan") && abaikanNotif.add(el.dataset.id + ":dibatalkan")) await F.updateDoc(F.doc(db, "orders", el.dataset.id), { status: "dibatalkan", updatedAt: F.serverTimestamp() }); };
 actions.reorder = el => { const o = S.orders.find(x => x.id === el.dataset.id); (o?.items || []).forEach(i => { const p = prodOf(i.id); if (p && avail(p)) addToCart(p, i.qty); }); toast("Ditambahkan ke keranjang"); actions.cart(); };
 actions.rate = el => openOverlay(`<div class="sheet-head"><h3>Beri ulasan</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div>
   <form class="col" data-form="rateorder" data-id="${el.dataset.id}"><div class="pick" id="pick">${[1, 2, 3, 4, 5].map(i => `<button type="button" data-act="pick" data-n="${i}" class="on">★</button>`).join("")}</div><input type="hidden" name="rating" value="5"><textarea name="text" placeholder="Bagaimana rasanya? (opsional)" maxlength="500"></textarea><button class="btn pri" type="submit">Kirim</button></form>`);
@@ -289,7 +295,7 @@ forms.proof = async (f, fd) => {
   // status pembayaran kembali "menunggu dicek" (juga setelah ada kendala) + waktu unggah, agar admin dapat notifikasi
   try { await F.updateDoc(ref, { paymentProof: proof, payment: { ...(o?.payment || {}), status: "unpaid", note: "", proofAt: Date.now() }, updatedAt: F.serverTimestamp() }); }
   catch (e) { if (e.code !== "permission-denied") throw e; await F.updateDoc(ref, { paymentProof: proof }); }   // rules lama
-  closeOverlay(); toast("Bukti terkirim. Admin akan segera memeriksa.");
+  closeOverlay();
 };
 
 // ===== Chat =====
@@ -383,19 +389,31 @@ actions.delacct = async () => {
 actions.paynow = el => go("/pay/" + el.dataset.id);
 actions.ostgo = el => { V.ost = el.dataset.k; go("/orders"); };
 const payMethodOf = o => { const k = o.payment?.viaKey || ""; if (k === "qris") return { name: "QRIS", qris: true }; const id = k.replace(/^m:/, ""); return payMethods().find(m => m.id === id) || payMethods().find(m => m.name === o.payment?.via) || null; };
-// Kartu cara bayar: e-wallet / bank (salin nomor + buka aplikasinya) atau QRIS (bingkai rapi + unduh)
+// Kartu cara bayar: e-wallet / bank ("Bayar sekarang" = salin nomor + buka aplikasinya) atau QRIS (rapi + bisa diperbesar)
+const namaMetode = (m, p) => p && p.key !== "lain" ? p.name : (m?.name || "E-wallet");
 const howToPay = (o, m) => {
-  if (m?.qris) return S.settings.payQris ? `<div class="qris-card"><div class="qris-top"><b>QRIS</b><span>Tubi · ${esc(S.settings.hours ? "Buka " + S.settings.hours : "Bayar instan")}</span></div>
-    <div class="qris-img"><img src="${esc(S.settings.payQris)}" alt="Kode QRIS Tubi"></div>
+  if (m?.qris) return S.settings.payQris ? `<div class="qris-card">
+    <div class="qris-head"><span class="qris-logo">QRIS</span><span><b>Scan untuk bayar</b><small>Bisa pakai DANA, GoPay, OVO, ShopeePay, atau m-banking apa pun</small></span></div>
+    <button type="button" class="qris-img" data-act="qrisbesar" aria-label="Perbesar QRIS"><img src="${esc(S.settings.payQris)}" alt="Kode QRIS Tubi"><span class="qris-zoom">${svg("search", 14)} Ketuk untuk perbesar</span></button>
     <div class="qris-amt"><small>Total yang dibayar</small><b>${rupiah(o.total)}</b></div>
-    <div class="qris-act"><a class="btn sm" href="${esc(S.settings.payQris)}" download="QRIS-Tubi-${o.id.slice(0, 6).toUpperCase()}.jpg">${svg("download", 16)} Simpan QRIS</a><button class="btn sm" data-act="copy" data-t="${Math.round(o.total)}">Salin nominal</button></div>
-    <small class="muted">Buka aplikasi bank / e-wallet apa pun (GoPay, OVO, DANA, ShopeePay, m-banking), pilih <b>Scan / Bayar QRIS</b>, lalu masukkan nominal di atas.</small></div>` : `<div class="alert">QRIS belum tersedia. Pilih metode lain atau hubungi admin.</div>`;
+    <div class="qris-act"><a class="btn" href="${esc(S.settings.payQris)}" download="QRIS-Tubi-${o.id.slice(0, 6).toUpperCase()}.jpg">${svg("download", 16)} Simpan QRIS</a><button class="btn" data-act="copy" data-t="${Math.round(o.total)}">${svg("note", 16)} Salin nominal</button></div>
+    <ol class="pay-steps"><li>Simpan atau screenshot QRIS di atas.</li><li>Buka aplikasi bank / e-wallet, pilih <b>Scan / Bayar QRIS</b>, lalu pilih gambar QRIS dari galeri.</li><li>Masukkan nominal <b>${rupiah(o.total)}</b>, bayar, lalu unggah bukti di bawah.</li></ol></div>` : `<div class="alert">QRIS belum tersedia. Pilih metode lain atau hubungi admin.</div>`;
   if (!m) return `<div class="alert">Detail pembayaran tidak ditemukan. Ganti metode pembayaran atau hubungi admin lewat chat.</div>`;
-  const p = provOf(m), no = nomorOf(m), an = atasNamaOf(m);
-  return `<div class="acc-card" style="--pv:${p?.color || "#806f68"}">${badge(m, 52)}<div class="sp"><small>${p?.type === "bank" ? "Transfer ke rekening" : "Kirim ke e-wallet"} ${esc(m.name)}</small><b class="acc-no">${esc(no || m.detail || "-")}</b>${an ? `<span>a.n. ${esc(an)}</span>` : ""}</div></div>
-    <div class="acc-act">${no ? `<button class="btn" data-act="copy" data-t="${esc(no)}">${svg("note", 16)} Salin nomor</button>` : ""}${p?.pkg ? `<button class="btn pri" data-act="payapp" data-no="${esc(no)}" data-pkg="${esc(p.pkg)}">${svg("send", 16)} Salin & buka ${esc(appName(p))}</button>` : ""}${m.link ? `<a class="btn pri" target="_blank" rel="noopener" href="${esc(m.link)}">${svg("link", 16)} Halaman pembayaran</a>` : ""}</div>
-    <ol class="pay-steps"><li>${p?.pkg ? `Tekan <b>Salin &amp; buka ${esc(appName(p))}</b>. Nomor tujuan otomatis tersalin dan aplikasinya terbuka.` : "Tekan <b>Salin nomor</b>, lalu buka aplikasi bank / e-wallet kamu."}</li><li>Kirim tepat <b>${rupiah(o.total)}</b> ke nomor itu.</li><li>Kembali ke Tubi, lalu unggah foto bukti transfer di bawah.</li></ol>`;
+  const p = provOf(m), no = nomorOf(m), an = atasNamaOf(m), nama = namaMetode(m, p), bank = p?.type === "bank";
+  return `<div class="acc-card" style="--pv:${p?.color || "#806f68"}">${badge(m, 52)}<div class="sp"><small>${bank ? "Transfer ke rekening" : "Kirim ke"} ${esc(nama)}</small><b class="acc-no">${esc(no || m.detail || "-")}</b>${an ? `<span>a.n. ${esc(an)}</span>` : ""}</div></div>
+    <div class="acc-act">${no ? `<button class="btn pri paynow" data-act="paynow" data-no="${esc(no)}" data-pkg="${esc(p?.pkg || "")}" data-nama="${esc(nama)}" data-app="${esc(p?.pkg ? appName(p) : "")}" data-total="${esc(rupiah(o.total))}" data-an="${esc(an)}">${svg("send", 17)} Bayar sekarang</button>` : ""}${m.link ? `<a class="btn" target="_blank" rel="noopener" href="${esc(m.link)}">${svg("link", 16)} Halaman pembayaran</a>` : ""}</div>
+    <ol class="pay-steps"><li>Tekan <b>Bayar sekarang</b>. Nomor ${esc(nama)} langsung tersalin${p?.pkg ? ` dan aplikasi ${esc(appName(p))} terbuka` : ""}.</li><li>Kirim tepat <b>${rupiah(o.total)}</b> ke nomor itu.</li><li>Kembali ke Tubi, lalu unggah foto bukti di bawah.</li></ol>`;
 };
+// Bayar sekarang: nomor langsung tersalin, lalu konfirmasi "lanjut bayar" sebelum membuka aplikasinya
+actions.paynow = el => { bayarSekarang(el.dataset); };   // tidak ditunggu: tombol tidak berputar selama dialog terbuka
+async function bayarSekarang(d) {
+  const ok = await salin(d.no);
+  const lanjut = await ask({ title: ok ? "Nomor sudah tersalin" : "Salin nomornya dulu", ok: d.pkg ? `Lanjut bayar di ${d.app}` : "Lanjut bayar", cancel: "Batal",
+    text: `${d.nama} ${d.no}${d.an ? " a.n. " + d.an : ""}\nTotal yang dibayar: ${d.total}\n\n${d.pkg ? `Aplikasi ${d.app} akan terbuka. Tempel nomornya, kirim tepat ${d.total}, lalu kembali ke Tubi untuk unggah bukti.` : `Buka aplikasi ${d.nama} kamu, tempel nomornya, lalu kirim tepat ${d.total}.`}` });
+  if (lanjut && d.pkg) bukaAplikasi(d.pkg);
+}
+actions.qrisbesar = () => openOverlay(`<div class="sheet-head"><h3>QRIS Tubi</h3><button class="icon-btn" data-act="close" aria-label="Tutup">${svg("x")}</button></div>
+  <div class="qris-full"><img src="${esc(S.settings.payQris)}" alt="Kode QRIS Tubi"></div><a class="btn pri full" href="${esc(S.settings.payQris)}" download="QRIS-Tubi.jpg">${svg("download", 16)} Simpan QRIS</a>`);
 const payBody = id => {
   const o = S.orders.find(x => x.id === id);
   if (!o) return `<div class="empty">${S.user ? "Memuat pesanan…" : "Masuk untuk melihat pembayaran."}</div>`;
@@ -409,8 +427,8 @@ const payBody = id => {
     : o.paymentProof ? head("clock", "wait", "Bukti terkirim, menunggu dicek admin", "Biasanya hanya beberapa menit. Kamu akan dapat notifikasi saat pembayaran diterima.")
     : `<div class="pay-due"><div><small>Pesanan ${kode}</small><b class="pay-total">${rupiah(o.total)}</b></div><span class="chip st-menunggu">Menunggu pembayaran</span></div>`;
   return `<div class="card col pay-card">${status}
-    ${o.paymentProof && ps !== "issue" ? "" : `<div class="pay-via"><span>Bayar lewat <b>${esc(o.payment?.via || "Transfer")}</b></span>${st === "menunggu" ? `<button class="btn sm ghost" data-act="paychange" data-id="${o.id}">${svg("edit", 15)} Ganti metode</button>` : ""}</div>${howToPay(o, m)}`}
-    <form class="col proof-box" data-form="proof" data-id="${o.id}"><div class="lbl" style="margin:0">Bukti pembayaran</div>${o.paymentProof ? `<img class="proof-img" src="${esc(o.paymentProof)}" alt="Bukti pembayaran">` : ""}${dropzone("proof", "", o.paymentProof ? "Ganti foto bukti" : "Unggah foto bukti transfer")}<button class="btn pri" type="submit">${o.paymentProof ? "Kirim ulang bukti" : "Kirim bukti pembayaran"}</button></form>
+    ${o.paymentProof && ps !== "issue" ? "" : `<div class="pay-via"><span>Bayar lewat <b>${esc(m?.qris ? "QRIS" : m ? namaMetode(m, provOf(m)) : (o.payment?.via || "Transfer"))}</b></span>${st === "menunggu" ? `<button class="btn sm ghost" data-act="paychange" data-id="${o.id}">${svg("edit", 15)} Ganti metode</button>` : ""}</div>${howToPay(o, m)}`}
+    <form class="col proof-box" data-form="proof" data-id="${o.id}"><div class="lbl" style="margin:0">Bukti pembayaran</div>${o.paymentProof ? `<img class="proof-img" src="${esc(o.paymentProof)}" alt="Bukti pembayaran">` : ""}${dropzone("proof", "", o.paymentProof ? "Ganti foto bukti" : "Unggah foto bukti bayar")}<button class="btn pri" type="submit">${o.paymentProof ? "Kirim ulang bukti" : "Kirim bukti pembayaran"}</button></form>
     ${aksi}</div>`;
 };
 actions.payapp = async el => { const ok = await salin(el.dataset.no); toast(ok ? "Nomor tujuan disalin. Membuka aplikasi…" : "Nomor belum tersalin, salin manual ya."); setTimeout(() => bukaAplikasi(el.dataset.pkg), 450); };
@@ -422,7 +440,7 @@ actions.paychange = el => {
 actions.paypick = async el => {
   const x = payOptions().find(y => y.key === el.dataset.k), o = S.orders.find(y => y.id === el.dataset.id); if (!x || !o) return;
   await F.updateDoc(F.doc(db, "orders", o.id), { payment: { method: x.kind, status: "unpaid", via: x.name, viaKey: x.key }, updatedAt: F.serverTimestamp() });
-  closeOverlay(); toast(`Metode pembayaran diganti ke ${x.name}.`); if (x.kind === "cod") go("/orders");
+  closeOverlay(); if (x.kind === "cod") go("/orders");
 };
 export function pay() {
   const id = (location.hash.slice(1).split("/")[2] || "");
