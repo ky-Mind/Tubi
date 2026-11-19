@@ -77,4 +77,9 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <!-- Memasang pembaruan Tubi langsung dari dalam aplikasi -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Printer thermal Bluetooth (struk) -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 </manifest>

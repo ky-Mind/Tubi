@@ -18,6 +18,15 @@ export function ago(ts) {
   if (s < 86400) return Math.floor(s / 3600) + " jam lalu"; return Math.floor(s / 86400) + " hari lalu";
 }
 export const normPhone = v => { let n = String(v || "").replace(/\D/g, ""); if (n.startsWith("0")) n = "62" + n.slice(1); else if (n.startsWith("8")) n = "62" + n; return n; };
+// Nomor ditampilkan dalam format lokal yang mudah dibaca: 0895 0613 8191. Disimpan tetap 62… (normPhone),
+// jadi 08…, +62…, 62…, atau 8… yang diketik semuanya dianggap nomor yang sama.
+export const hpLokal = v => { const n = normPhone(v); if (!n) return ""; const l = n.startsWith("62") ? "0" + n.slice(2) : n; return l.replace(/(\d{4})(?=\d)/g, "$1 ").trim(); };
+// <input data-hp>: dirapikan otomatis saat diketik / ditempel
+document.addEventListener("input", e => {
+  const t = e.target; if (!t.matches?.("input[data-hp]")) return;
+  const akhir = t.selectionStart === t.value.length, rapi = t.value.trim() ? hpLokal(t.value) : "";
+  if (rapi !== t.value && (akhir || e.inputType === "insertFromPaste")) t.value = rapi;
+});
 export const initial = n => esc((String(n || "?").trim()[0] || "?").toUpperCase());
 export const debounce = (fn, ms = 200) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 
@@ -87,7 +96,7 @@ const P = {
   store: '<path d="M4 9l1-5h14l1 5"/><path d="M4 9a3 3 0 0 0 5 2 3 3 0 0 0 6 0 3 3 0 0 0 5-2v11H4z"/>',
   chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   cog: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/>',
-  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>', download: '<path d="M12 4v11M7 11l5 5 5-5M4 20h16"/>', bt: '<path d="M7 7l10 10-5 4V3l5 4L7 17"/>',
+  menu: '<path d="M4 6h16M4 12h16M4 18h16"/>', download: '<path d="M12 4v11M7 11l5 5 5-5M4 20h16"/>', bt: '<path d="M7 7l10 10-5 4V3l5 4L7 17"/>', chev: '<path d="M9 6l6 6-6 6"/>', printer: '<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/>',
   plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
   heart: '<path d="M12 21s-8-5.3-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.7-8 11-8 11z"/>',
