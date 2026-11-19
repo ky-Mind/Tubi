@@ -986,3 +986,4 @@ body.dark .toast{background:#fff4e6;color:#2b1a17}
 .m-baca.terkirim{opacity:.75}
 .m-baca.dibaca{color:#1d9bf0}
 .msg.me .bub p{margin-right:64px}
+textarea.terisi{box-shadow:0 0 0 3px #1d9bf055;transition:box-shadow .3s}

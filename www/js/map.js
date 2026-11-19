@@ -33,17 +33,41 @@ export async function search(q, near) {
   const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6&countrycodes=id&accept-language=id${vb}&q=${encodeURIComponent(q)}`);
   return (await r.json()).map(x => ({ name: rapiAlamat(x), lat: +x.lat, lng: +x.lon }));
 }
-export const gps = onProgress => new Promise((res, rej) => {
-  if (!navigator.geolocation) return rej(new Error("Browser ini tidak mendukung lokasi."));
-  let best = null, id = null, done = false, t;
-  const stop = () => { done = true; clearTimeout(t); try { navigator.geolocation.clearWatch(id); } catch {} };
-  const finish = () => { if (done) return; stop(); best ? res(best) : rej(new Error("Lokasi belum ditemukan. Coba lagi di tempat terbuka.")); };
-  t = setTimeout(finish, 20000);   // kumpulkan bacaan terbaik hingga 20 detik, berhenti dini bila sudah ±15 m
-  id = navigator.geolocation.watchPosition(p => {
-    const c = { lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), accuracy: p.coords.accuracy };
+// GPS: di APK memakai lokasi native Android (Fused Location, akurasi tinggi + izin "lokasi tepat");
+// di browser memakai navigator.geolocation. Bacaan terbaik dikumpulkan hingga 25 detik, berhenti dini bila ±12 m.
+const GEO = () => window.Capacitor?.isNativePlatform?.() ? window.Capacitor?.Plugins?.Geolocation : null;
+async function izinNative(g) {
+  let p = await g.checkPermissions().catch(() => ({}));
+  if (p.location !== "granted") p = await g.requestPermissions({ permissions: ["location", "coarseLocation"] }).catch(e => { throw new Error(/disabled|not enabled|services/i.test(e?.message || "") ? "Lokasi (GPS) HP masih mati. Nyalakan Lokasi di panel cepat HP, lalu coba lagi." : "Izin lokasi ditolak."); });
+  if (p.location !== "granted" && p.coarseLocation === "granted") throw new Error("Tubi baru diizinkan memakai lokasi PERKIRAAN, jadi titiknya bisa meleset jauh. Buka Pengaturan HP → Aplikasi → Tubi → Izin → Lokasi, lalu nyalakan \"Gunakan lokasi akurat\".");
+  if (p.location !== "granted") throw new Error("Izin lokasi ditolak. Buka Pengaturan HP → Aplikasi → Tubi → Izin → Lokasi → Izinkan.");
+}
+export const gps = onProgress => new Promise(async (res, rej) => {
+  let best = null, done = false, t, hentikan = () => {};
+  const ambil = p => {
+    const c = { lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), accuracy: Math.round(p.coords.accuracy || 9999) };
     if (!best || c.accuracy < best.accuracy) { best = c; onProgress?.(best); }
-    if (best.accuracy <= 15) finish();
-  }, e => { if (done) return; if (!best) { stop(); rej(new Error(e.code === 1 ? "Izin lokasi ditolak. Aktifkan lokasi untuk situs ini di pengaturan browser." : "Lokasi belum ditemukan. Coba lagi di tempat terbuka.")); } }, { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+    if (best.accuracy <= 12) finish();
+  };
+  const finish = () => { if (done) return; done = true; clearTimeout(t); hentikan(); best ? res(best) : rej(new Error("Lokasi belum ditemukan. Pastikan Lokasi HP menyala, lalu coba lagi di dekat jendela / tempat terbuka.")); };
+  const gagal = e => { if (done) return; if (!best) { done = true; clearTimeout(t); hentikan(); rej(e instanceof Error ? e : new Error(String(e))); } };
+  t = setTimeout(finish, 25000);
+  const g = GEO();
+  if (g) {
+    try {
+      await izinNative(g);
+      const id = await g.watchPosition({ enableHighAccuracy: true, timeout: 25000, maximumAge: 0 }, (p, e) => {
+        if (e) { gagal(new Error(/disabled|not enabled|services/i.test(e.message || "") ? "Lokasi (GPS) HP masih mati. Nyalakan Lokasi di panel cepat HP, lalu coba lagi." : "Lokasi belum ditemukan. Coba lagi di tempat terbuka.")); return; }
+        if (p) ambil(p);
+      });
+      hentikan = () => g.clearWatch({ id }).catch(() => {});
+      if (done) hentikan();
+    } catch (e) { gagal(e); }
+    return;
+  }
+  if (!navigator.geolocation) return gagal(new Error("Browser ini tidak mendukung lokasi."));
+  const id = navigator.geolocation.watchPosition(ambil, e => gagal(new Error(e.code === 1 ? "Izin lokasi ditolak. Aktifkan lokasi untuk situs ini di pengaturan browser." : "Lokasi belum ditemukan. Coba lagi di tempat terbuka.")), { enableHighAccuracy: true, maximumAge: 0, timeout: 25000 });
+  hentikan = () => { try { navigator.geolocation.clearWatch(id); } catch {} };
 });
 
 // Pemilih titik gaya aplikasi ojek: pin tetap di tengah, peta yang digeser. Lebih presisi daripada menyeret pin kecil.
@@ -93,7 +117,7 @@ export const pickerHtml = id => `<div class="locbox" id="${id}"><div class="loc-
 // ---- Pengendali widget (satu pemilih aktif dalam satu waktu) ----
 import { actions } from "./core.js";
 import { $ } from "./util.js";
-let cur = null, t = null, results = [];
+let cur = null, t = null, results = [], sumber = "";
 export async function mountLocation(id, start, onPick) {
   cur = null;
   try {
@@ -106,12 +130,14 @@ export async function mountLocation(id, start, onPick) {
           : low ? `GPS kurang akurat (±${Math.round(loc.accuracy)} m). Geser peta sampai pin tepat di rumahmu, atau nyalakan Wi‑Fi lalu tekan GPS lagi.`
           : `Titik GPS terpasang (±${Math.round(loc.accuracy || 0)} m). Geser peta bila kurang tepat.`;
       }
-      onPick(loc, null); clearTimeout(t); t = setTimeout(async () => { const a = await reverse(loc.lat, loc.lng); if (a) onPick(loc, a); }, 700);
+      const paksa = sumber === "gps" || sumber === "cari"; sumber = "";
+      onPick(loc, null); clearTimeout(t); t = setTimeout(async () => { const a = await reverse(loc.lat, loc.lng); if (a) onPick(loc, a, paksa); }, 700);
     });
     cur = { id, pk };
     if (start?.lat && st) { st.className = "sm loc-ok"; st.textContent = "Titik tersimpan. Geser peta bila kurang tepat."; }
     // Belum ada titik & izin lokasi sudah pernah diberikan: langsung cari posisi GPS tanpa perlu menekan tombol.
-    if (!start?.lat && navigator.permissions) navigator.permissions.query({ name: "geolocation" }).then(p => { if (p.state === "granted" && cur?.id === id && !pk.isPlaced()) actions.locgps().catch(() => {}); }).catch(() => {});
+    const sudahIzin = GEO() ? GEO().checkPermissions().then(p => p.location === "granted") : navigator.permissions ? navigator.permissions.query({ name: "geolocation" }).then(p => p.state === "granted") : Promise.resolve(false);
+    if (!start?.lat) sudahIzin.then(ok => { if (ok && cur?.id === id && !pk.isPlaced()) actions.locgps().catch(e => { if (st) { st.className = "sm loc-warn"; st.textContent = e.message; } }); }).catch(() => {});
   } catch (e) { const m = $(`#${id}-map`); if (m) m.innerHTML = `<div class="alert">${esc(e.message)}</div>`; }
 }
 actions.locgps = async () => {
@@ -119,8 +145,8 @@ actions.locgps = async () => {
   $(`#${me.id}-map`)?.classList.add("seeking");
   try {
     const g = await gps(b => { if (cur === me) { me.pk.set(b.lat, b.lng, b.accuracy, 18); if (st) st.textContent = `Memperbaiki akurasi… ±${Math.round(b.accuracy)} m`; } });
-    if (cur === me) me.pk.set(g.lat, g.lng, g.accuracy, 18);
-  } finally { $(`#${me.id}-map`)?.classList.remove("seeking"); }
+    if (cur === me) { sumber = "gps"; me.pk.set(g.lat, g.lng, g.accuracy, 18); }
+  } catch (e) { if (st) { st.className = "sm loc-warn"; st.textContent = e.message; } throw e; } finally { $(`#${me.id}-map`)?.classList.remove("seeking"); }
 };
 actions.locsearch = async () => {
   if (!cur) return; const q = $(`#${cur.id}-q`).value.trim(); if (q.length < 3) return toast("Ketik minimal 3 huruf.", "err");
@@ -128,4 +154,4 @@ actions.locsearch = async () => {
   try { results = await search(q, cur.pk.map.getBounds()); } catch { results = []; box.innerHTML = `<div class="alert">Pencarian gagal. Periksa koneksi.</div>`; return; }
   box.innerHTML = results.length ? results.map((r, i) => `<button type="button" class="loc-item" data-act="locpick" data-i="${i}"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z"/><circle cx="12" cy="9" r="2.5"/></svg> ${esc(r.name)}</button>`).join("") : `<div class="muted sm">Tidak ditemukan. Coba kata lain atau tandai langsung di peta.</div>`;
 };
-actions.locpick = el => { const r = results[+el.dataset.i]; if (!r || !cur) return; cur.pk.set(r.lat, r.lng, 0, 18, true); $(`#${cur.id}-res`).innerHTML = ""; };
+actions.locpick = el => { const r = results[+el.dataset.i]; if (!r || !cur) return; sumber = "cari"; cur.pk.set(r.lat, r.lng, 0, 18, true); $(`#${cur.id}-res`).innerHTML = ""; };

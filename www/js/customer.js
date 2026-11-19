@@ -215,7 +215,7 @@ export function checkout() {
 }
 export function afterCheckout() {
   if (!S.cart.length) return; V.loc = V.loc || S.profile.location || null;
-  mountLocation("co", V.loc, (loc, addr) => { V.loc = loc; const a = $("#coaddr"); if (addr && a && (!a.value.trim() || a.dataset.auto === "1")) { a.value = addr; a.dataset.auto = "1"; } });
+  mountLocation("co", V.loc, (loc, addr, paksa) => { V.loc = loc; const a = $("#coaddr"); if (addr && a && (paksa || !a.value.trim() || a.dataset.auto === "1")) { a.value = addr; a.dataset.auto = "1"; a.dispatchEvent(new Event("input", { bubbles: true })); a.classList.add("terisi"); setTimeout(() => a.classList.remove("terisi"), 1200); } });
 }
 actions.addrtype = t => { t.dataset.auto = "0"; };
 actions.paychg = t => { V.pay = t.value; $("#paynote")?.classList.toggle("hidden", payOptions().find(o => o.key === V.pay)?.kind !== "transfer"); };
@@ -357,7 +357,7 @@ actions.proloc = () => {
   PL = { loc: S.profile.location || null, addr: S.profile.address || "" };
   openOverlay(`<div class="sheet-head"><h3>Titik lokasi default</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div>${pickerHtml("pf")}
     <label style="margin-top:12px">Alamat<textarea id="pfaddr" data-input="addrtype" placeholder="Alamat lengkap">${esc(PL.addr)}</textarea></label><button class="btn pri full" style="margin-top:12px" data-act="prosave">Simpan lokasi</button>`, "wide");
-  mountLocation("pf", PL.loc, (loc, addr) => { PL.loc = loc; const a = $("#pfaddr"); if (addr && a && (!a.value.trim() || a.dataset.auto === "1")) { a.value = addr; a.dataset.auto = "1"; } });
+  mountLocation("pf", PL.loc, (loc, addr, paksa) => { PL.loc = loc; const a = $("#pfaddr"); if (addr && a && (paksa || !a.value.trim() || a.dataset.auto === "1")) { a.value = addr; a.dataset.auto = "1"; a.dispatchEvent(new Event("input", { bubbles: true })); a.classList.add("terisi"); setTimeout(() => a.classList.remove("terisi"), 1200); } });
 };
 actions.prosave = async () => {
   if (!PL.loc) throw new Error("Tandai titik di peta dulu."); const addr = ($("#pfaddr").value || "").trim();
