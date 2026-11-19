@@ -38,11 +38,11 @@ export function shell() {
     ${live("ctop", ["route"], topLeft)}
     <div class="c-actions">
       <a class="icon-btn only-d" href="#/orders" aria-label="Pesanan saya" data-l="Pesanan">${svg("box")}</a>
-      <a class="icon-btn" href="#/chat" aria-label="Chat" data-l="Chat">${svg("chat")}${live("cchat", ["chatMeta"], () => { const n = +S.chatMeta?.unreadUser || 0; return `<span class="badge ${n ? "" : "z"}">${n}</span>`; })}</a>
+      <a class="icon-btn c-chat" href="#/chat" aria-label="Chat" data-l="Chat">${svg("chat")}${live("cchat", ["chatMeta"], () => { const n = +S.chatMeta?.unreadUser || 0; return `<span class="badge ${n ? "" : "z"}">${n}</span>`; })}</a>
       ${bell("c")}
       <button class="icon-btn" data-act="cart" aria-label="Keranjang" data-l="Keranjang">${svg("bag")}${live("cbadge", ["cart"], () => `<span class="badge ${cartCount() ? "" : "z"}">${cartCount()}</span>`)}</button>
       <button class="icon-btn only-d" data-act="settings" aria-label="Pengaturan" data-l="Atur">${svg("cog")}</button>
-      ${live("cacct", ["auth", "profile"], () => S.user ? `${S.isAdmin ? `<a class="btn sm only-d" href="#/admin">${svg("grid", 16)} Admin</a>` : ""}<a class="av only-d" href="#/account" title="Akun">${S.profile.photoURL ? `<img src="${esc(S.profile.photoURL)}" alt="">` : initial(S.profile.displayName)}</a>` : `<button class="btn sm" data-act="login">Masuk</button>`)}
+      ${live("cacct", ["auth", "profile"], () => S.user ? `${S.isAdmin ? `<a class="btn sm only-d" href="#/admin">${svg("grid", 16)} Admin</a>` : ""}<a class="av only-d" href="#/account" title="Akun">${S.profile.photoURL ? `<img src="${esc(S.profile.photoURL)}" alt="">` : initial(S.profile.displayName)}</a>` : `<button class="btn sm c-login" data-act="login">Masuk</button>`)}
     </div>
   </div></header>
   <main id="view" class="c-main"></main>
