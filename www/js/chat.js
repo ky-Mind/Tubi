@@ -137,3 +137,41 @@ actions.msgdel = async el => {
   } else await F.updateDoc(ref, { hiddenFor: F.arrayUnion(myUid()) });
   toast("Pesan dihapus.");
 };
+
+// ---- Geser pesan ke kanan untuk membalas (seperti WhatsApp) ----
+{
+  const AMBANG = 64, MAKS = 90;
+  let g = null, abaikanKlik = false;
+  document.addEventListener("pointerdown", e => {
+    const bub = e.target.closest?.(".msgs .bub"); if (!bub || e.button > 0) return;
+    g = { bub, id: bub.dataset.id, x: e.clientX, y: e.clientY, dx: 0, aktif: false, ic: null };
+  }, { passive: true });
+  document.addEventListener("pointermove", e => {
+    if (!g) return;
+    const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    if (!g.aktif) {
+      if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { g = null; return; }   // menggulir, bukan menggeser
+      if (dx < 10) return;
+      g.aktif = true; g.bub.classList.add("geser");
+      g.ic = document.createElement("span"); g.ic.className = "geser-ic"; g.ic.innerHTML = svg("reply", 18);
+      g.bub.parentNode.insertBefore(g.ic, g.bub);
+      g.ic.style.left = Math.max(2, g.bub.offsetLeft - 6) + "px";   // ikon muncul tepat di kiri gelembung
+    }
+    g.dx = Math.max(0, Math.min(MAKS, dx));
+    g.bub.style.transform = `translateX(${g.dx}px)`;
+    g.ic.style.opacity = Math.min(1, g.dx / AMBANG); g.ic.style.transform = `scale(${0.6 + 0.4 * Math.min(1, g.dx / AMBANG)})`;
+    if (g.dx >= AMBANG && !g.getar) { g.getar = true; navigator.vibrate?.(15); }
+  }, { passive: true });
+  const lepas = () => {
+    if (!g) return;
+    const { bub, ic, aktif, dx, id } = g; g = null;
+    if (!aktif) return;
+    abaikanKlik = true; setTimeout(() => abaikanKlik = false, 350);
+    bub.classList.remove("geser"); bub.style.transform = ""; ic?.remove();
+    if (dx >= AMBANG) actions.msgreply({ dataset: { id } });
+  };
+  document.addEventListener("pointerup", lepas);
+  document.addEventListener("pointercancel", lepas);
+  // setelah menggeser, jangan sampai menu pesan ikut terbuka
+  document.addEventListener("click", e => { if (abaikanKlik && e.target.closest?.(".msgs .bub")) { e.stopPropagation(); e.preventDefault(); } }, true);
+}
