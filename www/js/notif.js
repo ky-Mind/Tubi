@@ -10,6 +10,8 @@ const kunci = n => `tubi-${n}:${S.user?.uid || "-"}`;
 const muat = (n, d) => { try { return JSON.parse(localStorage.getItem(kunci(n))) ?? d; } catch { return d; } };
 const simpan = (n, v) => { try { localStorage.setItem(kunci(n), JSON.stringify(v)); } catch {} };
 export const N = { list: [] };
+// Kejadian yang dibuat pengguna sendiri (mis. membatalkan pesanan) tidak perlu dikabarkan lagi lewat notifikasi
+export const abaikanNotif = new Set();
 export const unread = () => N.list.filter(x => !x.read).length;
 
 // ---------- Suara ----------
@@ -78,7 +80,7 @@ function tambah(n, diam) {
   N.list.unshift(item); N.list = N.list.slice(0, MAX); simpan("notif", N.list); emit("notif");
   if (diam) return;
   // Kartu pop-up di dalam aplikasi sudah dihapus: kabar muncul sebagai notifikasi HP (dan di lonceng).
-  sysShow(item).then(ok => { if (!(ok && native())) playSound(); if (!ok && !document.hidden) toast(item.title + (item.body ? " · " + item.body : "")); });
+  sysShow(item).then(ok => { if (!(ok && native())) playSound(); });   // tanpa toast di dalam aplikasi: kabar cukup lewat notifikasi HP + lonceng
 }
 // ---------- Deteksi perubahan ----------
 let siap = false;
@@ -100,7 +102,7 @@ export function cekPesanan() {
       if (a && b.b && a.b !== b.b && b.p !== "paid") tambah({ id: `proof-${o.id}-${b.b}`, icon: "coin", tone: "teal", kind: "proof", order: o.id, title: `Bukti pembayaran masuk ${k}`, body: `${o.customerName || "Pelanggan"} · ${o.payment?.via || "Transfer"} · ${rupiah(o.total)}`, href: "/admin/orders" });
       if (a && a.s !== "dibatalkan" && b.s === "dibatalkan") tambah({ id: "cancel-" + o.id, icon: "x", tone: "gray", title: `Pesanan dibatalkan ${k}`, body: o.customerName || "", href: "/admin/orders" }, true);
     } else {
-      if (a && a.s !== b.s && CLIENT_TXT[b.s]) { const [ic, t, d] = CLIENT_TXT[b.s]; tambah({ id: `st-${o.id}-${b.s}`, icon: ic, tone: b.s === "dibatalkan" ? "gray" : "red", title: `${t} ${k}`, body: d, href: "/orders" }); }
+      if (a && a.s !== b.s && CLIENT_TXT[b.s] && !abaikanNotif.has(o.id + ":" + b.s)) { const [ic, t, d] = CLIENT_TXT[b.s]; tambah({ id: `st-${o.id}-${b.s}`, icon: ic, tone: b.s === "dibatalkan" ? "gray" : "red", title: `${t} ${k}`, body: d, href: "/orders" }); }
       if (a && a.p !== "paid" && b.p === "paid") tambah({ id: "paid-" + o.id, icon: "check", tone: "teal", title: `Pembayaran diterima ${k}`, body: `Pembayaran ${rupiah(o.total)} sudah dikonfirmasi. Terima kasih!`, href: "/pay/" + o.id });
       if (a && a.p !== "issue" && b.p === "issue") tambah({ id: `issue-${o.id}-${Date.now()}`, icon: "alert", tone: "yellow", title: `Ada kendala pembayaran ${k}`, body: o.payment?.note || "Silakan cek halaman pembayaran.", href: "/pay/" + o.id });
     }

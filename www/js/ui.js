@@ -29,7 +29,7 @@ export const setTheme = t => { ls.set("theme", t); applyTheme(); };
 // ---- Pemilih foto dengan pratinjau & drag-drop ----
 export const dropzone = (name, current = "", label = "Pilih foto atau seret ke sini") => `<label class="drop" data-drop><input type="file" name="${name}" accept="image/*" data-change="filePrev" hidden>
   <span class="drop-pv">${current ? `<img src="${esc(current)}" alt="">` : `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg>`}</span>
-  <span class="drop-tx"><b>${label}</b><small class="muted">JPG/PNG · otomatis dikompres</small></span></label>`;
+  <span class="drop-tx"><b>${label}</b></span></label>`;
 actions.filePrev = inp => {
   const f = inp.files?.[0], pv = inp.closest("label").querySelector(".drop-pv"); if (!f) return;
   pv.innerHTML = ""; const im = new Image(); im.src = URL.createObjectURL(f); im.onload = () => URL.revokeObjectURL(im.src); pv.appendChild(im);
