@@ -293,10 +293,14 @@ forms.proof = async (f, fd) => {
 };
 
 // ===== Chat =====
+// Daftar nomor WhatsApp admin (utama + admin lain dari Pengaturan → Toko & biaya)
+const waList = () => [...(S.settings.whatsapp ? [{ name: S.settings.whatsappName || "Admin Tubi", number: S.settings.whatsapp }] : []), ...(S.settings.waContacts || [])].filter(c => c.number);
+actions.wapilih = () => openOverlay(`<div class="sheet-head"><h3>Chat lewat WhatsApp</h3><button class="icon-btn" data-act="close" aria-label="Tutup">${svg("x")}</button></div>
+  <p class="muted sm" style="margin:-4px 0 10px">Pilih admin yang mau kamu hubungi.</p><div class="tema-list">${waList().map((c, i) => `<a target="_blank" rel="noopener" href="https://wa.me/${esc(c.number)}" class="wa-pil"><i>${svg("wa", 20)}</i><span><b>${esc(c.name)}</b><small>${i ? "Admin" : "Admin utama"} · +${esc(c.number)}</small></span>${svg("send", 16)}</a>`).join("")}</div>`);
 export function chat() {
   if (!S.user) return loginCard("Masuk untuk chat dengan admin", "Balasan admin muncul langsung di sini.");
   const wa = S.settings.whatsapp;
-  return `<div class="chat"><div class="chat-head"><img class="av" src="./tubi-icon.png" alt=""><div style="min-width:0"><b>${esc(S.settings.whatsappName || "Admin Tubi")}</b><div class="muted xs">${S.settings.open === false ? "Toko sedang tutup" : esc(S.settings.hours ? "Buka " + S.settings.hours : "Biasanya membalas dalam beberapa menit")}</div></div><span class="sp"></span>${wa ? `<a class="icon-btn" target="_blank" rel="noopener" href="https://wa.me/${esc(wa)}" aria-label="Chat lewat WhatsApp">${svg("wa", 18)}</a>` : ""}</div>
+  return `<div class="chat"><div class="chat-head"><img class="av" src="./tubi-icon.png" alt=""><div style="min-width:0"><b>${esc(S.settings.whatsappName || "Admin Tubi")}</b><div class="muted xs">${S.settings.open === false ? "Toko sedang tutup" : esc(S.settings.hours ? "Buka " + S.settings.hours : "Biasanya membalas dalam beberapa menit")}</div></div><span class="sp"></span>${waList().length > 1 ? `<button type="button" class="icon-btn" data-act="wapilih" aria-label="Pilih admin WhatsApp">${svg("wa", 18)}</button>` : wa ? `<a class="icon-btn" target="_blank" rel="noopener" href="https://wa.me/${esc(wa)}" aria-label="Chat lewat WhatsApp">${svg("wa", 18)}</a>` : ""}</div>
   ${live("msgs", ["msgs", "errors"], () => `<div class="msgs">${S.errors.msgs ? `<div class="alert">Chat ditolak Firestore. Publish <code>firestore.rules</code> terbaru.</div>` : msgsHtml("user")}</div>`, () => { toEnd(); if (S.user && +S.chatMeta?.unreadUser > 0 && (location.hash.slice(1) === "/chat")) markRead(S.user.uid, "user"); })}
   ${chatForm()}</div>`;
 }
@@ -308,21 +312,24 @@ const themeBox = () => { const t = themePref(); return `<div class="seg">${[["au
 const prefsCard = () => `<div class="card col"><h3>Pengaturan tampilan</h3><div><div class="lbl">Tema</div>${themeBox()}</div>
   <label class="chk"><input type="checkbox" data-change="sound" ${ls.get("sound", true) !== false ? "checked" : ""}> Suara notifikasi</label>
   <button class="btn sm" data-act="clearlocal">Hapus data lokal (keranjang & favorit)</button>
+  <button class="btn sm ghost only-kb only-d" data-act="pintasan">${svg("keyboard", 15)} Pintasan keyboard <kbd>?</kbd></button>
   <div class="row" style="border-top:1px solid var(--line);padding-top:12px"><span class="sp muted sm">Versi aplikasi <b>${APP_VERSION}</b></span><button class="btn sm" data-act="cekupdate">${svg("download", 15)} Cek pembaruan</button></div></div>`;
 actions.cekupdate = async () => { const u = await cekUpdate(true); if (!u) toast(window.Capacitor?.isNativePlatform?.() ? `Tubi ${APP_VERSION} sudah versi terbaru.` : "Versi web selalu yang terbaru."); };
 export function account() {
   if (!S.user) return `<div class="two eq">${loginCard("Masuk ke Tubi", "Simpan alamat, pantau pesanan, chat admin, dan beri ulasan.")}${prefsCard()}</div>`;
   const p = S.profile;
   const cnt = k => S.orders.filter(o => statusOf(o.status) === k).length;
-  return `<div class="two eq"><div class="col"><div class="card col prof"><div class="row"><span class="av">${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="">` : initial(p.displayName)}</span><div style="min-width:0"><b style="font:700 19px var(--fd)">${esc(p.displayName)}</b><div class="muted sm">${esc(S.user.email || "")}</div>${S.isAdmin ? `<span class="chip">${isMain(S.user) ? "Admin utama" : "Admin"}</span>` : ""}</div><span class="sp"></span><button class="icon-btn" data-act="settings" aria-label="Pengaturan" style="background:#ffffff22;border-color:transparent;color:#fff">${svg("cog")}</button></div>
+  return `<div class="two eq"><div class="col"><div class="card col prof"><div class="row"><span class="av">${p.photoURL ? `<img src="${esc(p.photoURL)}" alt="">` : initial(p.displayName)}</span><div style="min-width:0"><b style="font:700 19px var(--fd)">${esc(p.displayName)}</b><div class="muted sm">${esc(S.user.email || "")}</div>${S.isAdmin ? `<span class="chip">${isMain(S.user) ? "Admin utama" : "Admin"}</span>` : ""}</div><span class="sp"></span><button type="button" class="icon-btn prof-tema" data-act="temapick" aria-label="Ganti tema">${svg(document.body.classList.contains("dark") ? "moon" : "sun")}</button></div>
     ${S.isAdmin ? `<a class="btn yel" href="#/admin">${svg("grid", 18)} Buka dashboard admin</a>` : ""}</div>
     <div class="card"><div class="row" style="margin-bottom:10px"><b>Pesanan saya</b><span class="sp"></span><a class="xs muted" href="#/orders">Lihat riwayat ›</a></div>
     <div class="ostat">${[["menunggu", "receipt", "Menunggu"], ["diproses", "chef", "Diproses"], ["siap", "bike", "Siap"], ["selesai", "star", "Selesai"]].map(([k, e, l]) => `<a href="#/orders" data-act="ostgo" data-k="${k}"><i>${svg(e, 20)}</i>${l}${cnt(k) && k !== "selesai" ? `<span class="badge">${cnt(k)}</span>` : ""}</a>`).join("")}</div></div>
     <div class="card"><form class="col" data-form="profile"><h3>Data pengantaran</h3><label>Nama penerima<input name="name" value="${esc(p.recipientName || p.displayName || "")}"></label><label>No. WhatsApp<input name="phone" inputmode="tel" value="${esc(p.phone || "")}"></label><label>Alamat<textarea name="address" placeholder="Alamat lengkap">${esc(p.address || "")}</textarea></label>
     <div class="row wrap"><button type="button" class="btn" data-act="proloc">${svg("pin", 18)} ${p.location?.lat ? "Ubah titik lokasi" : "Pilih titik lokasi"}</button>${p.location?.lat ? `<span class="chip st-selesai">✓ Titik tersimpan</span>` : ""}</div><button class="btn pri" type="submit">Simpan</button></form></div>
-    <div class="card col danger-zone"><h3>Zona akun</h3><button class="btn" data-act="logout">${svg("logout", 18)} Keluar</button><button class="btn danger" data-act="delacct">${svg("trash", 18)} Hapus akun saya</button><small class="muted">Menghapus akun akan menghapus profil, chat, dan ulasanmu. Riwayat pesanan tetap tersimpan untuk pembukuan toko.</small></div></div>
+</div>
   <div class="col">${prefsCard()}
-    <form class="card col" data-form="bug"><h3>Laporkan masalah</h3><p class="muted sm" style="margin:-6px 0 0">Ada yang tidak berjalan? Ceritakan, tim Tubi akan memeriksanya.</p><label>Jenis<select name="type"><option>Pesanan</option><option>Pembayaran</option><option>Login</option><option>Produk</option><option>Lokasi / peta</option><option>Lainnya</option></select></label><label>Deskripsi<textarea name="description" required placeholder="Apa yang terjadi?"></textarea></label><label>Tangkapan layar <span class="hint">(opsional)</span>${dropzone("shot", "", "Unggah tangkapan layar")}</label><button class="btn pri" type="submit">${svg("send", 17)} Kirim laporan</button></form></div></div>`;
+    <form class="card col" data-form="bug"><h3>Laporkan masalah</h3><p class="muted sm" style="margin:-6px 0 0">Ada yang tidak berjalan? Ceritakan, tim Tubi akan memeriksanya.</p><label>Jenis<select name="type"><option>Pesanan</option><option>Pembayaran</option><option>Login</option><option>Produk</option><option>Lokasi / peta</option><option>Lainnya</option></select></label><label>Deskripsi<textarea name="description" required placeholder="Apa yang terjadi?"></textarea></label><label>Tangkapan layar <span class="hint">(opsional)</span>${dropzone("shot", "", "Unggah tangkapan layar")}</label><button class="btn pri" type="submit">${svg("send", 17)} Kirim laporan</button></form></div></div>
+  <div class="akun-bawah"><button type="button" class="akun-keluar" data-act="logout">${svg("logout", 18)} Keluar dari akun</button>
+    <button type="button" class="akun-hapus" data-act="delacct">Hapus akun saya</button></div>`;
 }
 forms.profile = async (f, fd) => {
   const d = { recipientName: String(fd.get("name")).trim(), phone: String(fd.get("phone")).trim(), address: String(fd.get("address")).trim() };
@@ -348,6 +355,11 @@ actions.prosave = async () => {
 actions.settings = () => openOverlay(`<div class="sheet-head"><h3>Pengaturan</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div><div class="col"><div><div class="lbl">Tema tampilan</div>${themeBox()}</div>
   <label class="chk"><input type="checkbox" data-change="sound" ${ls.get("sound", true) !== false ? "checked" : ""}> Suara notifikasi</label><button class="btn" data-act="clearlocal">Hapus data lokal (keranjang & favorit)</button>
   ${S.user ? "" : `<button class="btn pri" data-act="login">Masuk dengan Google</button>`}</div>`);
+// Tombol tema di kartu profil: khusus memilih tema, sekali ketuk langsung berlaku lalu tertutup
+const TEMA = [["auto", "sun", "Otomatis", "Ikut pengaturan HP"], ["light", "sun", "Terang", "Latar krem cerah"], ["dark", "moon", "Gelap", "Nyaman di malam hari"]];
+actions.temapick = () => { const t = themePref(); openOverlay(`<div class="sheet-head"><h3>Tema tampilan</h3><button class="icon-btn" data-act="close" aria-label="Tutup">${svg("x")}</button></div>
+  <div class="tema-list">${TEMA.map(([k, ic, l, d]) => `<button type="button" class="${t === k ? "on" : ""}" data-act="temaset" data-t="${k}"><i>${svg(ic, 20)}</i><span><b>${l}</b><small>${d}</small></span>${t === k ? svg("check", 18) : ""}</button>`).join("")}</div>`); };
+actions.temaset = el => { setTheme(el.dataset.t); closeOverlay(); const b = $(".prof-tema"); if (b) b.innerHTML = svg(document.body.classList.contains("dark") ? "moon" : "sun"); toast("Tema: " + el.querySelector("b").textContent); };
 actions.theme = el => { setTheme(el.dataset.t); $$(".seg").forEach(s => $$("button", s).forEach(b => b.classList.toggle("on", b.dataset.t === el.dataset.t))); };
 actions.themetoggle = () => setTheme(document.body.classList.contains("dark") ? "light" : "dark");
 actions.sound = t => { ls.set("sound", t.checked); toast(t.checked ? "Suara aktif" : "Suara dimatikan"); };

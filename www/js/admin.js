@@ -24,14 +24,13 @@ const LINKS = [["/admin", "grid", "Dashboard"], ["/admin/orders", "bag", "Pesana
 const badgeFor = h => h === "/admin/orders" ? pending() : h === "/admin/chat" ? unreadChats() : 0;
 export function shell() {
   const on = h => path() === h || (h === "/admin/settings" && path().startsWith("/admin/settings"));
-  const side = () => LINKS.map(([h, ic, lb]) => `<a href="#${h}" class="${on(h) ? "on" : ""}">${svg(ic, 20)}${lb}${badgeFor(h) ? `<span class="badge">${badgeFor(h)}</span>` : ""}</a>`).join("");
+  const side = () => LINKS.map(([h, ic, lb]) => `<a href="#${h}" class="${on(h) ? "on" : ""}" title="${lb}">${svg(ic, 20)}<span class="sl">${lb}</span>${badgeFor(h) ? `<span class="badge">${badgeFor(h)}</span>` : ""}</a>`).join("");
   const nav = () => [["/admin", "grid", "Dashboard"], ["/admin/orders", "bag", "Pesanan"], ["/admin/chat", "chat", "Chat"], ["/admin/products", "store", "Produk"], ["/admin/more", "more", "Lainnya"]].map(([h, ic, lb]) => `<a href="#${h}" class="${path() === h || (h === "/admin/more" && (path() === "/admin/reports" || path().startsWith("/admin/settings"))) ? "on" : ""}">${svg(ic, 22)}${lb}${badgeFor(h) ? `<span class="badge">${badgeFor(h)}</span>` : ""}</a>`).join("");
-  return `<aside class="a-side"><div class="logo"><img src="./tubi-icon.png" alt="">tubi <small>ADMIN</small></div>
+  return `<aside class="a-side"><div class="logo"><button type="button" class="side-tg" data-act="sidebar" title="Buka / tutup sidebar (Ctrl+B)" aria-label="Buka / tutup sidebar"><img src="./tubi-icon.png" alt=""><span class="side-ic">${svg("sidebar", 22)}</span></button><span class="logo-tx">tubi <small>ADMIN</small></span></div>
     ${live("aside", ["route", "orders", "chats"], side)}<span class="gap"></span>
-    <a href="#/">${svg("store", 20)}Lihat toko</a><button class="lnk" data-act="themetoggle">${svg("moon", 20)}Mode gelap/terang</button><button class="lnk" data-act="logout">${svg("logout", 20)}Keluar</button></aside>
-  <header class="a-top"><div class="in"><button class="icon-btn only-d" data-act="sidebar" title="Sembunyikan / tampilkan sidebar (Ctrl+B)" aria-label="Sidebar">${svg("menu")}</button>
-    ${live("atitle", ["route"], () => `<h2>${TITLES[path()] || "Admin"}</h2>`)}<span class="sp"></span>
-    ${bell("a")}<button class="btn sm pal-btn" data-act="palette" title="Palet perintah (Ctrl+K)">${svg("search", 16)}<span class="only-d">Cari & perintah</span><kbd class="only-d">Ctrl K</kbd></button>
+    <button class="lnk" data-act="pintasan" title="Pintasan keyboard (?)">${svg("keyboard", 20)}<span class="sl">Pintasan keyboard</span></button><a href="#/" title="Lihat toko">${svg("store", 20)}<span class="sl">Lihat toko</span></a><button class="lnk" data-act="themetoggle" title="Mode gelap/terang">${svg("moon", 20)}<span class="sl">Mode gelap/terang</span></button><button class="lnk" data-act="logout" title="Keluar">${svg("logout", 20)}<span class="sl">Keluar</span></button></aside>
+  <header class="a-top"><div class="in">    ${live("atitle", ["route"], () => `<h2>${TITLES[path()] || "Admin"}</h2>`)}
+    <button class="btn sm pal-btn" data-act="palette" title="Cari & perintah (${/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl"}+K)">${svg("search", 17)}<span class="only-d pal-tx">Cari pesanan, produk, atau perintah…</span><span class="only-d pal-k"><kbd>${/Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl"}</kbd><kbd>K</kbd></span></button><span class="sp"></span>${bell("a")}
     ${live("achip", ["wa", "errors"], () => `<a class="chip" href="#/admin/settings" style="padding:7px 13px"><span class="dot ${waState()}"></span><span class="only-d">WhatsApp:&nbsp;</span>${WA_LABEL[waState()]}</a>`)}
     ${live("aav", ["profile", "auth"], () => `<span class="av" title="${esc(S.profile.displayName)} · ${isMain(S.user) ? "Admin utama" : "Admin"}">${S.profile.photoURL ? `<img src="${esc(S.profile.photoURL)}" alt="">` : initial(S.profile.displayName)}</span>`)}</div></header>
   ${live("aerr", ["errors"], errBanner)}
@@ -347,6 +346,7 @@ export function settings() {
   const storeForm = () => `<form class="card col" data-form="store"><h3>Toko & biaya</h3>
     <label class="chk"><input type="checkbox" name="open" ${s.open === false ? "" : "checked"}> Toko buka (pelanggan bisa memesan)</label>
     <div class="grid2"><label>Nomor WhatsApp admin utama<input name="number" required value="${esc(s.whatsapp || "")}" placeholder="08xxxxxxxxxx"></label><label>Nama kontak<input name="name" value="${esc(s.whatsappName || "Admin Tubi")}"></label></div>
+    <label>Nomor WhatsApp admin lain <span class="hint">(opsional, satu per baris: Nama - 08xxxxxxxxxx). Pelanggan bisa memilih mau chat ke admin yang mana.</span><textarea name="walain" rows="3" placeholder="Admin Sore - 0812xxxxxxx">${esc((s.waContacts || []).map(c => `${c.name} - ${c.number}`).join("\n"))}</textarea></label>
     <label>Jam operasional<input name="hours" value="${esc(s.hours || "")}" placeholder="09.00–21.00"></label>
     <div class="grid2"><label>Ongkir (Rp)<input name="fee" type="number" min="0" value="${+s.deliveryFee || 0}"></label><label>Gratis ongkir min. belanja<input name="freeMin" type="number" min="0" value="${+s.freeShippingMin || 0}"></label></div>
     <div class="grid3"><label>Pajak (%)<input name="tax" type="number" min="0" max="100" value="${+s.taxPct || 0}"></label><label>Kode voucher<input name="vcode" value="${esc(s.voucherCode || "")}" placeholder="HEMAT10"></label><label>Diskon (%)<input name="vpct" type="number" min="0" max="100" value="${+s.voucherPct || 0}"></label></div>
@@ -407,7 +407,12 @@ forms.qris = async (f, fd) => { const file = fd.get("qris"), d = {}; if (fd.get(
 forms.store = async (f, fd) => {
   const n = normPhone(fd.get("number")); if (n.length < 10) throw new Error("Nomor WhatsApp belum valid.");
   const num = k => Math.max(0, +fd.get(k) || 0);
-  await setSettings({ open: !!fd.get("open"), whatsapp: n, whatsappName: String(fd.get("name") || "Admin Tubi").trim(), hours: String(fd.get("hours") || "").trim(), deliveryFee: num("fee"), freeShippingMin: num("freeMin"), taxPct: Math.min(100, num("tax")), voucherCode: String(fd.get("vcode") || "").trim().toUpperCase(), voucherPct: Math.min(100, num("vpct")), voucherMax: num("vmax") });
+  const waContacts = String(fd.get("walain") || "").split("\n").map(x => x.trim()).filter(Boolean).map((x, i) => {
+    const m = x.match(/^(.*?)[\s:–-]+([+\d][\d\s.-]{8,})$/), nomor = normPhone(m ? m[2] : x);
+    if (nomor.length < 10) throw new Error(`Nomor admin lain baris ${i + 1} belum valid: "${x}"`);
+    return { name: (m ? m[1].trim() : "") || `Admin ${i + 2}`, number: nomor };
+  }).slice(0, 10);
+  await setSettings({ waContacts, open: !!fd.get("open"), whatsapp: n, whatsappName: String(fd.get("name") || "Admin Tubi").trim(), hours: String(fd.get("hours") || "").trim(), deliveryFee: num("fee"), freeShippingMin: num("freeMin"), taxPct: Math.min(100, num("tax")), voucherCode: String(fd.get("vcode") || "").trim().toUpperCase(), voucherPct: Math.min(100, num("vpct")), voucherMax: num("vmax") });
   toast("Pengaturan disimpan — langsung berlaku untuk semua pelanggan & bot WhatsApp.");
 };
 forms.look = async (f, fd) => {
