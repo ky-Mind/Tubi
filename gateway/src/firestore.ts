@@ -127,15 +127,18 @@ export class Firestore {
   }
 
   /** Kirim satu notifikasi push (FCM HTTP v1). Mengembalikan "ok", "mati" (token tidak berlaku lagi), atau "gagal". */
-  async push(token, { title, body, data = {}, tag }) {
+  async push(token, { title, body, data = {}, tag }, dataSaja = false) {
+    const isi = Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v ?? "")]));
+    // APK baru (1.3.4+): pesan DATA-ONLY berprioritas tinggi → layanan TubiPesan di HP yang membangun notifikasinya,
+    // jadi tetap muncul walau aplikasi mati (pola pucupucu). APK lama: pesan "notification" biasa.
+    const message = dataSaja
+      ? { token, data: { ...isi, judul: title, isi: body, tag: tag || "" }, android: { priority: "HIGH", ttl: "86400s" } }
+      : { token, notification: { title, body }, data: isi,
+          android: { priority: "HIGH", ttl: "86400s", notification: { channel_id: "tubi-pesanan", icon: "ic_stat_tubi", color: "#C8232C", sound: "tubi", tag: tag || undefined, default_vibrate_timings: true } } };
     const r = await fetch(`https://fcm.googleapis.com/v1/projects/${this.proyek}/messages:send`, {
       method: "POST",
       headers: { Authorization: `Bearer ${await this.#akses()}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ message: {
-        token, notification: { title, body },
-        data: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v ?? "")])),
-        android: { priority: "HIGH", notification: { channel_id: "tubi-pesanan", icon: "ic_stat_tubi", color: "#C8232C", sound: "tubi", tag: tag || undefined, default_vibrate_timings: true } },
-      } }),
+      body: JSON.stringify({ message }),
     });
     if (r.ok) return "ok";
     const j = await r.json().catch(() => ({}));
