@@ -44,10 +44,10 @@ async function siapkanNative() {
     await ln.registerActionTypes({ types: [
       { id: "pesanan", actions: [balas, { id: "wa", title: "WhatsApp" }, { id: "lihat", title: "Lihat" }] },
       { id: "bukti", actions: [{ id: "terima", title: "Terima pembayaran" }, { id: "lihat", title: "Lihat bukti" }] },
-      { id: "chat", actions: [balas, { id: "wa", title: "WhatsApp" }] },
+      { id: "chat", actions: [balas, { id: "wa", title: "WhatsApp" }, { id: "dibaca", title: "Tandai dibaca" }] },
       { id: "pesanan-nowa", actions: [balas, { id: "lihat", title: "Lihat" }] },
-      { id: "chat-nowa", actions: [balas] },
-      { id: "balasan", actions: [balas] }
+      { id: "chat-nowa", actions: [balas, { id: "dibaca", title: "Tandai dibaca" }] },
+      { id: "balasan", actions: [balas, { id: "dibaca", title: "Tandai dibaca" }] }
     ] });
     izinNative = (await ln.checkPermissions()).display;
     // Pertama kali dibuka: langsung minta izin notifikasi (Android 13+ menampilkan dialog izin)
@@ -68,6 +68,7 @@ async function aksiNotif(e) {
     await sendMsg(S.isAdmin ? x.uid : S.user?.uid, S.isAdmin ? "admin" : "user", { text: teks });
     tutup(); return;
   }
+  if (a === "dibaca") { await bacaChat(S.isAdmin ? x.uid : S.user?.uid); tutup(); return; }
   if (a === "terima" && x.order && S.isAdmin) {
     await F.updateDoc(F.doc(db, "orders", x.order), { "payment.status": "paid", "payment.note": "", "payment.paidAt": Date.now(), updatedAt: F.serverTimestamp() });
     tutup(); sysShow({ title: `Pembayaran ${short(x.order)} diterima`, body: "Pelanggan sudah diberi tahu." }, true); return;
@@ -175,7 +176,7 @@ export function cekChat() {
     const lama = muat("chat", null), baru = {};
     S.chats.forEach(c => baru[c.id] = +c.unreadAdmin || 0); simpan("chat", baru);
     if (!lama) return;
-    S.chats.forEach(c => { if ((baru[c.id] || 0) > (lama[c.id] || 0) && c.lastFrom === "user")
+    S.chats.forEach(c => { if ((baru[c.id] || 0) > (lama[c.id] || 0) && c.lastFrom === "user" && c.id !== S.user.uid)
       tambah({ aksi: c.phone ? "chat" : "chat-nowa", ext: { uid: c.id, phone: normPhone(c.phone) }, id: `chat-${c.id}-${c.updatedAt?.seconds || Date.now()}`, icon: "chat", tone: "teal", title: `Pesan baru dari ${c.name || "Pelanggan"}`, body: String(c.lastMessage || "").slice(0, 90), href: "/admin/chat" }, location.hash === "#/admin/chat"); });
   } else {
     const lama = muat("chat", null), n = +S.chatMeta?.unreadUser || 0; simpan("chat", n);
@@ -206,7 +207,21 @@ actions.notifs = () => openOverlay(`<div class="sheet-head"><h3>Notifikasi</h3><
 actions.notifallow = () => askPermission();
 actions.notiftest = async () => { closeOverlay(); const n = { title: "Tes notifikasi Tubi", body: "Begini tampilan dan suara notifikasi pesanan & chat." };
   const ok = await sysShow(n, true); if (!(ok && native())) playSound(); if (!ok) toast(sysOk() ? "Notifikasi gagal ditampilkan." : "Aktifkan izin notifikasi dulu supaya kabar pesanan muncul di HP."); };
-actions.notifreadall = () => { N.list.forEach(x => x.read = true); simpan("notif", N.list); emit("notif"); };
+// Tandai dibaca: lonceng, angka chat (desktop & HP), dan notifikasi yang masih ada di bilah notifikasi HP
+async function bacaChat(uid) {
+  const { markRead } = await import("./chat.js");
+  if (S.isAdmin) await Promise.all(S.chats.filter(c => +c.unreadAdmin > 0 && (!uid || c.id === uid)).map(c => markRead(c.id, "admin")));
+  if (S.user && (!S.isAdmin || uid === S.user.uid) && +S.chatMeta?.unreadUser > 0) await markRead(S.user.uid, "user");
+  N.list.forEach(x => { if (String(x.id).startsWith("chat-") && (!uid || !S.isAdmin || x.ext?.uid === uid || x.href === "/chat")) x.read = true; });
+  simpan("notif", N.list); emit("notif");
+}
+export const tandaiChatDibaca = bacaChat;
+actions.notifreadall = async () => {
+  N.list.forEach(x => x.read = true); simpan("notif", N.list); emit("notif");
+  await bacaChat();
+  if (native()) LN()?.removeAllDeliveredNotifications?.().catch(() => {});
+  toast("Semua notifikasi & chat ditandai dibaca");
+};
 actions.notifopen = el => { const n = N.list.find(x => x.id === el.dataset.id); if (!n) return; n.read = true; simpan("notif", N.list); emit("notif"); closeOverlay(); if (n.href) go(n.href); };
 // Dipakai modul lain (mis. pembaruan aplikasi) untuk mengirim notifikasi HP langsung
 export const notifSistem = (title, body, href = "") => sysShow({ title, body, href }, true);

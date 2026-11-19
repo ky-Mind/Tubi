@@ -4,6 +4,7 @@
    - Alarm berdetak tiap DETAK_MS: menjaga koneksi tetap hidup, membaca perintah dari dashboard,
      lalu (bila terhubung) mencari pesanan & chat baru di Firestore dan mengirim WhatsApp-nya.
    - Status (QR, kode pairing, terhubung/tidak) ditulis ke Firestore waGateway/status, yang dibaca Dashboard Admin. */
+import "./perbaiki-buffer.ts";
 import { DurableObject } from "cloudflare:workers";
 import makeWASocket, { Browsers, DisconnectReason, fetchLatestBaileysVersion } from "@whiskeysockets/baileys";
 import QRCode from "qrcode";
@@ -99,7 +100,10 @@ export class Gateway extends DurableObject {
     try {
       if (!this.db) return this.status({ state: "error", error: "FIREBASE_SA belum diisi di gateway." }, false);
       await this.periksaPerintah();
-      if (!this.sock && !this.mulai && !(await this.ctx.storage.get("diam"))) await this.mulaiWA();
+      const diam = await this.ctx.storage.get("diam");
+      // Setelah Durable Object dibangunkan ulang, status awal "starting" tidak boleh terus dilaporkan bila bot sedang diam
+      if (diam && !this.sock && this.st.state === "starting") await this.status({ state: "idle", connected: false });
+      if (!this.sock && !this.mulai && !diam) await this.mulaiWA();
       if (Date.now() - this.terakhirPengaturan > SEGAR_PENGATURAN_MS) await this.muatPengaturan();
       await this.periksaFirestore();   // push HP jalan terus; WhatsApp hanya dikirim bila terhubung
       if (Date.now() - this.terakhirSinyal > SINYAL_MS) await this.status({ gateway: "online", heartbeat: Date.now() });
@@ -384,7 +388,8 @@ export class Gateway extends DurableObject {
     await this.ctx.storage.put(kunci, t);
     if (!lama && Date.now() - t > CHAT_SEGAR_MS) return;
     const isi = String(d.lastMessage || "").slice(0, 120);
-    if (d.lastFrom === "user") await this.keAdminPush({ title: `Pesan baru dari ${d.name || "Pelanggan"}`, body: isi, data: { href: "/admin/chat", uid: d.id }, tag: "chat-" + d.id });
-    if (d.lastFrom === "admin") await this.kePelangganPush(d.id, { title: "Balasan dari Admin Tubi", body: isi, data: { href: "/chat" }, tag: "chat-" + d.id });
+    // Pengirim tidak dikabari pesannya sendiri (mis. admin yang juga chat sebagai pelanggan dari akunnya)
+    if (d.lastFrom === "user") await this.kePush((t) => this.adminEmail(t.email) && t.uid !== d.id, { title: `Pesan baru dari ${d.name || "Pelanggan"}`, body: isi, data: { href: "/admin/chat", uid: d.id }, tag: "chat-" + d.id });
+    if (d.lastFrom === "admin" && d.lastAdmin !== d.id) await this.kePelangganPush(d.id, { title: "Balasan dari Admin Tubi", body: isi, data: { href: "/chat" }, tag: "chat-" + d.id });
   }
 }
