@@ -65,4 +65,16 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Notifikasi pesanan & chat (Android 13+ minta izin) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Titik lokasi pengantaran (tombol GPS di checkout & profil) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <!-- Kamera untuk foto bukti transfer, chat, dan foto produk -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- Memasang pembaruan Tubi langsung dari dalam aplikasi -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

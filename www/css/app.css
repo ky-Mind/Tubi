@@ -740,3 +740,79 @@ body.dark .btn.alt{background:#0f3b3a;border-color:#1f8f8a;color:#9ff0ea}
  body[data-page="/checkout"] .c-main{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
  body[data-page="/checkout"] .to-top{bottom:calc(86px + env(safe-area-inset-bottom))}
 }
+/* ===== v16 ===== */
+.prof-tema{background:#ffffff22!important;border-color:transparent!important;color:#fff!important;touch-action:manipulation}
+.tema-list{display:grid;gap:8px}
+.tema-list button{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);text-align:left;color:var(--ink);touch-action:manipulation}
+.tema-list button i{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:var(--soft);color:var(--red);font-style:normal}
+.tema-list button span{flex:1;display:grid}.tema-list small{color:var(--muted);font-size:12px}
+.tema-list button.on{border-color:var(--red);background:var(--redsoft)}.tema-list button.on>.ic{color:var(--red)}
+/* ketukan di HP langsung terbaca (tanpa jeda dobel-ketuk) */
+button,a,[data-act]{touch-action:manipulation}
+/* layar offline */
+.offline{position:fixed;inset:0;z-index:400;display:grid;place-items:center;padding:24px;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(6px);opacity:0;transition:.25s}
+.offline.show{opacity:1}
+.off-card{width:min(360px,100%);background:var(--surface);border:2px solid var(--yellow);border-radius:24px;padding:28px 22px 22px;text-align:center;display:grid;gap:10px;justify-items:center;box-shadow:0 20px 50px rgba(80,30,10,.2)}
+.off-ic{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;background:var(--redsoft);color:var(--red);animation:offbob 2.4s ease-in-out infinite}
+.off-card h2{font:700 22px var(--fd);color:var(--red);margin:6px 0 0}
+.off-card p{color:var(--muted);font-size:14px;line-height:1.5;margin:0}
+.off-card .btn{width:100%;margin-top:6px}.off-st{color:var(--muted);font-size:12px;min-height:16px}
+@keyframes offbob{50%{transform:translateY(-6px)}}
+/* toast baru: kartu putih + logo Tubi */
+.toast{display:flex;align-items:center;gap:12px;background:var(--surface);color:var(--ink);padding:10px 14px 10px 10px;border-radius:16px;border:1.5px solid var(--yellow);border-left-width:1.5px;box-shadow:0 12px 32px rgba(80,30,10,.22);font-size:14px;line-height:1.4;animation:toastin .3s cubic-bezier(.2,1.4,.4,1)}
+.toast img{width:36px;height:36px;border-radius:11px;flex:none;box-shadow:0 2px 6px rgba(200,35,44,.3)}
+.toast span{display:grid;min-width:0}.toast small{font:700 11px var(--fd);letter-spacing:.4px;text-transform:uppercase;color:var(--red)}
+.toast.err{background:var(--surface);border-color:var(--red)}.toast.err small{color:var(--red)}
+.toast.bump{animation:toastbump .3s}
+@keyframes toastin{from{opacity:0;transform:translateY(14px) scale(.96)}}
+@keyframes toastbump{50%{transform:scale(1.03)}}
+/* keluar / hapus akun: di paling bawah halaman Saya, tidak mencolok */
+.akun-bawah{display:grid;justify-items:center;gap:6px;margin:18px auto 8px;max-width:520px}
+.akun-keluar{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:12px;border-radius:14px;background:var(--surface);border:1px solid var(--line);font-weight:700;color:var(--ink)}
+.akun-hapus{font-size:12px;color:var(--muted);text-decoration:underline;padding:6px 10px}
+/* ===== sidebar admin desktop: logo = tombol buka/tutup, mode tertutup jadi rel ikon ===== */
+.side-tg{position:relative;width:44px;height:44px;border-radius:12px;flex:none;display:grid;place-items:center;cursor:pointer;padding:0}
+.side-tg img{width:44px;height:44px;border-radius:12px;transition:opacity .15s,transform .15s}
+.side-tg .side-ic{position:absolute;inset:0;display:grid;place-items:center;border-radius:12px;background:#ffffff1f;color:#fff;opacity:0;transform:scale(.85);transition:.15s}
+.side-tg:hover img,.side-tg:focus-visible img{opacity:0;transform:scale(.85)}
+.side-tg:hover .side-ic,.side-tg:focus-visible .side-ic{opacity:1;transform:none}
+@media(min-width:1000px){
+ .a-side .logo{display:flex;align-items:center;gap:10px}.a-side .logo-tx{display:flex;align-items:center;gap:8px;white-space:nowrap}
+ .a-side .sl{white-space:nowrap;overflow:hidden}
+ body.admin.side-off{padding-left:76px}
+ body.admin.side-off .a-side{transform:none;width:76px;padding-left:10px;padding-right:10px}
+ body.side-off .a-side .logo{padding:4px 6px 16px}
+ body.side-off .a-side .logo-tx,body.side-off .a-side .sl{display:none}
+ body.side-off .a-side a,body.side-off .a-side button.lnk{justify-content:center;padding:11px 0}
+ body.side-off .a-side .badge{position:absolute;top:4px;right:6px;margin:0}
+ .a-side{transition:width .2s}
+}
+.kbd-list{display:grid;gap:14px}.kbd-list h4{margin:0 0 6px;font:700 13px var(--fd);color:var(--red);text-transform:uppercase;letter-spacing:.4px}
+.kbd-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:14px}
+.kbd-row span:last-child{display:flex;gap:4px;flex:none}
+kbd{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 7px;border-radius:7px;background:var(--soft);border:1px solid var(--line);border-bottom-width:3px;font:700 12px var(--fb,system-ui);color:var(--ink)}
+@media(pointer:coarse){.only-kb{display:none!important}}
+.upd-p{grid-column:1/-1;display:grid;gap:8px}.upd-p span{font-size:13px;color:var(--muted);text-align:center}
+.upd-bar{height:12px;border-radius:99px;background:var(--soft);overflow:hidden}.upd-bar i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,var(--red),var(--yellow));transition:width .3s}
+.upd-izin{grid-column:1/-1;display:grid;gap:8px;font-size:14px}.upd-a2{display:grid;grid-template-columns:1fr 1.2fr;gap:8px}
+.tema-list a.wa-pil{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink)}
+.tema-list a.wa-pil i{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:#e7f8ee;color:#16a34a;font-style:normal}
+.tema-list a.wa-pil span{flex:1;display:grid}.tema-list a.wa-pil small{color:var(--muted);font-size:12px}
+.tema-list a.wa-pil:hover{border-color:#16a34a}
+/* ===== header admin desktop yang lebih rapi ===== */
+@media(min-width:1000px){
+ .a-top .in{gap:12px;min-height:72px}
+ .a-top h2{font-size:26px;white-space:nowrap}
+ .a-top .in>.sp{flex:1 1 20px}
+ .pal-btn{order:0;flex:0 1 420px;min-width:220px;height:44px;justify-content:flex-start;gap:10px;padding:0 8px 0 14px;border-radius:14px;background:var(--soft);border:1.5px solid transparent;color:var(--muted);font-weight:600;box-shadow:none;transition:.15s}
+ .pal-btn:hover{background:var(--surface);border-color:var(--red);color:var(--ink);box-shadow:0 0 0 4px var(--redsoft)}
+ .pal-btn .pal-tx{flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px}
+ .pal-btn .pal-k{display:flex;gap:3px}.pal-btn kbd{height:24px;min-width:24px;font-size:11px;background:var(--surface)}
+ .a-top .bell{width:44px;height:44px;border-radius:14px;background:var(--soft);border:1.5px solid transparent}
+ .a-top .bell:hover{border-color:var(--red);color:var(--red)}
+ .a-top .chip{height:44px;border-radius:14px;padding:0 14px!important;background:var(--soft);border:1.5px solid transparent;font-weight:700;gap:6px}
+ .a-top .chip:hover{border-color:var(--line)}
+ .a-top .av{width:44px;height:44px;border-radius:14px;box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--yellow);overflow:hidden}
+ .a-top .av img{width:100%;height:100%;object-fit:cover}
+}
+@media(max-width:999px){.a-top .pal-btn{margin-left:auto}.a-top .in>.sp{display:none}}

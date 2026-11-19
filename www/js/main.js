@@ -9,9 +9,11 @@ import { applyTheme } from "./ui.js";
 import { applySide } from "./palette.js";
 import { initNotif, cekPesanan, cekChat, cekLaporan } from "./notif.js";
 import { mulaiCekUpdate } from "./update.js";
+import { mulaiOffline } from "./offline.js";
+import "./pintasan.js";
 
 // tema (auto / terang / gelap) & sidebar admin
-applyTheme(); applySide();
+applyTheme(); applySide(); mulaiOffline();
 
 let mode = "";
 function route() {

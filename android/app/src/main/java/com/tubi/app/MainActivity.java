@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
         // Plugin harus didaftarkan sebelum super.onCreate agar langsung tersedia di JavaScript
         registerPlugin(GoogleAuth.class);
         registerPlugin(BukaAplikasiPlugin.class);
+        registerPlugin(PembaruanPlugin.class);
         super.onCreate(savedInstanceState);
 
         // Tombol kembali Android: tanya dulu ke aplikasi web (tutup panel, mundur satu halaman, atau
