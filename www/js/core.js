@@ -10,13 +10,25 @@ export function live(key, deps, fn, after) {
   regions.set(key, { deps, fn, after });
   return `<div class="live" data-live="${key}">${fn()}</div>`;
 }
-function paint(key) {
+// Wilayah yang sedang diisi (formulir yang sudah diubah, atau kolom yang sedang fokus) tidak digambar ulang oleh
+// data realtime, supaya isian pengaturan tidak hilang. Digambar ulang setelah disimpan atau kolomnya ditinggalkan.
+const busy = el => el.querySelector("form[data-dirty]") || (el.contains(document.activeElement) && document.activeElement.matches("input,textarea,select"));
+const tunda = new Set();
+function paint(key, force) {
   const r = regions.get(key); if (!r) return;
-  $$(`[data-live="${key}"]`).forEach(el => { el.innerHTML = r.fn(); });
+  let held = false;
+  $$(`[data-live="${key}"]`).forEach(el => { if (!force && busy(el)) { held = true; return; } el.innerHTML = r.fn(); });
+  if (held) tunda.add(key); else tunda.delete(key);
   r.after?.();
 }
+const flush = () => { [...tunda].forEach(k => { const el = $(`[data-live="${k}"]`); if (!el || !busy(el)) paint(k); }); };
+document.addEventListener("focusout", () => setTimeout(flush, 0));
+const markDirty = e => { const f = e.target.closest?.("form[data-form]"); if (f && !e.target.matches("[data-input],[data-change]") && f.dataset.form !== "chat") f.dataset.dirty = "1"; };
+document.addEventListener("input", markDirty, true);
+document.addEventListener("change", markDirty, true);
+export const dirtyForm = () => $("#view form[data-dirty]");
 onChange(k => regions.forEach((r, key) => { if (r.deps.includes(k) || r.deps.includes("*")) paint(key); }));
-export const repaint = key => paint(key);
+export const repaint = key => paint(key, true);
 
 // ---------- Router ----------
 export const routes = [];    // {test(path)->bool, view(path)->html|Promise, shell}
@@ -25,7 +37,12 @@ export const path = () => (location.hash || "#/").slice(1) || "/";
 export const go = (p, replace) => { if (replace) location.replace("#" + p); else location.hash = p; };
 export let onRoute = () => {};
 export const setOnRoute = f => { onRoute = f; };
-window.addEventListener("hashchange", () => { onRoute(path()); });
+let lastHash = location.hash;
+window.addEventListener("hashchange", () => {
+  // Perubahan pengaturan yang belum disimpan tidak boleh hilang diam-diam saat pindah halaman.
+  if (dirtyForm() && !confirm("Ada perubahan yang belum disimpan. Tinggalkan halaman ini?")) { history.replaceState(null, "", lastHash || "#/"); return; }
+  lastHash = location.hash; onRoute(path());
+});
 
 // ---------- Overlay (sheet / modal / drawer) ----------
 export function openOverlay(html, cls = "") {
@@ -54,7 +71,9 @@ document.addEventListener("submit", async e => {
   const f = e.target.closest("[data-form]"); if (!f) return; e.preventDefault();
   const fn = forms[f.dataset.form]; if (!fn) return;
   const btn = f.querySelector("[type=submit]"); if (btn) btn.disabled = true;
-  try { await fn(f, new FormData(f)); } catch (err) { console.error(err); import("./util.js").then(u => u.toast(err?.message || "Terjadi kesalahan.", "err")); }
+  const wasDirty = f.dataset.dirty; delete f.dataset.dirty;   // dilepas dulu: fn() bisa berpindah halaman setelah berhasil
+  try { await fn(f, new FormData(f)); setTimeout(flush, 0); }
+  catch (err) { if (wasDirty) f.dataset.dirty = wasDirty; console.error(err); import("./util.js").then(u => u.toast(err?.message || "Terjadi kesalahan.", "err")); }
   finally { if (btn) btn.disabled = false; }
 });
 document.addEventListener("keydown", e => {
@@ -66,3 +85,17 @@ document.addEventListener("input", e => {
   const a = t.dataset?.input; if (a && actions[a]) actions[a](t, e);
 });
 document.addEventListener("change", e => { const a = e.target.dataset?.change; if (a && actions[a]) actions[a](e.target, e); });
+
+// ---------- Teks tidak bisa disalin (kecuali di kolom isian) ----------
+const editable = t => t?.closest?.("input,textarea,[contenteditable]");
+["copy", "cut"].forEach(ev => document.addEventListener(ev, e => { if (!editable(e.target)) e.preventDefault(); }));
+document.addEventListener("contextmenu", e => { if (!editable(e.target) && !e.target.closest?.(".leaflet-container")) e.preventDefault(); });
+document.addEventListener("dragstart", e => { if (e.target.tagName === "IMG") e.preventDefault(); });
+
+// ---------- Tombol kembali ke atas ----------
+const toTop = document.createElement("button");
+toTop.className = "to-top"; toTop.type = "button"; toTop.setAttribute("aria-label", "Kembali ke atas");
+toTop.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+toTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+document.body.appendChild(toTop);
+addEventListener("scroll", () => toTop.classList.toggle("show", scrollY > 600), { passive: true });
