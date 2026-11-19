@@ -251,7 +251,8 @@ actions.pform = el => {
   <label>Atribut / rasa <span class="hint">pisahkan koma</span><input name="attributes" value="${esc((p.attributes || []).join(", "))}" placeholder="pedas, gurih"></label>
   <label>Deskripsi<textarea name="description">${esc(p.description || "")}</textarea></label>
   <div class="grid2"><label>Stok<select name="availability"><option value="tersedia">Tersedia</option><option value="habis" ${p.id && !avail(p) ? "selected" : ""}>Habis</option></select></label></div>
-  <div><div class="lbl">Foto produk</div>${dropzone("image", img(p), p.id && img(p) ? "Ganti foto" : "Pilih foto atau seret ke sini")}</div>
+  <div><div class="lbl">Foto produk</div>${dropzone("image", img(p), p.id && img(p) ? "Ganti foto" : "Pilih foto atau seret ke sini")}
+    <div class="foto-tb"><button type="button" class="btn sm" data-act="ppotong" ${img(p) ? "" : "hidden"}>${svg("crop", 15)} Potong foto</button><span class="muted xs" id="potong-info"></span></div><input type="hidden" name="potong"></div>
   <div class="crop"><div class="row wrap"><div class="lbl sp" style="margin:0">Atur foto di kartu menu</div><div class="seg" id="fitseg"><button type="button" data-act="fitmode" data-m="cover" class="${p.imageFit === "contain" ? "" : "on"}">Isi bingkai</button><button type="button" data-act="fitmode" data-m="contain" class="${p.imageFit === "contain" ? "on" : ""}">Tampil utuh</button></div></div>
     <div class="crop-body"><div class="crop-stage" id="fitprev"><img id="fitimg" ${img(p) ? `src="${esc(img(p))}"` : "hidden"} alt="" draggable="false" ${imgStyle(p)}><i class="crop-grid"></i><span class="fit-hint">${svg("grid", 13)} Geser foto · scroll / cubit untuk zoom</span></div>
     <div class="crop-tools">
@@ -268,7 +269,9 @@ actions.pform = el => {
 forms.product = async (f, fd) => {
   const id = f.dataset.id, old = S.products.find(x => x.id === id) || {}, attrs = String(fd.get("attributes") || "").split(",").map(x => x.trim()).filter(Boolean).slice(0, 15), av = fd.get("availability");
   const d = { name: String(fd.get("name")).trim(), price: Math.max(0, +fd.get("price") || 0), category: String(fd.get("category") || "Lainnya").trim() || "Lainnya", attributes: attrs, tags: attrs.map(x => x.toLowerCase()), description: String(fd.get("description") || "").trim(), available: av !== "habis", availability: av, imageFit: fd.get("fit") === "contain" ? "contain" : "cover", imageX: Math.min(100, Math.max(0, +fd.get("fx") || 0)), imageY: Math.min(100, Math.max(0, +fd.get("fy") || 0)), imageZoom: Math.min(4, Math.max(1, +fd.get("fz") || 1)), imageRot: ((+fd.get("fr") || 0) % 360 + 360) % 360 };
-  const file = fd.get("image"); if (file && file.size) d.image = await compressImage(file); else if (old.image) d.image = old.image;
+  const potong = String(fd.get("potong") || ""), file = fd.get("image");
+  if (potong.startsWith("data:image/")) d.image = await compressImage(new File([await (await fetch(potong)).blob()], "foto.jpg", { type: "image/jpeg" }));
+  else if (file && file.size) d.image = await compressImage(file); else if (old.image) d.image = old.image;
   if (id) await F.setDoc(F.doc(db, "products", id), d, { merge: true }); else await F.addDoc(F.collection(db, "products"), { ...d, rating: 5, createdAt: F.serverTimestamp() });
   closeOverlay(); toast("Produk disimpan.");
 };
@@ -287,7 +290,7 @@ function blokEditor(k, i, n) {
   if (k.jenis === "teks") isi = `<textarea rows="2" data-input="sbisi" data-i="${i}" placeholder="Tulis teks…">${esc(k.isi || "")}</textarea>
     <div class="sb-ctl">${segSb(i, "al", RATA, al)}${togSb(i, "big", "Besar", k.big)}${togSb(i, "b", "Tebal", k.b)}</div>
     <div class="sb-isian"><span class="muted xs">Isian otomatis</span>${ISIAN.map(v => `<button type="button" data-act="sbisian" data-i="${i}" data-v="${v}">${v}</button>`).join("")}</div>`;
-  else if (k.jenis === "gambar") isi = `<div class="sb-gbr">${k.src ? `<img src="${k.src}" alt="">` : `<span class="muted sm">Belum ada gambar</span>`}<label class="btn sm">${svg("image", 15)} ${k.src ? "Ganti" : "Pilih"} gambar<input type="file" accept="image/*" hidden data-change="sbgambar" data-i="${i}"></label></div>
+  else if (k.jenis === "gambar") isi = `<div class="sb-gbr">${k.src ? `<img src="${k.src}" alt="">` : `<span class="muted sm">Belum ada gambar</span>`}<div class="sb-gbr-tb">${k.src === BT.LOGO_TUBI ? "" : `<button type="button" class="btn sm" data-act="sblogo" data-i="${i}">Pakai logo Tubi</button>`}<label class="btn sm">${svg("image", 15)} ${k.src ? "Ganti" : "Pilih"} gambar sendiri<input type="file" accept="image/*" hidden data-change="sbgambar" data-i="${i}"></label></div></div>
     <div class="sb-ctl"><span class="muted xs">Lebar</span>${segSb(i, "lebar", [[40, "40%"], [60, "60%"], [80, "80%"], [100, "Penuh"]], k.lebar || 60)}${segSb(i, "al", RATA, al)}</div>`;
   else if (k.jenis === "garis") isi = `<div class="sb-ctl">${segSb(i, "ch", [["-", "- - -"], ["=", "= = ="], ["*", "* * *"], [".", ". . ."], ["_", "____"]], k.ch || "-")}</div>`;
   else if (k.jenis === "kosong") isi = `<div class="sb-ctl"><span class="muted xs">Jumlah baris</span>${segSb(i, "n", [[1, "1"], [2, "2"], [3, "3"]], k.n || 1)}</div>`;
@@ -329,6 +332,7 @@ actions.sbisian = el => {
   const ta = el.closest(".sb").querySelector("textarea"), v = el.dataset.v, a = ta.selectionStart ?? ta.value.length;
   ta.value = ta.value.slice(0, a) + v + ta.value.slice(ta.selectionEnd ?? a); ta.focus(); ta.selectionStart = ta.selectionEnd = a + v.length; actions.sbisi(ta);
 };
+actions.sblogo = el => { SK.blok[+el.dataset.i].src = BT.LOGO_TUBI; gambarUlang(); };
 actions.sbgambar = async el => { const f = el.files?.[0]; if (!f) return; SK.blok[+el.dataset.i].src = await BT.siapkanGambar(f); gambarUlang(); };
 // Seret-lepas blok (komputer)
 let seretDari = -1;
@@ -391,21 +395,18 @@ actions.csv = () => {
 // ===== Pengaturan =====
 export function waBody(mini) {
   const w = S.wa, st = waState();
-  if (S.errors.wa === "permission-denied") return `<div class="alert" style="margin-top:10px"><b>Dashboard ditolak membaca status gateway.</b> Publish <code>firestore.rules</code> terbaru, lalu muat ulang.</div>`;
-  let h = "";
-  if (st === "qr" && w.qr) h = `<div class="qr"><img src="${w.qr}" alt="QR WhatsApp"><small class="muted">WhatsApp → Perangkat tertaut → Tautkan perangkat → scan</small></div>`;
-  else if (st === "pairing" && w.pairingCode) h = `<div class="pair">${esc(w.pairingCode)}</div><small class="muted">WhatsApp → Perangkat tertaut → Tautkan dengan nomor telepon</small>`;
-  else if (st === "connected") h = `<p class="muted" style="margin-top:8px">Terhubung${w.me ? ` sebagai <b>${esc(hpLokal(w.me))}</b>` : ""}. Notifikasi pesanan &amp; chat aktif.${!mini && w.lastTest ? ` Tes terakhir: <b>${w.lastTest === "ok" ? "berhasil ✓" : "gagal ✗"}</b>.` : ""}</p>`;
-  else if (st === "starting" || st === "connecting" || st === "logged_out") h = `<p class="muted" style="margin-top:8px">Gateway aktif dan sedang menghubungkan ke WhatsApp. QR muncul di sini dalam ±30 detik.</p>`;
-  else if (st === "idle") h = `<p class="muted" style="margin-top:8px">Gateway aktif, bot sedang diam${mini ? "" : ". Tekan <b>Restart</b> untuk memunculkan QR baru"}.</p>`;
-  else if (st === "error") h = "";
-  else h = mini ? `<p class="muted" style="margin-top:8px">Bot belum menyala (opsional). Panduan ada di Pengaturan → WhatsApp Bot.</p>` : `<div class="alert" style="margin-top:10px">${w ? "Gateway tidak mengirim sinyal lagi (lebih dari 4 menit)." : "Belum ada sinyal dari gateway."} Pastikan gateway sudah di-deploy (folder <code>gateway</code>, perintah <code>npm run deploy</code>) lalu buka alamat gateway sekali untuk membangunkannya; QR akan muncul di sini otomatis.</div>`;
-  return h + (w?.error ? `<div class="alert" style="margin-top:8px">${esc(w.error)}</div>` : "");
+  if (S.errors.wa === "permission-denied") return `<div class="alert" style="margin-top:10px">Dashboard belum bisa membaca status bot. Muat ulang halaman, atau hubungi pengembang.</div>`;
+  if (st === "qr" && w.qr) return mini ? `<p class="muted" style="margin-top:8px">Bot menunggu dihubungkan. Buka Pengaturan → WhatsApp Bot untuk scan QR.</p>`
+    : `<div class="wa-qr"><div class="qr"><img src="${w.qr}" alt="QR WhatsApp"></div><ol class="wa-langkah"><li><span>Buka <b>WhatsApp</b> di HP yang nomornya dipakai bot (boleh nomor toko).</span></li><li><span>Ketuk <b>⋮</b> (atau Setelan) → <b>Perangkat tertaut</b> → <b>Tautkan perangkat</b>.</span></li><li><span>Arahkan kamera ke QR ini. Selesai, status berubah jadi <b>Terhubung</b>.</span></li></ol></div><p class="muted xs wa-catatan">QR diperbarui otomatis. Bila tidak sempat dipindai, tekan <b>QR baru</b>.</p>`;
+  if (st === "pairing" && w.pairingCode) return `<div class="pair">${esc(w.pairingCode)}</div><small class="muted">WhatsApp → Perangkat tertaut → Tautkan dengan nomor telepon → masukkan kode ini.</small>`;
+  if (st === "connected") return `<p class="muted" style="margin-top:8px">Terhubung${w.me ? ` sebagai <b>${esc(hpLokal(w.me))}</b>` : ""}. Bot berjalan terus di server Tubi, jadi tetap aktif walau komputer atau HP admin mati.${!mini && w.lastTest ? ` Tes terakhir: <b>${w.lastTest === "ok" ? "berhasil" : "gagal"}</b>.` : ""}</p>`;
+  if (st === "starting" || st === "connecting" || st === "logged_out" || st === "idle") return `<p class="muted wa-siap" style="margin-top:8px"><span class="spin"></span> ${st === "idle" ? "Menyiapkan QR baru…" : "Menghubungkan ke WhatsApp…"} QR muncul di sini dalam ±30 detik.</p>`;
+  if (st === "error") return `<div class="alert" style="margin-top:8px">${esc(w?.error || "Bot mengalami kendala.")} Tekan <b>QR baru</b> untuk mencoba lagi.</div>`;
+  return mini ? `<p class="muted" style="margin-top:8px">Bot WhatsApp belum aktif (opsional).</p>` : `<div class="alert" style="margin-top:10px">Server bot sedang tidak merespons. Coba lagi beberapa menit lagi.</div>`;
 }
-const waGuide = () => `<details class="guide" ${waState() === "connected" ? "" : "open"}><summary>${svg("shield", 18)} Apa itu bot WhatsApp & cara menyalakannya</summary>
-  <p><b>Bot</b> = satu nomor WhatsApp (boleh nomor toko) yang dihubungkan ke program kecil bernama <b>gateway</b> yang berjalan 24 jam di Cloudflare (gratis). Setelah terhubung, <b>setiap pesanan & chat baru otomatis dikirim ke WhatsApp admin</b>, dan <b>pelanggan dikabari saat status pesanan berubah</b>. Tubi tetap berjalan 100% tanpa bot.</p>
-  <ol class="guide-steps"><li><span>1</span><div>Gateway ada di folder <code>gateway</code> pada repo Tubi dan sudah di-deploy ke Cloudflare (lihat README).</div></li><li><span>2</span><div>Bila status <b>Diam</b> (QR kedaluwarsa), tekan <b>Restart</b>.</div></li><li><span>3</span><div>Dalam ±30 detik <b>QR muncul di kartu ini</b>.</div></li><li><span>4</span><div>HP: WhatsApp → ⋮ → <b>Perangkat tertaut</b> → <b>Tautkan perangkat</b> → scan QR.</div></li><li><span>5</span><div>Status menjadi <b>Terhubung</b>. Selesai ✓</div></li></ol>
-  <p class="muted sm">Gateway memeriksa pesanan, chat, dan perintah dari dashboard tiap ±30 detik, jadi perintah (tes, restart, pairing) butuh hingga setengah menit.</p></details>`;
+// Saat halaman WhatsApp Bot dibuka dan bot sedang diam (QR kedaluwarsa), minta QR baru otomatis (sekali per kunjungan)
+let waMintaQr = 0;
+const waOtomatis = () => { if (waState() === "idle" && path() === "/admin/settings/wa" && Date.now() - waMintaQr > 120000) { waMintaQr = Date.now(); cmd("restart").catch(() => {}); } };
 const phoneShow = p => p ? esc(hpLokal(p)) : "belum diisi";
 const recipients = () => { const l = []; if (S.settings.whatsapp) l.push(`<b>${phoneShow(S.settings.whatsapp)}</b> (admin utama)`); S.admins.filter(a => a.phone).forEach(a => l.push(`<b>${phoneShow(a.phone)}</b> (${esc(a.name || a.id)})`)); return l.length ? l.join(", ") : "belum ada nomor"; };
 
@@ -452,12 +453,17 @@ export function settings() {
     <div class="r"><span class="av">H</span><div class="mid"><b>hilmykia@gmail.com</b><small class="muted">Admin utama · WA ${phoneShow(s.whatsapp)}</small></div><span class="chip st-selesai">Utama</span></div>
     ${S.admins.filter(a => !FIXED_ADMINS.includes(a.id)).map(a => `<div class="r"><span class="av">${initial(a.name || a.id)}</span><div class="mid"><b>${esc(a.name || a.id)}</b><small class="muted">${esc(a.id)} · WA ${phoneShow(a.phone)}</small></div>${main ? `<button class="btn sm" data-act="admphone" data-id="${esc(a.id)}">Nomor WA</button><button class="btn sm danger" data-act="admdel" data-id="${esc(a.id)}">Hapus</button>` : ""}</div>`).join("")}</div>
     ${main ? `<form class="col" data-form="admin" style="margin-top:12px"><div class="grid2"><input name="email" type="email" required placeholder="email@gmail.com"><input name="name" placeholder="Nama admin"></div><input name="phone" data-hp inputmode="tel" autocomplete="tel" placeholder="Nomor WhatsApp admin, mis. 0812 3456 7890"><button class="btn pri" type="submit">Tambah admin</button></form>` : `<p class="muted sm" style="margin-top:12px">Hanya admin utama yang dapat menambah atau menghapus admin.</p>`}</div>`;
-  const wa = () => `<div class="card"><h3>WhatsApp Bot (Baileys)</h3>${waGuide()}<div class="row" style="margin-top:12px"><span class="dot ${waState()}"></span><b>Status: ${WA_LABEL[waState()]}</b></div>${waBody()}
-    <div class="row wrap" style="margin-top:12px"><button class="btn sm" data-act="wacmd" data-a="test">Kirim pesan tes</button><button class="btn sm" data-act="wacmd" data-a="restart">Restart</button><button class="btn sm danger" data-act="wacmd" data-a="logout">Putuskan WhatsApp</button></div>
-    <details style="margin-top:10px"><summary class="b" style="cursor:pointer">Alternatif: kode pairing (tanpa QR)</summary><form class="row" style="margin-top:8px" data-form="wapair"><input name="phone" placeholder="Nomor akun WA bot, mis. 0812 3456 7890" data-hp inputmode="tel" autocomplete="tel"><button class="btn" type="submit">Minta kode</button></form></details>
-    <label class="chk" style="margin-top:12px"><input type="checkbox" data-change="wanotify" data-k="waNotifyAdmin" ${s.waNotifyAdmin !== false ? "checked" : ""}> Kirim pesanan &amp; chat baru ke WhatsApp admin</label>
-    <label class="chk" style="margin-top:8px"><input type="checkbox" data-change="wanotify" data-k="waNotifyCustomer" ${s.waNotifyCustomer !== false ? "checked" : ""}> Kabari pelanggan saat pesanan diterima &amp; berubah status</label>
-    <p class="muted sm" style="margin-top:10px">Penerima notifikasi: ${recipients()}.</p></div>`;
+  const wa = () => { setTimeout(waOtomatis, 0); const st = waState(); return `<div class="card wa-kartu">
+    <div class="kf-head"><h3>WhatsApp Bot</h3><span class="chip"><span class="dot ${st}"></span>${WA_LABEL[st]}</span></div>
+    <p class="muted sm" style="margin:6px 0 0">Pesanan &amp; chat baru dikirim otomatis ke WhatsApp admin, dan pelanggan dikabari saat status pesanannya berubah. Tubi tetap jalan normal walau bot tidak aktif.</p>
+    ${waBody()}
+    <div class="wa-aksi">${st === "connected" ? `<button class="btn sm" data-act="wacmd" data-a="test">${svg("send", 15)} Kirim pesan tes</button><button class="btn sm danger" data-act="wacmd" data-a="logout">Putuskan</button>` : `<button class="btn sm" data-act="wacmd" data-a="restart">QR baru</button>`}</div>
+    ${st === "connected" ? "" : `<details class="wa-pair"><summary>Tidak bisa scan? Pakai kode pairing</summary><form class="row" style="margin-top:8px" data-form="wapair"><input name="phone" placeholder="Nomor WA bot, mis. 0812 3456 7890" data-hp inputmode="tel" autocomplete="tel"><button class="btn" type="submit">Minta kode</button></form></details>`}
+    <div class="wa-set">
+      <label class="chk"><input type="checkbox" data-change="wanotify" data-k="waNotifyAdmin" ${s.waNotifyAdmin !== false ? "checked" : ""}> Kirim pesanan &amp; chat baru ke WhatsApp admin</label>
+      <label class="chk"><input type="checkbox" data-change="wanotify" data-k="waNotifyCustomer" ${s.waNotifyCustomer !== false ? "checked" : ""}> Kabari pelanggan saat pesanan diterima &amp; berubah status</label>
+      <p class="muted xs">Dikirim ke: ${recipients()}. Ubah nomornya di Toko &amp; biaya dan Admin.</p>
+    </div></div>`; };
   const printer = () => `<div class="card"><h3>Printer Bluetooth</h3>
     <div class="row"><span class="dot ${BT.connected() ? "connected" : ""}"></span><b>${BT.connected() ? "Terhubung: " + esc(BT.printerName()) : "Belum terhubung"}</b></div>
     ${BT.supported() ? "" : `<div class="alert" style="margin-top:10px">${BT.alasanTidakDukung()}</div>`}
@@ -514,7 +520,7 @@ forms.look = async (f, fd) => {
   await setSettings(d); toast("Tampilan beranda diperbarui ✓");
 };
 const cmd = (action, extra = {}) => F.setDoc(F.doc(db, "waGateway", "command"), { id: Date.now(), action, by: S.user.email || "", createdAt: F.serverTimestamp(), ...extra });
-const needGateway = () => { if (waState() === "offline") throw new Error("Gateway tidak aktif, jadi perintah TIDAK dikirim. Periksa gateway di Cloudflare (lihat README, folder gateway)."); };
+const needGateway = () => { if (waState() === "offline") throw new Error("Server bot sedang tidak merespons, perintah belum terkirim. Coba lagi beberapa menit lagi."); };
 actions.wacmd = async el => {
   const a = el.dataset.a; needGateway();
   if (a === "test" && waState() !== "connected") throw new Error(`WhatsApp belum terhubung (status: ${WA_LABEL[waState()]}). Scan QR dulu, baru kirim pesan tes.`);
@@ -596,4 +602,23 @@ document.addEventListener("pointermove", e => {
 const lepas = e => { ptr.delete(e.pointerId); if (ptr.size < 2) pinch0 = 0; };
 document.addEventListener("pointerup", lepas); document.addEventListener("pointercancel", lepas);
 document.addEventListener("wheel", e => { if (!e.target.closest?.("#fitprev")) return; e.preventDefault(); const f = fitForm(); setZoom(f, +f.fz.value * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
+// ---- Potong foto produk (kotak potong seperti galeri HP) ----
+const formProduk = () => document.querySelector('form[data-form="product"]');
+function terapkanPotongan(f, url) {
+  f.potong.value = url; f.dataset.dirty = "1";
+  const pv = f.querySelector(".drop-pv"); if (pv) pv.innerHTML = `<img src="${url}" alt="">`;
+  ["fitimg", "fitmini"].forEach(id => { const i = document.getElementById(id); if (i) { i.src = url; i.hidden = false; } });
+  f.fx.value = 50; f.fy.value = 50; f.fz.value = 1; f.fr.value = 0; f.fit.value = "cover";
+  $$("#fitseg button").forEach(b => b.classList.toggle("on", b.dataset.m === "cover")); applyFit(f);
+  const btn = f.querySelector('[data-act="ppotong"]'); if (btn) btn.hidden = false;
+  const info = document.getElementById("potong-info"); if (info) info.textContent = "Foto sudah dipotong. Disimpan saat produk disimpan.";
+}
+async function bukaPotong(src) { const f = formProduk(); if (!f || !src) return; const { potongFoto } = await import("./potong.js"); const hasil = await potongFoto(src); if (hasil) terapkanPotongan(f, hasil); }
+actions.ppotong = () => { const f = formProduk(); bukaPotong(f?.potong.value || $("#fitimg")?.src || f?.querySelector(".drop-pv img")?.src); };
+// Foto baru dipilih -> langsung buka alat potong
+document.addEventListener("change", e => {
+  const i = e.target; if (!i.matches?.('form[data-form="product"] input[type=file][name=image]') || !i.files?.[0]) return;
+  const f = i.closest("form"); f.potong.value = "";
+  const r = new FileReader(); r.onload = () => bukaPotong(r.result); r.readAsDataURL(i.files[0]);
+});
 actions.fitall = async () => { if (!await confirmBox("Tampilkan semua foto utuh?", "Semua foto produk akan ditampilkan penuh (tidak dipotong) di menu pelanggan. Bisa diubah per produk lagi.", "Terapkan", false)) return; for (const p of S.products) await F.updateDoc(F.doc(db, "products", p.id), { imageFit: "contain", imageX: 50, imageY: 50, imageZoom: 1, imageRot: 0 }); toast("Semua foto kini tampil utuh ✓"); };

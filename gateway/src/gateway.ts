@@ -23,7 +23,7 @@ const TUMPANG_MS = 30_000;            // kueri mundur sedikit supaya dokumen yan
 
 const tidur = (ms) => new Promise((r) => setTimeout(r, ms));
 const ADMIN_UTAMA = "hilmykia@gmail.com";
-const TOKEN_SEGAR_MS = 60_000;
+const TOKEN_SEGAR_MS = 30_000;
 // Field pesanan yang diambil (foto bukti bayar sengaja tidak ikut, supaya ringan)
 const FIELD_ORDER = ["userId", "email", "customerName", "recipientName", "phone", "address", "note", "mapsUrl", "location", "items", "subtotal", "discount",
   "deliveryFee", "tax", "voucher", "total", "status", "createdAt", "updatedAt", "payment", "waNewSent", "waStatusSent", "cancelledBy"];
@@ -359,7 +359,9 @@ export class Gateway extends DurableObject {
     return !!e && (e === ADMIN_UTAMA || this.adminDocs.some((a) => String(a.id || a.email || "").toLowerCase() === e));
   }
   async kePush(pilih, pesan) {
-    const semua = await this.tokens(), tujuan = semua.filter(pilih);
+    let semua = await this.tokens(), tujuan = semua.filter(pilih);
+    // Daftar HP disimpan sementara 60 detik. Bila tidak ada tujuan (mis. HP baru saja login / ganti akun), muat ulang dulu.
+    if (!tujuan.length) { this._tok = null; semua = await this.tokens(); tujuan = semua.filter(pilih); }
     console.log("push:", pesan.title, "→", tujuan.length, "dari", semua.length, "perangkat");
     if (!tujuan.length) this.catatPush = [{ w: Date.now(), judul: pesan.title, ke: "-", hasil: "tidak ada perangkat tujuan" }, ...(this.catatPush || [])].slice(0, 10);
     for (const t of tujuan) {
