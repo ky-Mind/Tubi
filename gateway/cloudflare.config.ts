@@ -1,4 +1,4 @@
-import { bindings, defineConfig, exports } from "cf/config";
+import { bindings, defineConfig, exports, triggers } from "cf/config";
 
 import * as entrypoint from "./src/index.ts" with { type: "cf-worker" };
 
@@ -16,6 +16,8 @@ export default defineConfig(({ mode }) => ({
       // Isi file kunci akun layanan Firebase project tubi-app (satu baris JSON). Lokal: file .dev.vars (tidak ikut Git).
       FIREBASE_SA: bindings.secret(),
     },
+    // Pembangun cadangan: tiap menit memastikan gateway tetap berdetak walau tidak ada yang membuka aplikasi
+    triggers: [triggers.scheduled({ schedule: "* * * * *" })],
     exports: {
       Gateway: exports.durableObject({ storage: "sqlite" }),
     },
