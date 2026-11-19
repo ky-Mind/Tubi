@@ -105,7 +105,7 @@ const locChip = o => { const l = o.location; if (!l?.lat) return `<span class="c
 const othumb = i => { const p = S.products.find(x => x.id === i.id); return `<span class="thumb xs">${p ? pic(p) : svg("image", 18)}</span>`; };
 const orderCard = o => {
   const st = statusOf(o.status), nx = nextOf[st], ph = normPhone(o.phone), unpaid = o.payment && o.payment.status !== "paid" && st !== "dibatalkan";
-  return `<div class="card order-card o-${st}">
+  return `<div class="card order-card o-${st}" id="aord-${o.id}">
   <div class="oc-h"><span class="av">${initial(o.customerName)}</span><div class="sp" style="min-width:0"><b>${esc(o.customerName || "Pelanggan")}</b><div class="muted xs">#${esc(o.id.slice(0, 6).toUpperCase())} · ${timeText(o.createdAt)}${o.phone ? " · " + esc(hpLokal(o.phone)) : ""}</div></div><div class="row wrap" style="justify-content:flex-end">${payBadge(o)}<span class="chip st-${st}">${STATUS_LABEL[st]}</span></div></div>
   <div class="items">${(o.items || []).map(i => `<div class="it">${othumb(i)}<span class="sp">${esc(i.name)} <span class="muted">×${i.qty}</span></span><span>${rupiah(i.qty * i.price)}</span></div>`).join("")}
     <div class="oc-tot"><span class="muted">${(o.items || []).reduce((a, i) => a + i.qty, 0)} item${+o.deliveryFee ? ` · ongkir ${rupiah(o.deliveryFee)}` : ""}${+o.discount ? ` · diskon ${rupiah(o.discount)}` : ""}</span><span>Total <b class="money">${rupiah(o.total)}</b></span></div></div>
@@ -127,6 +127,19 @@ export function orders() {
   ${live("olist", ["orders", "errors"], olistHtml)}`;
 }
 actions.osearch = t => { OQ = t.value; repaint("olist"); };
+// Tautan dalam dari notifikasi admin
+export function bukaPesanan(id) {
+  const coba = n => {
+    if (!S.orders.some(x => x.id === id)) { if (n < 40) setTimeout(() => coba(n + 1), 150); return; }
+    if (OF !== "semua" || OU) { OF = "semua"; OU = false; repaint("otabs"); repaint("olist"); }
+    setTimeout(() => { const el = document.getElementById("aord-" + id); if (el) { el.scrollIntoView({ block: "center", behavior: "smooth" }); el.classList.add("sorot"); setTimeout(() => el.classList.remove("sorot"), 2200); } }, 80);
+  };
+  coba(0);
+}
+export function bukaChat(uid) {
+  const coba = n => { if (S.chats.some(c => c.id === uid)) actions.thread({ dataset: { id: uid } }); else if (n < 40) setTimeout(() => coba(n + 1), 150); };
+  coba(0);
+}
 actions.ofilter = el => { OF = el.dataset.f; OU = false; repaint("otabs"); repaint("olist"); };
 actions.ounpaid = () => { OU = false; repaint("olist"); };
 actions.ostatus = async el => {
@@ -134,7 +147,7 @@ actions.ostatus = async el => {
   if (s === "dibatalkan" && !await confirmBox("Batalkan pesanan ini?", `Pesanan ${o?.customerName || ""} akan ditandai dibatalkan dan pelanggan diberi tahu.`, "Ya, batalkan")) return;
   if (s === "diproses" && o?.payment?.method === "transfer" && o.payment.status !== "paid" && !await confirmBox("Pembayaran belum lunas", "Pesanan transfer/QRIS ini belum ditandai lunas. Cek bukti bayarnya dulu, atau tetap proses?", "Tetap proses", false)) return;
   // updatedAt dipakai gateway WhatsApp untuk mendeteksi perubahan status (kabar ke pelanggan)
-  const d = { status: s, updatedAt: F.serverTimestamp() }; if (s === "selesai" && o?.payment?.method === "cod") d["payment.status"] = "paid";
+  const d = { status: s, updatedAt: F.serverTimestamp(), ...(s === "dibatalkan" ? { cancelledBy: "admin" } : {}) }; if (s === "selesai" && o?.payment?.method === "cod") d["payment.status"] = "paid";
   await F.updateDoc(F.doc(db, "orders", el.dataset.id), d); toast("Status diubah → " + STATUS_LABEL[s]);
 };
 actions.opaid = async el => {

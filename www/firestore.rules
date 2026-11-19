@@ -76,8 +76,9 @@ service cloud.firestore {
       allow update: if isAdmin() ||
         // pelanggan boleh membatalkan selama belum diproses
         (isOwner(resource.data.userId) &&
-         changed().hasOnly(["status", "updatedAt"]) &&
+         changed().hasOnly(["status", "updatedAt", "cancelledBy"]) &&
          request.resource.data.status == "dibatalkan" &&
+         request.resource.data.get("cancelledBy", "user") == "user" &&
          (!("updatedAt" in request.resource.data) || request.resource.data.updatedAt == request.time) &&
          resource.data.status in ["menunggu", "baru"]) ||
         // pelanggan boleh memberi ulasan setelah pesanan selesai
@@ -196,7 +197,7 @@ service cloud.firestore {
     // Aplikasi menyimpan token HP-nya sendiri. Hanya gateway (Admin SDK) yang membaca untuk mengirim notifikasi.
     match /pushTokens/{token} {
       allow create, update: if signedIn() &&
-        request.resource.data.keys().hasOnly(["uid", "email", "platform", "updatedAt"]) &&
+        request.resource.data.keys().hasOnly(["uid", "email", "platform", "native", "updatedAt"]) &&
         request.resource.data.uid == request.auth.uid &&
         request.resource.data.email == mail() &&
         request.resource.data.updatedAt == request.time &&
