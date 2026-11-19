@@ -2,19 +2,21 @@ import { db, F, firebaseConfig, FIXED_ADMINS } from "./firebase.js";
 import { S, emit, openThread, avail, ratingOf, statusOf, STATUS_LABEL, STATUSES, isMain, payMethods } from "./data.js";
 import { actions, forms, live, go, openOverlay, closeOverlay, repaint } from "./core.js";
 import { $, $$, esc, rupiah, svg, stars, toast, timeText, ago, secs, initial, normPhone, compressImage, ls } from "./util.js";
-import { msgsHtml, chatForm, toEnd, markRead } from "./chat.js";
-import { img, imgStyle } from "./customer.js";
+import { msgsHtml, chatForm, toEnd, markRead, resetCompose, sendMsg } from "./chat.js";
+import { img, imgStyle, cropCss } from "./customer.js";
 import { ask, confirmBox, dropzone } from "./ui.js";
 import { viewer, mapsDir, mapsView } from "./map.js";
 import * as BT from "./printer.js";
+import { bell } from "./notif.js";
+import { PROVIDERS, prov, provOf, badge, nomorOf, atasNamaOf, appName } from "./pay.js";
 
-const pic = p => img(p) ? `<img src="${esc(img(p))}" alt="" ${imgStyle(p)}>` : "🍢";
+const pic = p => img(p) ? `<img src="${esc(img(p))}" alt="" ${imgStyle(p)}>` : `<span class="noimg">${svg("image", 26)}</span>`;
 const path = () => location.hash.slice(1) || "/";
 export const TITLES = { "/admin": "Dashboard", "/admin/orders": "Pesanan", "/admin/chat": "Chat Pelanggan", "/admin/products": "Produk", "/admin/reports": "Omzet & Laporan", "/admin/settings": "Pengaturan", "/admin/more": "Menu lainnya" };
 const pending = () => S.orders.filter(o => statusOf(o.status) === "menunggu").length;
 const unreadChats = () => S.chats.reduce((a, c) => a + (+c.unreadAdmin || 0), 0);
 export const waState = () => { const w = S.wa; if (!w) return "offline"; return (Date.now() - secs(w.updatedAt) * 1000) < 240000 ? (w.state || "offline") : "offline"; };
-const WA_LABEL = { offline: "Offline", starting: "Memulai", connecting: "Menghubungkan", qr: "Scan QR", pairing: "Kode pairing", connected: "Terhubung", logged_out: "Logout", error: "Error" };
+const WA_LABEL = { offline: "Offline", starting: "Memulai", connecting: "Menghubungkan", qr: "Scan QR", pairing: "Kode pairing", connected: "Terhubung", logged_out: "Logout", idle: "Diam", error: "Error" };
 const setSettings = d => F.setDoc(F.doc(db, "settings", "store"), d, { merge: true });
 
 // ===== Shell =====
@@ -29,7 +31,7 @@ export function shell() {
     <a href="#/">${svg("store", 20)}Lihat toko</a><button class="lnk" data-act="themetoggle">${svg("moon", 20)}Mode gelap/terang</button><button class="lnk" data-act="logout">${svg("logout", 20)}Keluar</button></aside>
   <header class="a-top"><div class="in"><button class="icon-btn only-d" data-act="sidebar" title="Sembunyikan / tampilkan sidebar (Ctrl+B)" aria-label="Sidebar">${svg("menu")}</button>
     ${live("atitle", ["route"], () => `<h2>${TITLES[path()] || "Admin"}</h2>`)}<span class="sp"></span>
-    <button class="btn sm pal-btn" data-act="palette" title="Palet perintah (Ctrl+K)">${svg("search", 16)}<span class="only-d">Cari & perintah</span><kbd class="only-d">Ctrl K</kbd></button>
+    ${bell("a")}<button class="btn sm pal-btn" data-act="palette" title="Palet perintah (Ctrl+K)">${svg("search", 16)}<span class="only-d">Cari & perintah</span><kbd class="only-d">Ctrl K</kbd></button>
     ${live("achip", ["wa", "errors"], () => `<a class="chip" href="#/admin/settings" style="padding:7px 13px"><span class="dot ${waState()}"></span><span class="only-d">WhatsApp:&nbsp;</span>${WA_LABEL[waState()]}</a>`)}
     ${live("aav", ["profile", "auth"], () => `<span class="av" title="${esc(S.profile.displayName)} · ${isMain(S.user) ? "Admin utama" : "Admin"}">${S.profile.photoURL ? `<img src="${esc(S.profile.photoURL)}" alt="">` : initial(S.profile.displayName)}</span>`)}</div></header>
   ${live("aerr", ["errors"], errBanner)}
@@ -41,39 +43,72 @@ function errBanner() {
   return `<div class="a-main" style="padding-bottom:0;padding-top:12px"><div class="alert"><b>Firestore menolak akses (${e.map(x => x[0]).join(", ")}).</b> Rules belum dipublish: buka Firebase Console → project <code>${firebaseConfig.projectId}</code> → Firestore → Rules → tempel isi <code>firestore.rules</code> → Publish. Lalu muat ulang halaman.</div></div>`;
 }
 
-// ===== Dashboard =====
-const rowOrder = o => `<div class="r"><span class="av">${initial(o.customerName)}</span><div class="mid"><b>${esc(o.customerName || "Pelanggan")}</b><small class="muted">${(o.items || []).map(i => `${i.qty}× ${esc(i.name)}`).join(", ")} · ${ago(o.createdAt)}</small></div><div style="text-align:right"><b>${rupiah(o.total)}</b><br><span class="chip st-${statusOf(o.status)}">${STATUS_LABEL[statusOf(o.status)]}</span></div></div>`;
+// ===== Dashboard (gaya Seller Centre) =====
+const rowOrder = o => `<a class="r" href="#/admin/orders" data-act="gofilter" data-f="${statusOf(o.status)}"><span class="av">${initial(o.customerName)}</span><div class="mid"><b>${esc(o.customerName || "Pelanggan")}</b><small class="muted">${(o.items || []).map(i => `${i.qty}× ${esc(i.name)}`).join(", ")} · ${ago(o.createdAt)}</small></div><div style="text-align:right"><b class="money">${rupiah(o.total)}</b><br><span class="chip st-${statusOf(o.status)}">${STATUS_LABEL[statusOf(o.status)]}</span></div></a>`;
+const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d / 1000; };
+const TODO = [
+  ["menunggu", "receipt", "Perlu dikonfirmasi", () => S.orders.filter(o => statusOf(o.status) === "menunggu").length],
+  ["diproses", "chef", "Sedang diproses", () => S.orders.filter(o => statusOf(o.status) === "diproses").length],
+  ["siap", "bike", "Siap diantar", () => S.orders.filter(o => statusOf(o.status) === "siap").length],
+  ["unpaid", "coin", "Belum lunas", () => S.orders.filter(o => o.payment?.method === "transfer" && o.payment?.status !== "paid" && statusOf(o.status) !== "dibatalkan").length],
+  ["chat", "chat", "Chat belum dibalas", () => unreadChats()],
+  ["habis", "box", "Produk habis", () => S.products.filter(p => !avail(p)).length]
+];
 export function dashboard() {
+  const hello = () => { const s = S.settings, open = s.open !== false, h = new Date().getHours(); return `<section class="a-hello"><div class="sp"><small>${new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</small><h2>${h < 11 ? "Selamat pagi" : h < 15 ? "Selamat siang" : h < 18 ? "Selamat sore" : "Selamat malam"}, ${esc((S.profile.displayName || "Admin").split(" ")[0])}</h2><p>Berikut ringkasan toko Tubi hari ini.</p></div>
+    <button class="store-sw ${open ? "on" : ""}" data-act="storeopen" aria-pressed="${open}"><i></i><span><b>${open ? "Toko buka" : "Toko tutup"}</b><small>${esc(s.hours || "Ketuk untuk mengubah")}</small></span></button></section>`; };
+  const todo = () => `<section class="card"><div class="row" style="margin-bottom:10px"><h3 style="margin:0">Yang perlu dilakukan</h3><span class="sp"></span><span class="muted xs">ketuk untuk membuka</span></div><div class="todo">${TODO.map(([k, e, l, f]) => { const n = f(); return `<a href="#/admin" data-act="gofilter" data-f="${k}" class="${n ? "has" : ""}"><i>${svg(e, 18)}</i><b>${n}</b><span>${l}</span></a>`; }).join("")}</div></section>`;
   const kp = () => {
-    const act = S.orders.filter(o => !["selesai", "dibatalkan"].includes(statusOf(o.status))).length, done = S.orders.filter(o => statusOf(o.status) === "selesai");
-    return `<div class="kpis"><div class="kpi"><span class="l">${svg("store", 16)} Produk</span><b>${S.products.length}</b></div><div class="kpi"><span class="l">${svg("clock", 16)} Pesanan berjalan</span><b>${act}</b></div><div class="kpi"><span class="l">${svg("check", 16)} Pesanan selesai</span><b>${done.length}</b></div><div class="kpi"><span class="l">${svg("chart", 16)} Omzet selesai</span><b>${rupiah(done.reduce((a, o) => a + (+o.total || 0), 0))}</b></div></div>`;
+    const t0 = today(), done = S.orders.filter(o => statusOf(o.status) === "selesai"), td = S.orders.filter(o => secs(o.createdAt) >= t0 && statusOf(o.status) !== "dibatalkan");
+    const omzet = done.filter(o => secs(o.createdAt) >= t0).reduce((a, o) => a + (+o.total || 0), 0), all = done.reduce((a, o) => a + (+o.total || 0), 0);
+    return `<div class="kpis"><div class="kpi hl"><span class="l">${svg("chart", 16)} Omzet hari ini</span><b>${rupiah(omzet)}</b><small>pesanan selesai hari ini</small></div><div class="kpi"><span class="l">${svg("bag", 16)} Pesanan hari ini</span><b>${td.length}</b><small class="muted">selain yang dibatalkan</small></div><div class="kpi"><span class="l">${svg("check", 16)} Total selesai</span><b>${done.length}</b><small class="muted">${rupiah(all)}</small></div><div class="kpi"><span class="l">${svg("store", 16)} Produk aktif</span><b>${S.products.filter(avail).length}<span class="muted" style="font-size:.55em">/${S.products.length}</span></b><small class="muted">tersedia / total</small></div></div>`;
   };
-  return `${live("kpi", ["orders", "products"], kp)}
+  const best = () => { const c = {}; S.orders.filter(o => statusOf(o.status) === "selesai").forEach(o => (o.items || []).forEach(i => c[i.id || i.name] = { n: i.name, id: i.id, q: (c[i.id || i.name]?.q || 0) + i.qty })); const l = Object.values(c).sort((a, b) => b.q - a.q).slice(0, 5);
+    return `<div class="card"><h3>Menu terlaris</h3>${l.length ? `<div class="tbl">${l.map((x, i) => { const p = S.products.find(y => y.id === x.id); return `<div class="r"><span class="rank-n">${i + 1}</span><span class="thumb xs">${p ? pic(p) : svg("image", 18)}</span><div class="mid"><b>${esc(x.n)}</b></div><span class="chip">${x.q} terjual</span></div>`; }).join("")}</div>` : `<div class="empty">Belum ada pesanan selesai.</div>`}</div>`; };
+  return `${live("hello", ["settings", "profile"], hello)}
+  ${live("todo", ["orders", "chats", "products"], todo)}
+  ${live("kpi", ["orders", "products"], kp)}
   <div class="two" style="margin-top:16px"><div class="card"><div class="row"><h3 style="margin:0">Pesanan terbaru</h3><span class="sp"></span><a class="btn sm" href="#/admin/orders">Lihat semua</a></div>
     ${live("recent", ["orders", "errors"], () => S.orders.length ? `<div class="tbl" style="margin-top:8px">${S.orders.slice(0, 6).map(rowOrder).join("")}</div>` : `<div class="empty" style="margin-top:10px">Belum ada pesanan masuk.</div>`)}</div>
-  <div class="col">${live("quick", ["products"], () => `<div class="card"><h3>Aksi cepat</h3><div class="grid2"><a class="btn" href="#/admin/products">${svg("plus", 18)} Tambah produk</a><a class="btn" href="#/admin/orders">${svg("bag", 18)} Kelola pesanan</a><a class="btn" href="#/admin/chat">${svg("chat", 18)} Balas chat</a><a class="btn" href="#/admin/reports">${svg("chart", 18)} Laporan</a></div>${S.products.length ? "" : `<div class="alert" style="margin-top:12px">Katalog masih kosong — <a href="#/admin/products"><b>isi produk sekarang</b></a>.</div>`}<p class="muted xs only-d" style="margin-top:12px">Tips: tekan <kbd>Ctrl</kbd>+<kbd>K</kbd> untuk mencari perintah, <kbd>Ctrl</kbd>+<kbd>B</kbd> untuk menyembunyikan sidebar.</p><p class="muted xs only-m" style="margin-top:12px">Tips: ketuk ikon 🔍 di bar atas untuk mencari halaman, produk, atau pesanan.</p></div>`)}
-    ${live("wamini", ["wa", "errors"], () => `<div class="card"><div class="row"><h3 style="margin:0">WhatsApp Bot</h3><span class="sp"></span><span class="chip"><span class="dot ${waState()}"></span>${WA_LABEL[waState()]}</span></div>${waBody(true)}<a class="btn full" style="margin-top:12px" href="#/admin/settings">Kelola WhatsApp</a></div>`)}</div></div>`;
+  <div class="col">${live("wamini", ["wa", "errors"], () => `<div class="card wa-card"><div class="row"><h3 style="margin:0">${svg("wa", 18)} WhatsApp Bot</h3><span class="sp"></span><span class="chip"><span class="dot ${waState()}"></span>${WA_LABEL[waState()]}</span></div>${waBody(true)}<a class="btn full" style="margin-top:12px" href="#/admin/settings/wa">Kelola WhatsApp</a></div>`)}
+    ${live("best", ["orders", "products"], best)}
+    <div class="card"><h3>Aksi cepat</h3><div class="grid2"><button class="btn" data-act="pform">${svg("plus", 18)} Tambah produk</button><a class="btn" href="#/admin/chat">${svg("chat", 18)} Balas chat</a><a class="btn" href="#/admin/reports">${svg("chart", 18)} Laporan</a><a class="btn" href="#/admin/settings/toko">${svg("cog", 18)} Atur toko</a></div><p class="muted xs only-d" style="margin-top:12px">Tips: <kbd>Ctrl</kbd>+<kbd>K</kbd> mencari perintah, <kbd>Ctrl</kbd>+<kbd>B</kbd> menyembunyikan sidebar.</p></div></div></div>`;
 }
+actions.gofilter = el => { const f = el.dataset.f; if (f === "chat") return go("/admin/chat"); if (f === "habis") { PF = "habis"; return go("/admin/products"); } OF = f === "unpaid" ? "semua" : f; OU = f === "unpaid"; go("/admin/orders"); if (path() === "/admin/orders") { repaint("otabs"); repaint("olist"); } };
+actions.storeopen = async () => { const open = S.settings.open === false; if (!open || await confirmBox("Tutup toko?", "Pelanggan tetap bisa melihat menu, tapi tidak bisa memesan sampai toko dibuka lagi.", "Tutup toko")) { await setSettings({ open }); toast(open ? "Toko dibuka ✓" : "Toko ditutup"); } };
 
 // ===== Pesanan =====
-let OF = "semua", OQ = "";
+let OF = "semua", OQ = "", OU = false;
 const nextOf = { menunggu: ["diproses", "Proses pesanan"], diproses: ["siap", "Tandai siap"], siap: ["selesai", "Selesaikan"] };
-const payBadge = o => { const m = o.payment?.method; if (!m) return ""; const via = o.payment?.via ? ` · ${esc(o.payment.via)}` : ""; return m === "cod" ? `<span class="chip">COD</span>` : o.payment?.status === "paid" ? `<span class="chip st-selesai">Lunas${via}</span>` : `<span class="chip st-menunggu">Belum lunas${via}</span>`; };
+const payBadge = o => { const m = o.payment?.method; if (!m) return ""; const via = o.payment?.via ? ` · ${esc(o.payment.via)}` : "", s = o.payment?.status;
+  return m === "cod" ? `<span class="chip">COD</span>` : s === "paid" ? `<span class="chip st-selesai">Lunas${via}</span>` : s === "issue" ? `<span class="chip st-dibatalkan">Ada kendala${via}</span>` : o.paymentProof ? `<span class="chip st-diproses">Cek bukti bayar${via}</span>` : `<span class="chip st-menunggu">Belum lunas${via}</span>`; };
+// Kotak pembayaran di kartu pesanan: bukti + tombol keputusan admin
+const payReview = o => {
+  if (o.payment?.method !== "transfer" || statusOf(o.status) === "dibatalkan") return "";
+  const s = o.payment?.status;
+  if (s === "paid") return `<div class="pay-rev ok">${svg("check", 18)}<span class="sp"><b>Pembayaran diterima</b><small>${esc(o.payment?.via || "Transfer")} · ${rupiah(o.total)}</small></span>${o.paymentProof ? `<button class="btn sm ghost" data-act="proofview" data-id="${o.id}">Lihat bukti</button>` : ""}</div>`;
+  return `<div class="pay-rev ${o.paymentProof ? "new" : ""}">${o.paymentProof ? `<img src="${esc(o.paymentProof)}" alt="Bukti bayar" data-act="proofview" data-id="${o.id}">` : `<i>${svg("clock", 20)}</i>`}
+    <span class="sp"><b>${s === "issue" ? "Ditandai ada kendala" : o.paymentProof ? "Bukti pembayaran masuk, mohon dicek" : "Menunggu pelanggan membayar"}</b><small>${esc(o.payment?.via || "Transfer")} · ${rupiah(o.total)}${s === "issue" && o.payment?.note ? " · " + esc(o.payment.note) : ""}</small></span>
+    <span class="pay-rev-a"><button class="btn sm s-selesai" data-act="opaid" data-id="${o.id}">${svg("check", 15)} Terima</button><button class="btn sm" data-act="opissue" data-id="${o.id}">${svg("alert", 15)} Ada kendala</button></span></div>`;
+};
 const locChip = o => { const l = o.location; if (!l?.lat) return `<span class="chip">dari alamat tertulis</span>`; if (l.manual) return `<span class="chip st-selesai">Titik ditandai manual</span>`; return l.accuracy > 100 ? `<span class="chip st-menunggu" title="GPS kurang tepat">GPS ±${Math.round(l.accuracy)} m — cek peta</span>` : `<span class="chip st-selesai">GPS ±${Math.round(l.accuracy || 0)} m</span>`; };
+const othumb = i => { const p = S.products.find(x => x.id === i.id); return `<span class="thumb xs">${p ? pic(p) : svg("image", 18)}</span>`; };
 const orderCard = o => {
-  const st = statusOf(o.status), nx = nextOf[st], ph = normPhone(o.phone), gps = !!o.location?.lat, unpaid = o.payment && o.payment.status !== "paid" && st !== "dibatalkan";
-  return `<div class="card order-card o-${st}"><div class="row wrap"><span class="av">${initial(o.customerName)}</span><div class="sp"><b>${esc(o.customerName || "Pelanggan")}</b> <span class="muted sm">#${esc(o.id.slice(0, 6).toUpperCase())} · ${timeText(o.createdAt)}</span><div class="muted sm">${esc(o.phone || "")} ${o.email ? "· " + esc(o.email) : ""}</div></div><div class="row wrap">${payBadge(o)}<span class="chip st-${st}">${STATUS_LABEL[st]}</span></div></div>
-  <div class="items">${(o.items || []).map(i => `<div><span>${i.qty}× ${esc(i.name)}</span><span>${rupiah(i.qty * i.price)}</span></div>`).join("")}<div style="border-top:1px dashed var(--line);padding-top:6px;margin-top:4px"><b>Total</b><b>${rupiah(o.total)}</b></div></div>
-  <div class="addr"><div class="row" style="align-items:flex-start"><span class="addr-ic">${svg("pin", 18)}</span><div class="sp"><b>Alamat pengantaran</b> ${locChip(o)}<div>${esc(o.address || "-")}</div>${o.note ? `<div class="muted sm">Catatan: ${esc(o.note)}</div>` : ""}</div></div>
-    <div class="row wrap" style="margin-top:10px"><a class="btn pri sm" target="_blank" rel="noopener" href="${esc(mapsDir(o))}">${svg("send", 15)} Navigasi</a><button class="btn sm" data-act="omap" data-id="${o.id}">${svg("pin", 15)} Lihat peta</button><button class="btn sm" data-act="copy" data-t="${esc(o.address || "")}">Salin alamat</button></div></div>
-  ${o.payment?.method === "transfer" ? `<div class="row wrap">${o.paymentProof ? `<button class="btn sm" data-act="proofview" data-id="${o.id}">🧾 Lihat bukti bayar</button>` : `<span class="muted sm">Bukti bayar belum diunggah</span>`}</div>` : ""}
-  <div class="row wrap">${nx ? `<button class="btn sm s-${nx[0]}" data-act="ostatus" data-id="${o.id}" data-s="${nx[0]}">${svg("check", 15)} ${nx[1]}</button>` : ""}${unpaid ? `<button class="btn sm" data-act="opaid" data-id="${o.id}">💰 Tandai lunas</button>` : ""}
-  ${ph ? `<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${ph}">${svg("wa", 15)} WhatsApp</a>` : ""}<button class="btn sm" data-act="print" data-id="${o.id}">${svg("print", 15)} Struk</button><button class="btn sm" data-act="oedit" data-id="${o.id}">${svg("edit", 15)} Edit</button>
-  ${["menunggu", "diproses", "siap"].includes(st) ? `<button class="btn sm danger" data-act="ostatus" data-id="${o.id}" data-s="dibatalkan">Batalkan</button>` : ""}<button class="btn sm danger" data-act="odel" data-id="${o.id}">${svg("trash", 15)} Hapus</button></div></div>`;
+  const st = statusOf(o.status), nx = nextOf[st], ph = normPhone(o.phone), unpaid = o.payment && o.payment.status !== "paid" && st !== "dibatalkan";
+  return `<div class="card order-card o-${st}">
+  <div class="oc-h"><span class="av">${initial(o.customerName)}</span><div class="sp" style="min-width:0"><b>${esc(o.customerName || "Pelanggan")}</b><div class="muted xs">#${esc(o.id.slice(0, 6).toUpperCase())} · ${timeText(o.createdAt)}${o.phone ? " · " + esc(o.phone) : ""}</div></div><div class="row wrap" style="justify-content:flex-end">${payBadge(o)}<span class="chip st-${st}">${STATUS_LABEL[st]}</span></div></div>
+  <div class="items">${(o.items || []).map(i => `<div class="it">${othumb(i)}<span class="sp">${esc(i.name)} <span class="muted">×${i.qty}</span></span><span>${rupiah(i.qty * i.price)}</span></div>`).join("")}
+    <div class="oc-tot"><span class="muted">${(o.items || []).reduce((a, i) => a + i.qty, 0)} item${+o.deliveryFee ? ` · ongkir ${rupiah(o.deliveryFee)}` : ""}${+o.discount ? ` · diskon ${rupiah(o.discount)}` : ""}</span><span>Total <b class="money">${rupiah(o.total)}</b></span></div></div>
+  <div class="addr"><div class="row" style="align-items:flex-start"><span class="addr-ic">${svg("pin", 18)}</span><div class="sp" style="min-width:0"><div class="row wrap" style="gap:6px"><b>Alamat pengantaran</b>${locChip(o)}</div><div>${esc(o.address || "-")}</div>${o.note ? `<div class="oc-note">${svg("note", 15)} ${esc(o.note)}</div>` : ""}</div></div>
+    <div class="row wrap" style="margin-top:10px"><a class="btn alt sm" target="_blank" rel="noopener" href="${esc(mapsDir(o))}">${svg("send", 15)} Navigasi</a><button class="btn sm" data-act="omap" data-id="${o.id}">${svg("pin", 15)} Lihat peta</button><button class="btn sm" data-act="copy" data-t="${esc(o.address || "")}">Salin alamat</button>${ph ? `<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${ph}">${svg("wa", 15)} WhatsApp</a>` : ""}</div></div>
+  ${payReview(o)}
+  <div class="oc-act"><div class="row wrap"><button class="btn sm ghost" data-act="print" data-id="${o.id}">${svg("print", 15)} Struk</button><button class="btn sm ghost" data-act="oedit" data-id="${o.id}">${svg("edit", 15)} Edit</button>
+    ${["menunggu", "diproses", "siap"].includes(st) ? `<button class="btn sm ghost danger" data-act="ostatus" data-id="${o.id}" data-s="dibatalkan">Batalkan</button>` : ""}<button class="btn sm ghost danger" data-act="odel" data-id="${o.id}" aria-label="Hapus pesanan">${svg("trash", 15)}</button></div>
+    ${nx ? `<button class="btn s-${nx[0]}" data-act="ostatus" data-id="${o.id}" data-s="${nx[0]}">${svg("check", 16)} ${nx[1]}</button>` : ""}</div></div>`;
 };
 const olistHtml = () => {
-  const q = OQ.trim().toLowerCase(), l = S.orders.filter(o => (OF === "semua" || statusOf(o.status) === OF) && (!q || `${o.customerName} ${o.phone} ${o.address} ${o.id}`.toLowerCase().includes(q)));
-  return l.length ? `<div class="col">${l.map(orderCard).join("")}</div>` : `<div class="empty">${S.orders.length ? "Tidak ada pesanan yang cocok." : "Belum ada pesanan masuk."}</div>`;
+  const q = OQ.trim().toLowerCase(), l = S.orders.filter(o => (OF === "semua" || statusOf(o.status) === OF) && (!OU || (o.payment?.method === "transfer" && o.payment?.status !== "paid" && statusOf(o.status) !== "dibatalkan")) && (!q || `${o.customerName} ${o.phone} ${o.address} ${o.id}`.toLowerCase().includes(q)));
+  return (OU ? `<div class="alert ok" style="margin-bottom:10px">Menampilkan pesanan transfer yang <b>belum lunas</b>. <button class="btn sm" data-act="ounpaid">Tampilkan semua</button></div>` : "") + (l.length ? `<div class="col">${l.map(orderCard).join("")}</div>` : `<div class="empty">${S.orders.length ? "Tidak ada pesanan yang cocok." : "Belum ada pesanan masuk."}</div>`);
 };
 export function orders() {
   return `<div class="row wrap" style="margin-bottom:10px"><div class="search-in sp">${svg("search", 18)}<input type="search" placeholder="Cari nama, nomor, alamat, atau ID pesanan…" data-input="osearch" value="${esc(OQ)}"></div>
@@ -82,15 +117,36 @@ export function orders() {
   ${live("olist", ["orders", "errors"], olistHtml)}`;
 }
 actions.osearch = t => { OQ = t.value; repaint("olist"); };
-actions.ofilter = el => { OF = el.dataset.f; repaint("otabs"); repaint("olist"); };
+actions.ofilter = el => { OF = el.dataset.f; OU = false; repaint("otabs"); repaint("olist"); };
+actions.ounpaid = () => { OU = false; repaint("olist"); };
 actions.ostatus = async el => {
   const o = S.orders.find(x => x.id === el.dataset.id), s = el.dataset.s;
   if (s === "dibatalkan" && !await confirmBox("Batalkan pesanan ini?", `Pesanan ${o?.customerName || ""} akan ditandai dibatalkan dan pelanggan diberi tahu.`, "Ya, batalkan")) return;
   if (s === "diproses" && o?.payment?.method === "transfer" && o.payment.status !== "paid" && !await confirmBox("Pembayaran belum lunas", "Pesanan transfer/QRIS ini belum ditandai lunas. Cek bukti bayarnya dulu, atau tetap proses?", "Tetap proses", false)) return;
-  const d = { status: s }; if (s === "selesai" && o?.payment?.method === "cod") d["payment.status"] = "paid";
+  // updatedAt dipakai gateway WhatsApp untuk mendeteksi perubahan status (kabar ke pelanggan)
+  const d = { status: s, updatedAt: F.serverTimestamp() }; if (s === "selesai" && o?.payment?.method === "cod") d["payment.status"] = "paid";
   await F.updateDoc(F.doc(db, "orders", el.dataset.id), d); toast("Status diubah → " + STATUS_LABEL[s]);
 };
-actions.opaid = async el => { await F.updateDoc(F.doc(db, "orders", el.dataset.id), { "payment.status": "paid" }); toast("Ditandai lunas ✓"); };
+actions.opaid = async el => {
+  const o = S.orders.find(x => x.id === el.dataset.id); closeOverlay();
+  await F.updateDoc(F.doc(db, "orders", el.dataset.id), { "payment.status": "paid", "payment.note": "", "payment.paidAt": Date.now(), updatedAt: F.serverTimestamp() });
+  toast(`Pembayaran #${el.dataset.id.slice(0, 6).toUpperCase()} diterima. Pelanggan diberi tahu.`);
+  if (o && statusOf(o.status) === "menunggu" && await confirmBox("Langsung proses pesanan?", "Pembayaran sudah diterima. Ubah status pesanan menjadi Diproses sekarang?", "Proses pesanan", false))
+    await F.updateDoc(F.doc(db, "orders", o.id), { status: "diproses", updatedAt: F.serverTimestamp() });
+};
+// Ada kendala: pilih alasan → status pembayaran "issue" + catatan, dan pelanggan dikabari lewat chat
+const KENDALA = ["Nominal transfer tidak sesuai", "Dana belum masuk ke rekening / e-wallet toko", "Bukti transfer tidak jelas / terpotong", "Bukti transfer bukan untuk pesanan ini"];
+actions.opissue = el => { closeOverlay(); setTimeout(() => openOverlay(`<div class="sheet-head"><h3>Kendala pembayaran</h3><button class="icon-btn" data-act="close" aria-label="Tutup">${svg("x")}</button></div>
+  <form class="col" data-form="opissue" data-id="${el.dataset.id}"><div class="kendala">${KENDALA.map((k, i) => `<label class="pay"><input type="radio" name="r" value="${esc(k)}" ${i ? "" : "checked"}><span><b>${esc(k)}</b></span></label>`).join("")}<label class="pay"><input type="radio" name="r" value=""><span><b>Alasan lain</b></span></label></div>
+  <label>Pesan untuk pelanggan <span class="hint">opsional</span><textarea name="note" rows="2" placeholder="mis. Mohon transfer kekurangan Rp 1.000 ya"></textarea></label>
+  <div class="grid2"><button class="btn" type="submit">${svg("alert", 16)} Kirim kendala</button><button class="btn danger" type="button" data-act="ostatus" data-id="${el.dataset.id}" data-s="dibatalkan">Batalkan pesanan</button></div></form>`), 200); };
+forms.opissue = async (f, fd) => {
+  const id = f.dataset.id, note = [fd.get("r"), String(fd.get("note") || "").trim()].filter(Boolean).join(". ").slice(0, 300) || "Pembayaran belum bisa dipastikan.";
+  await F.updateDoc(F.doc(db, "orders", id), { "payment.status": "issue", "payment.note": note, updatedAt: F.serverTimestamp() });
+  const o = S.orders.find(x => x.id === id);
+  if (o?.userId) sendMsg(o.userId, "admin", { text: `Halo ${o.customerName || ""}, ada kendala pembayaran untuk pesanan #${id.slice(0, 6).toUpperCase()}: ${note}. Silakan cek lagi lalu unggah ulang bukti di halaman pembayaran ya. Terima kasih.` }).catch(() => {});
+  closeOverlay(); toast("Kendala dikirim ke pelanggan.");
+};
 actions.odel = async el => { const o = S.orders.find(x => x.id === el.dataset.id); if (await confirmBox("Hapus pesanan ini?", `Pesanan #${o.id.slice(0, 6).toUpperCase()} (${o.customerName || ""}) akan dihapus permanen dari laporan juga.`, "Hapus permanen")) { await F.deleteDoc(F.doc(db, "orders", o.id)); toast("Pesanan dihapus."); } };
 actions.oclean = async () => {
   const l = S.orders.filter(o => ["selesai", "dibatalkan"].includes(statusOf(o.status)));
@@ -104,7 +160,8 @@ actions.oedit = el => {
   <label>Alamat<textarea name="address">${esc(o.address || "")}</textarea></label><label>Catatan<input name="note" value="${esc(o.note || "")}"></label><button class="btn pri" type="submit">Simpan perubahan</button></form>`);
 };
 forms.oedit = async (f, fd) => { await F.updateDoc(F.doc(db, "orders", f.dataset.id), { customerName: String(fd.get("name")).trim(), recipientName: String(fd.get("name")).trim(), phone: String(fd.get("phone")).trim(), address: String(fd.get("address")).trim(), note: String(fd.get("note")).trim() }); closeOverlay(); toast("Pesanan diperbarui."); };
-actions.proofview = el => { const o = S.orders.find(x => x.id === el.dataset.id); openOverlay(`<div class="sheet-head"><h3>Bukti pembayaran</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div><img src="${esc(o.paymentProof)}" alt="Bukti" style="width:100%;border-radius:14px"><div class="row" style="margin-top:12px">${o.payment?.status !== "paid" ? `<button class="btn pri sp" data-act="opaid" data-id="${o.id}">💰 Tandai lunas</button>` : `<span class="chip st-selesai">Sudah lunas</span>`}</div>`, "wide"); };
+actions.proofview = el => { const o = S.orders.find(x => x.id === el.dataset.id); openOverlay(`<div class="sheet-head"><h3>Bukti pembayaran</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div><div class="muted sm" style="margin-bottom:8px">#${esc(o.id.slice(0, 6).toUpperCase())} · ${esc(o.customerName || "")} · ${esc(o.payment?.via || "Transfer")} · <b class="money">${rupiah(o.total)}</b></div><img src="${esc(o.paymentProof)}" alt="Bukti" style="width:100%;border-radius:14px">
+  ${o.payment?.status !== "paid" ? `<div class="grid3" style="margin-top:12px"><button class="btn s-selesai" data-act="opaid" data-id="${o.id}">${svg("check", 16)} Terima</button><button class="btn" data-act="opissue" data-id="${o.id}">${svg("alert", 16)} Ada kendala</button><button class="btn danger" data-act="ostatus" data-id="${o.id}" data-s="dibatalkan">Batalkan</button></div>` : `<div class="alert ok" style="margin-top:12px">Pembayaran sudah diterima.</div>`}`, "wide"); };
 actions.omap = el => {
   const o = S.orders.find(x => x.id === el.dataset.id), ph = normPhone(o.phone), gps = !!o.location?.lat;
   openOverlay(`<div class="sheet-head"><h3>Lokasi pengantaran</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div>
@@ -120,7 +177,7 @@ actions.print = el => {
   <div>${esc(o.customerName || "")} · ${esc(o.phone || "")}</div><div>${esc(o.address || "")}</div><hr>
   ${(o.items || []).map(i => `<div class="rc-r"><span>${i.qty}× ${esc(i.name)}</span><span>${rupiah(i.qty * i.price)}</span></div>`).join("")}<hr>
   ${+o.deliveryFee ? `<div class="rc-r"><span>Ongkir</span><span>${rupiah(o.deliveryFee)}</span></div>` : ""}${+o.discount ? `<div class="rc-r"><span>Diskon</span><span>- ${rupiah(o.discount)}</span></div>` : ""}
-  <div class="rc-r rc-t"><span>TOTAL</span><span>${rupiah(o.total)}</span></div><div class="rc-s" style="margin-top:10px">Terima kasih sudah memesan ❤</div></div>
+  <div class="rc-r rc-t"><span>TOTAL</span><span>${rupiah(o.total)}</span></div><div class="rc-s" style="margin-top:10px">Terima kasih sudah memesan di Tubi</div></div>
   <div class="col" style="margin-top:14px"><button class="btn pri" data-act="btprint" data-id="${o.id}">${svg("bt", 18)} Cetak via printer Bluetooth</button><button class="btn" data-act="doprint">${svg("print", 18)} Cetak lewat browser / PDF</button>
   <small class="muted">Printer Bluetooth dihubungkan sekali di Pengaturan → Printer Bluetooth. ${BT.connected() ? `Terhubung: <b>${esc(BT.printerName())}</b>.` : "Belum terhubung — tombol di atas akan meminta pairing."}</small></div>`);
 };
@@ -143,11 +200,24 @@ const SEED = [
 ];
 const CAT_HINT = ["Roti", "Dimsum", "Topokki", "Kwetiau", "Cilok", "Minuman", "Kue", "Camilan", "Nasi", "Mie & bakso", "Aneka makanan", "Lainnya"];
 const catList = () => [...new Set([...S.products.map(p => String(p.category || "").trim()).filter(Boolean), ...CAT_HINT])];
+let PF = "semua", PQ = "";
+const pcard = p => { const ok = avail(p); return `<div class="aprod ${ok ? "" : "off"}"><div class="ph" data-act="pform" data-id="${p.id}">${pic(p)}${ok ? "" : `<span class="off-l">HABIS</span>`}</div>
+  <div class="bd"><b class="nm">${esc(p.name)}</b><span class="money">${rupiah(p.price)}</span><span class="muted xs">${esc(p.category || "")} · ★ ${ratingOf(p).toFixed(1)}</span>
+  <div class="row" style="margin-top:6px"><button class="sw ${ok ? "on" : ""}" data-act="stock" data-id="${p.id}" aria-pressed="${ok}" title="${ok ? "Tersedia — ketuk untuk set habis" : "Habis — ketuk untuk set tersedia"}"><i></i></button><span class="xs b ${ok ? "ok" : "bad"}">${ok ? "Tersedia" : "Habis"}</span><span class="sp"></span>
+  <button class="icon-btn" data-act="pform" data-id="${p.id}" aria-label="Edit">${svg("edit", 16)}</button><button class="icon-btn" data-act="pdel" data-id="${p.id}" aria-label="Hapus" style="color:var(--red)">${svg("trash", 16)}</button></div></div></div>`; };
+const plistHtml = () => {
+  if (!S.products.length) return `<div class="empty">Belum ada produk. Tambahkan produk pertama atau buat katalog awal.</div>`;
+  const q = PQ.trim().toLowerCase(), l = S.products.filter(p => (PF === "semua" || (PF === "habis") !== avail(p)) && (!q || `${p.name} ${p.category}`.toLowerCase().includes(q)));
+  return l.length ? `<div class="aprods">${l.map(pcard).join("")}</div>` : `<div class="empty">Tidak ada produk yang cocok.</div>`;
+};
 export function products() {
-  return `<div class="row wrap" style="margin-bottom:14px"><button class="btn pri" data-act="pform">${svg("plus", 18)} Tambah produk</button><button class="btn" data-act="fitall" title="Tampilkan seluruh foto tanpa dipotong di semua produk">Foto semua tampil utuh</button>${live("seedbtn", ["products"], () => S.products.length ? "" : `<button class="btn" data-act="seed">Buat katalog awal (7 menu)</button>`)}</div>
-  ${live("plist", ["products", "reviews", "errors"], () => S.products.length ? `<div class="col">${S.products.map(p => `<div class="card row wrap" style="padding:12px"><div class="thumb" style="width:72px;height:72px">${pic(p)}</div><div class="sp" style="min-width:160px"><b>${esc(p.name)}</b> ${avail(p) ? "" : `<span class="chip st-dibatalkan">Habis</span>`}<div class="muted sm">${rupiah(p.price)} · ${esc(p.category || "")} · ${stars(ratingOf(p))} ${ratingOf(p).toFixed(1)}</div></div>
-    <button class="btn sm" data-act="stock" data-id="${p.id}">${avail(p) ? "Set habis" : "Set tersedia"}</button><button class="btn sm" data-act="pform" data-id="${p.id}">${svg("edit", 15)} Edit</button><button class="btn sm danger" data-act="pdel" data-id="${p.id}" aria-label="Hapus">${svg("trash", 15)}</button></div>`).join("")}</div>` : `<div class="empty">Belum ada produk. Tambahkan produk pertama atau buat katalog awal.</div>`)}`;
+  return `<div class="a-tool"><div class="search-in sp">${svg("search", 18)}<input type="search" placeholder="Cari nama atau kategori produk…" data-input="psearch" value="${esc(PQ)}"></div><button class="btn pri" data-act="pform">${svg("plus", 18)} Tambah produk</button></div>
+  <div class="row wrap" style="margin-bottom:6px"><div class="tabs sp" style="padding:0">${live("ptabs", ["products"], () => [["semua", "Semua"], ["tersedia", "Tersedia"], ["habis", "Habis"]].map(([k, l]) => `<button class="tab ${PF === k ? "on" : ""}" data-act="pfilter" data-f="${k}">${l} (${k === "semua" ? S.products.length : S.products.filter(p => (k === "habis") !== avail(p)).length})</button>`).join(""))}</div>
+  <button class="btn sm ghost" data-act="fitall" title="Tampilkan seluruh foto tanpa dipotong di semua produk">Foto tampil utuh</button>${live("seedbtn", ["products"], () => S.products.length ? "" : `<button class="btn sm" data-act="seed">Buat katalog awal (7 menu)</button>`)}</div>
+  ${live("plist", ["products", "reviews", "errors"], plistHtml)}`;
 }
+actions.psearch = t => { PQ = t.value; repaint("plist"); };
+actions.pfilter = el => { PF = el.dataset.f; repaint("ptabs"); repaint("plist"); };
 actions.seed = async () => { if (!await confirmBox("Buat katalog awal?", "7 menu contoh Tubi akan ditambahkan. Kamu bisa mengubah atau menghapusnya kapan saja.", "Buat katalog", false)) return; for (const { id, ...d } of SEED) await F.setDoc(F.doc(db, "products", id), { ...d, tags: d.attributes.map(x => x.toLowerCase()), available: true, availability: "tersedia" }); toast("Katalog awal dibuat."); };
 actions.stock = async el => { const p = S.products.find(x => x.id === el.dataset.id), ok = !avail(p); await F.updateDoc(F.doc(db, "products", p.id), { available: ok, availability: ok ? "tersedia" : "habis" }); };
 actions.pdel = async el => { const p = S.products.find(x => x.id === el.dataset.id); if (await confirmBox("Hapus produk ini?", `“${p?.name}” akan dihapus dari menu pelanggan.`, "Hapus")) await F.deleteDoc(F.doc(db, "products", el.dataset.id)); };
@@ -160,15 +230,22 @@ actions.pform = el => {
   <label>Deskripsi<textarea name="description">${esc(p.description || "")}</textarea></label>
   <div class="grid2"><label>Stok<select name="availability"><option value="tersedia">Tersedia</option><option value="habis" ${p.id && !avail(p) ? "selected" : ""}>Habis</option></select></label></div>
   <div><div class="lbl">Foto produk</div>${dropzone("image", img(p), p.id && img(p) ? "Ganti foto" : "Pilih foto atau seret ke sini")}</div>
-  <div class="fitbox"><div class="row wrap"><div class="lbl sp" style="margin:0">Tampilan foto di menu</div><div class="seg" id="fitseg"><button type="button" data-act="fitmode" data-m="cover" class="${p.imageFit === "contain" ? "" : "on"}">Isi bingkai</button><button type="button" data-act="fitmode" data-m="contain" class="${p.imageFit === "contain" ? "on" : ""}">Tampil utuh</button></div></div>
-    <div class="fit-prev ${p.imageFit === "contain" ? "is-contain" : ""}" id="fitprev"><img id="fitimg" ${img(p) ? `src="${esc(img(p))}"` : "hidden"} alt="" ${imgStyle(p)}><span class="fp" style="left:${p.imageX ?? 50}%;top:${p.imageY ?? 50}%"></span><span class="fit-hint">Pratinjau persis seperti di kartu menu</span></div>
-    <input type="hidden" name="fit" value="${p.imageFit === "contain" ? "contain" : "cover"}"><input type="hidden" name="fx" value="${p.imageX ?? 50}"><input type="hidden" name="fy" value="${p.imageY ?? 50}">
-    <small class="muted"><b>Isi bingkai</b>: ketuk/geser pada pratinjau untuk memilih bagian foto yang ditampilkan. <b>Tampil utuh</b>: seluruh foto terlihat, tidak dipotong.</small></div>
+  <div class="crop"><div class="row wrap"><div class="lbl sp" style="margin:0">Atur foto di kartu menu</div><div class="seg" id="fitseg"><button type="button" data-act="fitmode" data-m="cover" class="${p.imageFit === "contain" ? "" : "on"}">Isi bingkai</button><button type="button" data-act="fitmode" data-m="contain" class="${p.imageFit === "contain" ? "on" : ""}">Tampil utuh</button></div></div>
+    <div class="crop-body"><div class="crop-stage" id="fitprev"><img id="fitimg" ${img(p) ? `src="${esc(img(p))}"` : "hidden"} alt="" draggable="false" ${imgStyle(p)}><i class="crop-grid"></i><span class="fit-hint">${svg("grid", 13)} Geser foto · scroll / cubit untuk zoom</span></div>
+    <div class="crop-tools">
+      <div class="lbl" style="margin:0">Zoom <b id="fzv">${Math.round((p.imageZoom ?? 1) * 100)}%</b></div>
+      <div class="crop-zoom"><button type="button" class="icon-btn" data-act="fitzoom" data-d="-0.1" aria-label="Perkecil">${svg("minus", 16)}</button><input type="range" id="fzr" min="1" max="4" step="0.01" value="${p.imageZoom ?? 1}" data-input="fitrange" aria-label="Zoom"><button type="button" class="icon-btn" data-act="fitzoom" data-d="0.1" aria-label="Perbesar">${svg("plus", 16)}</button></div>
+      <div class="crop-btns"><button type="button" class="btn sm" data-act="fitrot" data-d="-90">${svg("back", 15)} Putar kiri</button><button type="button" class="btn sm" data-act="fitrot" data-d="90">Putar kanan <span style="transform:scaleX(-1);display:inline-flex">${svg("back", 15)}</span></button>
+      <button type="button" class="btn sm" data-act="fitcenter">${svg("grid", 15)} Ke tengah</button><button type="button" class="btn sm ghost" data-act="fitreset">Atur ulang</button></div>
+      <div class="crop-mini"><span class="muted xs">Pratinjau kartu</span><div class="crop-card"><div class="ph"><img id="fitmini" ${img(p) ? `src="${esc(img(p))}"` : "hidden"} alt="" ${imgStyle(p)}></div><b>${esc(p.name || "Nama produk")}</b><span class="money">${p.price ? rupiah(p.price) : "Rp 0"}</span></div></div>
+    </div></div>
+    <input type="hidden" name="fit" value="${p.imageFit === "contain" ? "contain" : "cover"}"><input type="hidden" name="fx" value="${p.imageX ?? 50}"><input type="hidden" name="fy" value="${p.imageY ?? 50}"><input type="hidden" name="fz" value="${p.imageZoom ?? 1}"><input type="hidden" name="fr" value="${p.imageRot ?? 0}">
+    <small class="muted"><b>Isi bingkai</b>: foto memenuhi kotak, geser untuk memilih bagian yang tampil. <b>Tampil utuh</b>: seluruh foto terlihat. Foto asli tidak diubah, jadi potongannya bisa diatur ulang kapan saja.</small></div>
   <button class="btn pri" type="submit">${p.id ? "Simpan perubahan" : "Tambah produk"}</button></form>`, "wide");
 };
 forms.product = async (f, fd) => {
   const id = f.dataset.id, old = S.products.find(x => x.id === id) || {}, attrs = String(fd.get("attributes") || "").split(",").map(x => x.trim()).filter(Boolean).slice(0, 15), av = fd.get("availability");
-  const d = { name: String(fd.get("name")).trim(), price: Math.max(0, +fd.get("price") || 0), category: String(fd.get("category") || "Lainnya").trim() || "Lainnya", attributes: attrs, tags: attrs.map(x => x.toLowerCase()), description: String(fd.get("description") || "").trim(), available: av !== "habis", availability: av, imageFit: fd.get("fit") === "contain" ? "contain" : "cover", imageX: Math.min(100, Math.max(0, +fd.get("fx") || 50)), imageY: Math.min(100, Math.max(0, +fd.get("fy") || 50)) };
+  const d = { name: String(fd.get("name")).trim(), price: Math.max(0, +fd.get("price") || 0), category: String(fd.get("category") || "Lainnya").trim() || "Lainnya", attributes: attrs, tags: attrs.map(x => x.toLowerCase()), description: String(fd.get("description") || "").trim(), available: av !== "habis", availability: av, imageFit: fd.get("fit") === "contain" ? "contain" : "cover", imageX: Math.min(100, Math.max(0, +fd.get("fx") || 0)), imageY: Math.min(100, Math.max(0, +fd.get("fy") || 0)), imageZoom: Math.min(4, Math.max(1, +fd.get("fz") || 1)), imageRot: ((+fd.get("fr") || 0) % 360 + 360) % 360 };
   const file = fd.get("image"); if (file && file.size) d.image = await compressImage(file); else if (old.image) d.image = old.image;
   if (id) await F.setDoc(F.doc(db, "products", id), d, { merge: true }); else await F.addDoc(F.collection(db, "products"), { ...d, rating: 5, createdAt: F.serverTimestamp() });
   closeOverlay(); toast("Produk disimpan.");
@@ -178,15 +255,16 @@ forms.product = async (f, fd) => {
 export function chat() {
   const list = () => S.chats.length ? `<div class="threads">${S.chats.map(c => `<button class="thread ${S.openChat === c.id ? "on" : ""}" data-act="thread" data-id="${c.id}"><span class="av">${c.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : initial(c.name)}</span><div class="mid"><b>${esc(c.name || "Pelanggan")}</b><small class="muted">${c.lastFrom === "admin" ? "Anda: " : ""}${esc(c.lastMessage || "")}</small></div>${+c.unreadAdmin ? `<span class="badge" style="position:static">${c.unreadAdmin}</span>` : ""}</button>`).join("")}</div>` : `<div class="empty">Belum ada chat dari pelanggan.</div>`;
   return `<div class="chat-split ${S.openChat ? "open" : ""}" id="csplit"><div class="threads-box card" style="padding:8px;align-self:start;max-height:calc(100vh - 150px);overflow:auto">${live("threads", ["chats", "errors"], () => S.errors.chats ? `<div class="alert">Chat ditolak Firestore. Publish rules.</div>` : list())}</div>
-  <div class="chat-box chat adm">${live("cpane", ["openchat", "msgs", "chats"], pane, () => { toEnd(); const c = S.chats.find(x => x.id === S.openChat); if (c && +c.unreadAdmin > 0) markRead(c.id, "admin"); })}</div></div>`;
+  <div class="chat-box chat adm">${live("chead", ["openchat", "chats"], head)}${live("cmsgs", ["openchat", "msgs"], () => S.openChat ? `<div class="msgs">${msgsHtml("admin")}</div>` : `<div class="m-empty" style="flex:1">${svg("chat", 34)}<b>Pilih percakapan</b><span>Pilih pelanggan di daftar untuk mulai membalas.</span></div>`, () => { toEnd(); const c = S.chats.find(x => x.id === S.openChat); if (c && +c.unreadAdmin > 0) markRead(c.id, "admin"); })}
+  <div id="cformbox" class="${S.openChat ? "" : "hidden"}">${chatForm()}</div></div></div>`;
 }
-function pane() {
-  const c = S.chats.find(x => x.id === S.openChat);
-  if (!S.openChat) return `<div class="empty" style="margin:auto;border:0">Pilih percakapan di sebelah kiri.</div>`;
-  return `<div class="chat-head"><button class="icon-btn only-m" data-act="chatback">${svg("back")}</button><span class="av">${initial(c?.name)}</span><div><b>${esc(c?.name || "Pelanggan")}</b><div class="muted xs">${esc(c?.email || "")}${c?.phone ? " · " + esc(c.phone) : ""}</div></div></div><div class="msgs">${msgsHtml("admin")}</div>${chatForm()}`;
+// Kepala, daftar pesan, dan kotak tulis dipisah: pesan baru tidak menghapus teks / lampiran yang sedang ditulis.
+function head() {
+  const c = S.chats.find(x => x.id === S.openChat); if (!S.openChat) return "";
+  return `<div class="chat-head"><button class="icon-btn only-m" data-act="chatback" aria-label="Kembali">${svg("back")}</button><span class="av">${c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : initial(c?.name)}</span><div style="min-width:0"><b>${esc(c?.name || "Pelanggan")}</b><div class="muted xs">${esc(c?.email || "")}${c?.phone ? " · " + esc(c.phone) : ""}</div></div><span class="sp"></span>${c?.phone ? `<a class="icon-btn" target="_blank" rel="noopener" href="https://wa.me/${normPhone(c.phone)}" aria-label="WhatsApp pelanggan">${svg("wa", 18)}</a>` : ""}</div>`;
 }
-actions.thread = el => { openThread(el.dataset.id); markRead(el.dataset.id, "admin"); $("#csplit")?.classList.add("open"); emit("openchat"); repaint("threads"); };
-actions.chatback = () => { openThread(null); $("#csplit")?.classList.remove("open"); emit("openchat"); repaint("threads"); };
+actions.thread = el => { resetCompose(); openThread(el.dataset.id); markRead(el.dataset.id, "admin"); $("#csplit")?.classList.add("open"); $("#cformbox")?.classList.remove("hidden"); emit("openchat"); repaint("threads"); };
+actions.chatback = () => { openThread(null); $("#csplit")?.classList.remove("open"); $("#cformbox")?.classList.add("hidden"); emit("openchat"); repaint("threads"); };
 
 // ===== Laporan =====
 let RP = 7;
@@ -231,13 +309,13 @@ export function waBody(mini) {
   if (st === "qr" && w.qr) h = `<div class="qr"><img src="${w.qr}" alt="QR WhatsApp"><small class="muted">WhatsApp → Perangkat tertaut → Tautkan perangkat → scan</small></div>`;
   else if (st === "pairing" && w.pairingCode) h = `<div class="pair">${esc(w.pairingCode)}</div><small class="muted">WhatsApp → Perangkat tertaut → Tautkan dengan nomor telepon</small>`;
   else if (st === "connected") h = `<p class="muted" style="margin-top:8px">Terhubung${w.me ? ` sebagai <b>+${esc(w.me)}</b>` : ""}. Notifikasi pesanan &amp; chat aktif.${!mini && w.lastTest ? ` Tes terakhir: <b>${w.lastTest === "ok" ? "berhasil ✓" : "gagal ✗"}</b>.` : ""}</p>`;
-  else h = mini ? `<p class="muted" style="margin-top:8px">Bot belum menyala (opsional). Panduan ada di Pengaturan → WhatsApp Bot.</p>` : `<div class="alert" style="margin-top:10px">${w ? "Gateway tidak mengirim sinyal lagi — program <code>npm start</code> kemungkinan sudah berhenti." : "Belum ada sinyal dari gateway."} Jalankan <code>npm start</code> di folder <code>tubi-wa-gateway</code>; QR akan muncul di sini otomatis.</div>`;
+  else h = mini ? `<p class="muted" style="margin-top:8px">Bot belum menyala (opsional). Panduan ada di Pengaturan → WhatsApp Bot.</p>` : `<div class="alert" style="margin-top:10px">${w ? "Gateway tidak mengirim sinyal lagi (lebih dari 4 menit)." : "Belum ada sinyal dari gateway."} Pastikan gateway sudah di-deploy (folder <code>gateway</code>, perintah <code>npm run deploy</code>) lalu buka alamat gateway sekali untuk membangunkannya; QR akan muncul di sini otomatis.</div>`;
   return h + (w?.error ? `<div class="alert" style="margin-top:8px">${esc(w.error)}</div>` : "");
 }
 const waGuide = () => `<details class="guide" ${waState() === "connected" ? "" : "open"}><summary>${svg("shield", 18)} Apa itu bot WhatsApp & cara menyalakannya</summary>
-  <p><b>Bot</b> = satu nomor WhatsApp (boleh nomor toko) yang dihubungkan ke program kecil bernama <b>gateway</b> di komputer/server Anda. Setelah terhubung, <b>setiap pesanan & chat baru otomatis dikirim ke WhatsApp admin</b>, dan <b>pelanggan dikabari saat status pesanan berubah</b>. Tubi tetap berjalan 100% tanpa bot.</p>
-  <ol class="guide-steps"><li><span>1</span><div>Buka folder <code>tubi-wa-gateway</code> di komputer (<b>jangan dihapus</b>).</div></li><li><span>2</span><div>Di terminal folder itu jalankan <code>npm install</code> (sekali saja), lalu <code>npm start</code>.</div></li><li><span>3</span><div>Biarkan terminal terbuka. Dalam ±10 detik <b>QR muncul di kartu ini</b>.</div></li><li><span>4</span><div>HP: WhatsApp → ⋮ → <b>Perangkat tertaut</b> → <b>Tautkan perangkat</b> → scan QR.</div></li><li><span>5</span><div>Status menjadi <b>Terhubung</b>. Selesai ✓</div></li></ol>
-  <p class="muted sm">Komputer harus menyala selama bot dipakai. Agar aktif 24 jam, pasang gateway di VPS/Railway/Fly.</p></details>`;
+  <p><b>Bot</b> = satu nomor WhatsApp (boleh nomor toko) yang dihubungkan ke program kecil bernama <b>gateway</b> yang berjalan 24 jam di Cloudflare (gratis). Setelah terhubung, <b>setiap pesanan & chat baru otomatis dikirim ke WhatsApp admin</b>, dan <b>pelanggan dikabari saat status pesanan berubah</b>. Tubi tetap berjalan 100% tanpa bot.</p>
+  <ol class="guide-steps"><li><span>1</span><div>Gateway ada di folder <code>gateway</code> pada repo Tubi dan sudah di-deploy ke Cloudflare (lihat README).</div></li><li><span>2</span><div>Bila status <b>Diam</b> (QR kedaluwarsa), tekan <b>Restart</b>.</div></li><li><span>3</span><div>Dalam ±30 detik <b>QR muncul di kartu ini</b>.</div></li><li><span>4</span><div>HP: WhatsApp → ⋮ → <b>Perangkat tertaut</b> → <b>Tautkan perangkat</b> → scan QR.</div></li><li><span>5</span><div>Status menjadi <b>Terhubung</b>. Selesai ✓</div></li></ol>
+  <p class="muted sm">Gateway memeriksa pesanan, chat, dan perintah dari dashboard tiap ±30 detik, jadi perintah (tes, restart, pairing) butuh hingga setengah menit.</p></details>`;
 const phoneShow = p => p ? "+" + esc(p) : "belum diisi";
 const recipients = () => { const l = []; if (S.settings.whatsapp) l.push(`<b>${phoneShow(S.settings.whatsapp)}</b> (admin utama)`); S.admins.filter(a => a.phone).forEach(a => l.push(`<b>${phoneShow(a.phone)}</b> (${esc(a.name || a.id)})`)); return l.length ? l.join(", ") : "belum ada nomor"; };
 
@@ -258,8 +336,8 @@ const payCard = () => {
   const s = S.settings, ms = payMethods();
   return `<div class="col"><form class="card col" data-form="paybase"><h3>Metode di checkout</h3><label class="chk"><input type="checkbox" name="cod" ${s.payCod === false ? "" : "checked"}> Bayar di tempat (COD)</label><button class="btn pri" type="submit">Simpan</button></form>
   <div class="card"><div class="row"><h3 style="margin:0" class="sp">Rekening & e-wallet</h3><button class="btn pri sm" data-act="pmform">${svg("plus", 16)} Tambah</button></div>
-    <p class="muted sm" style="margin:8px 0 4px">Contoh: BCA, DANA, GoPay. Isi <b>tautan pembayaran</b> bila ada (mis. link DANA / payment link) supaya pelanggan bisa langsung membukanya setelah memesan.</p>
-    ${ms.length ? `<div class="tbl">${ms.map(m => `<div class="r"><div class="mid"><b>${esc(m.name)}</b><small class="muted">${esc((m.detail || "").split("\n")[0])}${m.link ? " · 🔗 ada tautan" : ""}</small></div><button class="btn sm" data-act="pmform" data-id="${esc(m.id)}">Edit</button><button class="btn sm danger" data-act="pmdel" data-id="${esc(m.id)}" aria-label="Hapus">${svg("trash", 14)}</button></div>`).join("")}</div>` : `<div class="empty" style="margin-top:10px">Belum ada. Tambahkan rekening atau e-wallet.</div>`}</div>
+    <p class="muted sm" style="margin:8px 0 4px">Pilih aplikasinya (GoPay, OVO, DANA, BCA, BRI, dan lain-lain), lalu isi nomor dan atas nama. Metode baru langsung muncul di checkout pelanggan, termasuk di aplikasi Android.</p>
+    ${ms.length ? `<div class="tbl">${ms.map(m => `<div class="r">${badge(m, 40)}<div class="mid"><b>${esc(m.name)}</b><small class="muted">${esc(nomorOf(m) || (m.detail || "").split("\n")[0])}${atasNamaOf(m) ? " · a.n. " + esc(atasNamaOf(m)) : ""}${provOf(m)?.pkg ? " · buka " + esc(appName(provOf(m))) : ""}</small></div><button class="btn sm" data-act="pmform" data-id="${esc(m.id)}">Edit</button><button class="btn sm danger" data-act="pmdel" data-id="${esc(m.id)}" aria-label="Hapus">${svg("trash", 14)}</button></div>`).join("")}</div>` : `<div class="empty" style="margin-top:10px">Belum ada. Tambahkan rekening atau e-wallet.</div>`}</div>
   <form class="card col" data-form="qris"><h3>QRIS</h3>${dropzone("qris", s.payQris || "", "Unggah gambar QRIS")}<label class="chk"><input type="checkbox" name="qrisdel"> Hapus QRIS</label><button class="btn pri" type="submit">Simpan QRIS</button></form></div>`;
 };
 
@@ -295,7 +373,7 @@ export function settings() {
     <div class="row wrap" style="margin-top:12px"><button class="btn pri sm" data-act="btconnect">${svg("bt", 16)} Hubungkan printer</button><button class="btn sm" data-act="bttest">Tes cetak</button><button class="btn sm danger" data-act="btdisc">Putuskan</button></div>
     <details class="guide" style="margin-top:12px"><summary>${svg("shield", 18)} Cara menyambungkan printer</summary><ol class="guide-steps"><li><span>1</span><div>Nyalakan printer thermal dan aktifkan Bluetooth di HP/laptop.</div></li><li><span>2</span><div>Tekan <b>Hubungkan printer</b>, pilih nama printer dari daftar, lalu izinkan.</div></li><li><span>3</span><div>Tekan <b>Tes cetak</b>. Setelah itu tombol <b>Cetak via printer Bluetooth</b> di setiap struk siap dipakai.</div></li></ol>
     <p class="muted sm">Mendukung printer thermal <b>BLE</b> berperintah ESC/POS (umumnya 58 mm). Printer Bluetooth <i>klasik</i> (SPP) tidak bisa disambung langsung oleh browser — pakai aplikasi pencetak Android (mis. RawBT) lalu “Cetak lewat browser”. Koneksi harus diulang bila halaman dimuat ulang.</p></details></div>`;
-  const bugs = () => `<div class="card"><h3>Laporan masalah dari pelanggan (${S.bugs.filter(b => b.status !== "selesai").length} baru)</h3>${S.bugs.length ? `<div class="tbl">${S.bugs.slice(0, 15).map(b => `<div class="r"><div class="mid" style="white-space:normal"><b>${esc(b.type)} · ${esc(b.email || "")}</b><small class="muted" style="white-space:normal">${esc(b.description)}</small></div>${b.screenshot ? `<button class="btn sm" data-act="bugshot" data-id="${b.id}">🖼</button>` : ""}${b.status === "selesai" ? `<span class="chip st-selesai">Selesai</span>` : `<button class="btn sm" data-act="bugdone" data-id="${b.id}">Selesai</button>`}<button class="btn sm danger" data-act="bugdel" data-id="${b.id}" aria-label="Hapus">${svg("trash", 14)}</button></div>`).join("")}</div>` : `<div class="empty">Belum ada laporan.</div>`}</div>`;
+  const bugs = () => `<div class="card"><h3>Laporan masalah dari pelanggan (${S.bugs.filter(b => b.status !== "selesai").length} baru)</h3>${S.bugs.length ? `<div class="tbl">${S.bugs.slice(0, 15).map(b => `<div class="r"><div class="mid" style="white-space:normal"><b>${esc(b.type)} · ${esc(b.email || "")}</b><small class="muted" style="white-space:normal">${esc(b.description)}</small></div>${b.screenshot ? `<button class="btn sm" data-act="bugshot" data-id="${b.id}" aria-label="Lihat tangkapan layar">${svg("image", 15)}</button>` : ""}${b.status === "selesai" ? `<span class="chip st-selesai">Selesai</span>` : `<button class="btn sm" data-act="bugdone" data-id="${b.id}">Selesai</button>`}<button class="btn sm danger" data-act="bugdel" data-id="${b.id}" aria-label="Hapus">${svg("trash", 14)}</button></div>`).join("")}</div>` : `<div class="empty">Belum ada laporan.</div>`}</div>`;
   const diag = () => `<div class="card"><h3>Cek sistem</h3><p class="muted sm" style="margin-bottom:10px">Menguji koneksi ke Firestore, rules, akun, dan gateway WhatsApp.</p><button class="btn" data-act="diag">Jalankan pengecekan</button><div id="diag" class="tbl" style="margin-top:10px"></div></div>`;
   const body = { toko: () => live("sform", ["settings"], storeForm), tampilan: () => live("slook", ["settings"], lookForm), bayar: () => live("spay", ["settings"], payCard), admin: () => live("sadm", ["admins", "settings"], adm),
     wa: () => live("swa", ["wa", "errors", "settings", "admins"], wa), printer: () => live("sprint", ["bt"], printer), sistem: () => `<div class="col">${diag()}${live("sbugs", ["bugs"], bugs)}</div>` }[cur]();
@@ -304,14 +382,21 @@ export function settings() {
     <div class="set-hub only-m">${live("shub", ["wa", "bt", "settings", "admins", "bugs"], groupList)}</div></div>`;
 }
 actions.pmform = el => {
-  const m = payMethods().find(x => x.id === el.dataset?.id) || {};
-  openOverlay(`<div class="sheet-head"><h3>${m.id ? "Edit metode" : "Tambah metode pembayaran"}</h3><button class="icon-btn" data-act="close">${svg("x")}</button></div>
-  <form class="col" data-form="pm" data-id="${esc(m.id || "")}"><label>Nama metode<input name="name" required value="${esc(m.name || "")}" placeholder="BCA / DANA / GoPay"></label>
-  <label>Nomor rekening / nomor e-wallet & atas nama<textarea name="detail" rows="3" placeholder="1234567890 a.n. Tubi">${esc(m.detail || "")}</textarea></label>
-  <label>Tautan pembayaran <span class="hint">opsional — mis. link DANA / payment link</span><input name="link" type="url" value="${esc(m.link || "")}" placeholder="https://…"></label><button class="btn pri" type="submit">Simpan</button></form>`);
+  const m = payMethods().find(x => x.id === el.dataset?.id) || {}, cur = provOf(m)?.key || "";
+  const grup = (t, l) => `<div class="pv-g"><div class="lbl">${t}</div><div class="pv-grid">${PROVIDERS.filter(p => p.type === l).map(p => `<label class="pv-opt"><input type="radio" name="provider" value="${p.key}" ${cur === p.key ? "checked" : ""} required>${badge({ provider: p.key }, 34)}<span>${esc(p.name)}</span></label>`).join("")}</div></div>`;
+  openOverlay(`<div class="sheet-head"><h3>${m.id ? "Edit metode pembayaran" : "Tambah metode pembayaran"}</h3><button class="icon-btn" data-act="close" aria-label="Tutup">${svg("x")}</button></div>
+  <form class="col" data-form="pm" data-id="${esc(m.id || "")}">
+  ${grup("E-wallet", "ewallet")}${grup("Bank", "bank")}${grup("Lainnya", "other")}
+  <div class="grid2"><label>Nomor e-wallet / rekening<input name="number" required inputmode="numeric" value="${esc(nomorOf(m))}" placeholder="08xxxxxxxxxx / 1234567890"></label><label>Atas nama<input name="holder" required value="${esc(atasNamaOf(m))}" placeholder="Nama pemilik akun"></label></div>
+  <label>Nama tampilan <span class="hint">opsional · kosongkan untuk memakai nama aplikasi</span><input name="name" value="${esc(m.provider ? (m.name === prov(m.provider)?.name ? "" : m.name) : (m.name || ""))}" placeholder="mis. DANA Tubi"></label>
+  <label>Tautan pembayaran <span class="hint">opsional · mis. link DANA / payment link</span><input name="link" type="url" value="${esc(m.link || "")}" placeholder="https://…"></label>
+  <p class="muted xs">Di halaman pembayaran, pelanggan menekan <b>Salin & buka aplikasi</b>: nomor otomatis tersalin lalu aplikasinya terbuka. Bila aplikasinya belum terpasang, pelanggan dibawa ke Play Store.</p>
+  <button class="btn pri" type="submit">Simpan</button></form>`, "wide");
 };
 forms.pm = async (f, fd) => {
-  const id = f.dataset.id || "m" + Date.now().toString(36), item = { id, name: String(fd.get("name")).trim().slice(0, 40), detail: String(fd.get("detail") || "").trim().slice(0, 300), link: String(fd.get("link") || "").trim().slice(0, 400) };
+  const p = prov(fd.get("provider")) || prov("lain"), number = String(fd.get("number") || "").replace(/[^\d -]/g, "").trim().slice(0, 30), holder = String(fd.get("holder") || "").trim().slice(0, 60);
+  if (number.replace(/\D/g, "").length < 5) throw new Error("Nomor e-wallet / rekening belum valid.");
+  const id = f.dataset.id || "m" + Date.now().toString(36), item = { id, provider: p.key, type: p.type, number, holder, name: (String(fd.get("name") || "").trim() || p.name).slice(0, 40), detail: `${number} a.n. ${holder}`, link: String(fd.get("link") || "").trim().slice(0, 400) };
   if (item.link && !/^https?:\/\//i.test(item.link)) throw new Error("Tautan harus diawali https://");
   const list = payMethods().map(x => x.id === id ? item : x); if (!list.some(x => x.id === id)) list.push(item);
   await setSettings({ payMethods: list }); closeOverlay(); toast("Metode pembayaran disimpan ✓");
@@ -331,13 +416,13 @@ forms.look = async (f, fd) => {
   await setSettings(d); toast("Tampilan beranda diperbarui ✓");
 };
 const cmd = (action, extra = {}) => F.setDoc(F.doc(db, "waGateway", "command"), { id: Date.now(), action, by: S.user.email || "", createdAt: F.serverTimestamp(), ...extra });
-const needGateway = () => { if (waState() === "offline") throw new Error("Gateway belum tersambung, jadi perintah TIDAK dikirim. Jalankan `npm start` di folder tubi-wa-gateway dulu."); };
+const needGateway = () => { if (waState() === "offline") throw new Error("Gateway tidak aktif, jadi perintah TIDAK dikirim. Periksa gateway di Cloudflare (lihat README, folder gateway)."); };
 actions.wacmd = async el => {
   const a = el.dataset.a; needGateway();
   if (a === "test" && waState() !== "connected") throw new Error(`WhatsApp belum terhubung (status: ${WA_LABEL[waState()]}). Scan QR dulu, baru kirim pesan tes.`);
   if (a === "logout" && !await confirmBox("Putuskan WhatsApp bot?", "Sesi WhatsApp dihapus. Notifikasi berhenti sampai kamu scan QR lagi.", "Putuskan")) return;
   if (a === "restart" && !await confirmBox("Restart bot?", "Gateway akan menyambung ulang ke WhatsApp (±10 detik).", "Restart", false)) return;
-  await cmd(a); toast(a === "test" ? "Pesan tes dikirim ke gateway — cek WhatsApp admin." : "Perintah diterima gateway yang sedang online.");
+  await cmd(a); toast(a === "test" ? "Perintah tes terkirim — dalam ±30 detik cek WhatsApp admin." : "Perintah dikirim — gateway menjalankannya dalam ±30 detik.");
 };
 forms.wapair = async (f, fd) => { needGateway(); const p = normPhone(fd.get("phone")); if (p.length < 10) throw new Error("Nomor tidak valid."); await cmd("pair", { phone: p }); toast("Meminta kode pairing…"); };
 actions.wanotify = async el => { await setSettings({ [el.dataset.k]: el.checked }); };
@@ -377,11 +462,40 @@ export function more() {
 }
 
 // ---- Editor tampilan foto produk ----
-const applyFit = f => { const img = $("#fitimg"), box = $("#fitprev"); if (!img || !f) return; const m = f.fit.value; img.style.objectFit = m; img.style.objectPosition = `${f.fx.value}% ${f.fy.value}%`; box.classList.toggle("is-contain", m === "contain"); const fp = box.querySelector(".fp"); fp.style.left = f.fx.value + "%"; fp.style.top = f.fy.value + "%"; };
+// Geser = pindah bagian foto, scroll / cubit / slider = zoom, tombol = putar 90°. Disimpan sebagai imageX/Y/Zoom/Rot.
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const fitForm = () => $("#fitprev")?.closest("form");
+const applyFit = f => {
+  if (!f) return; f.dataset.dirty = "1";
+  const st = cropCss({ imageFit: f.fit.value, imageX: f.fx.value, imageY: f.fy.value, imageZoom: f.fz.value, imageRot: f.fr.value });
+  ["#fitimg", "#fitmini"].forEach(s => { const i = $(s); if (i) i.style.cssText = st; });
+  $("#fitprev")?.classList.toggle("is-contain", f.fit.value === "contain");
+  const z = +f.fz.value; if ($("#fzv")) $("#fzv").textContent = Math.round(z * 100) + "%"; if ($("#fzr") && +$("#fzr").value !== z) $("#fzr").value = z;
+};
+const setZoom = (f, z) => { f.fz.value = clamp(+z, 1, 4).toFixed(2); applyFit(f); };
 actions.fitmode = el => { const f = el.closest("form"); f.fit.value = el.dataset.m; $$("#fitseg button").forEach(b => b.classList.toggle("on", b.dataset.m === el.dataset.m)); applyFit(f); };
-let fitDrag = false;
-const fitSet = e => { const b = $("#fitprev"); if (!b) return; const r = b.getBoundingClientRect(), f = b.closest("form"); if (f.fit.value === "contain") return; f.fx.value = Math.round(Math.min(100, Math.max(0, (e.clientX - r.left) / r.width * 100))); f.fy.value = Math.round(Math.min(100, Math.max(0, (e.clientY - r.top) / r.height * 100))); applyFit(f); };
-document.addEventListener("pointerdown", e => { if (e.target.closest?.("#fitprev")) { fitDrag = true; e.preventDefault(); fitSet(e); } });
-document.addEventListener("pointermove", e => { if (fitDrag) fitSet(e); });
-document.addEventListener("pointerup", () => { fitDrag = false; });
-actions.fitall = async () => { if (!await confirmBox("Tampilkan semua foto utuh?", "Semua foto produk akan ditampilkan penuh (tidak dipotong) di menu pelanggan. Bisa diubah per produk lagi.", "Terapkan", false)) return; for (const p of S.products) await F.updateDoc(F.doc(db, "products", p.id), { imageFit: "contain", imageX: 50, imageY: 50 }); toast("Semua foto kini tampil utuh ✓"); };
+actions.fitzoom = el => { const f = el.closest("form"); setZoom(f, +f.fz.value + +el.dataset.d); };
+actions.fitrange = t => setZoom(t.closest("form"), t.value);
+actions.fitrot = el => { const f = el.closest("form"); f.fr.value = ((+f.fr.value + +el.dataset.d) % 360 + 360) % 360; applyFit(f); };
+actions.fitcenter = el => { const f = el.closest("form"); f.fx.value = 50; f.fy.value = 50; applyFit(f); };
+actions.fitreset = el => { const f = el.closest("form"); f.fx.value = 50; f.fy.value = 50; f.fz.value = 1; f.fr.value = 0; applyFit(f); };
+const ptr = new Map(); let pinch0 = 0, zoom0 = 1;
+document.addEventListener("pointerdown", e => {
+  const b = e.target.closest?.("#fitprev"); if (!b) return; e.preventDefault(); b.setPointerCapture?.(e.pointerId);
+  ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptr.size === 2) { const [a, c] = [...ptr.values()]; pinch0 = Math.hypot(a.x - c.x, a.y - c.y); zoom0 = +fitForm().fz.value; }
+});
+document.addEventListener("pointermove", e => {
+  if (!ptr.has(e.pointerId)) return; const f = fitForm(), b = $("#fitprev"); if (!f || !b) return;
+  const last = ptr.get(e.pointerId); ptr.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptr.size >= 2) { const [a, c] = [...ptr.values()]; if (pinch0) setZoom(f, zoom0 * Math.hypot(a.x - c.x, a.y - c.y) / pinch0); return; }
+  // menggeser foto ke kanan = melihat bagian kirinya → titik fokus berkurang
+  const r = b.getBoundingClientRect(), z = +f.fz.value, k = f.fit.value === "contain" && z <= 1 ? 0 : 100 / z;
+  f.fx.value = clamp(+f.fx.value - (e.clientX - last.x) / r.width * k * 1.6, 0, 100).toFixed(1);
+  f.fy.value = clamp(+f.fy.value - (e.clientY - last.y) / r.height * k * 1.6, 0, 100).toFixed(1);
+  applyFit(f);
+});
+const lepas = e => { ptr.delete(e.pointerId); if (ptr.size < 2) pinch0 = 0; };
+document.addEventListener("pointerup", lepas); document.addEventListener("pointercancel", lepas);
+document.addEventListener("wheel", e => { if (!e.target.closest?.("#fitprev")) return; e.preventDefault(); const f = fitForm(); setZoom(f, +f.fz.value * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
+actions.fitall = async () => { if (!await confirmBox("Tampilkan semua foto utuh?", "Semua foto produk akan ditampilkan penuh (tidak dipotong) di menu pelanggan. Bisa diubah per produk lagi.", "Terapkan", false)) return; for (const p of S.products) await F.updateDoc(F.doc(db, "products", p.id), { imageFit: "contain", imageX: 50, imageY: 50, imageZoom: 1, imageRot: 0 }); toast("Semua foto kini tampil utuh ✓"); };

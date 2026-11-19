@@ -1,0 +1,19 @@
+{
+  "name": "tubi-gateway",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "siapkan": "node alat/siapkan-bridge.mjs",
+    "dev": "node alat/siapkan-bridge.mjs && cf dev",
+    "deploy": "node alat/siapkan-bridge.mjs && cf deploy"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "2.0.0-beta.v.17",
+    "cf": "1.0.0-beta.32",
+    "vite": "8.3.8"
+  }
+}
