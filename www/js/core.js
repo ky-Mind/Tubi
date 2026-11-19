@@ -44,6 +44,26 @@ window.addEventListener("hashchange", () => {
   lastHash = location.hash; onRoute(path());
 });
 
+// ---------- Tombol kembali Android (dipanggil MainActivity) ----------
+// true = sudah ditangani di web; false = boleh keluar aplikasi.
+let tekanKeluar = 0;
+export const backHandlers = [];   // fungsi lain (panel emoji, lonceng, dll) → kembalikan true bila menutup sesuatu
+window.tubiBack = () => {
+  const o = $("#overlay");
+  if (o && !o.hidden) { closeOverlay(); return true; }
+  for (const h of backHandlers) { try { if (h()) return true; } catch {} }
+  if (path() !== "/") {
+    const awal = location.hash;
+    if (history.length > 1) history.back(); else go("/", true);
+    setTimeout(() => { if (location.hash === awal && !dirtyForm()) go("/", true); }, 350);
+    return true;
+  }
+  if (Date.now() - tekanKeluar < 2000) return false;
+  tekanKeluar = Date.now();
+  import("./util.js").then(u => u.toast("Tekan kembali sekali lagi untuk keluar"));
+  return true;
+};
+
 // ---------- Overlay (sheet / modal / drawer) ----------
 export function openOverlay(html, cls = "") {
   const o = $("#overlay"); o.innerHTML = `<div class="sheet ${cls}" role="dialog" aria-modal="true">${html}</div>`; o.hidden = false;
