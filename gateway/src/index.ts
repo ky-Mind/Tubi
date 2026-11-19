@@ -31,6 +31,6 @@ export default {
   },
   // Cron tiap menit: bangunkan Durable Object dan pastikan alarm detaknya hidup
   async scheduled(_ev, env, ctx) {
-    ctx.waitUntil(ctx.exports.Gateway.getByName("utama").fetch("https://gateway/detak").catch((e) => console.error("cron:", e?.message || e)));
+    ctx.waitUntil(ctx.exports.Gateway.getByName("utama").fetch("https://gateway/detak").then((r) => r.text()).then((t) => console.log("cron detak:", t)).catch((e) => console.error("cron:", e?.message || e)));
   },
 };
