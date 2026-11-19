@@ -3,7 +3,8 @@
 // jadi kejadian saat aplikasi tertutup (pesanan baru, status berubah, chat masuk) tetap muncul saat dibuka lagi.
 import { S, emit, statusOf, STATUS_LABEL } from "./data.js";
 import { actions, openOverlay, closeOverlay, go, live } from "./core.js";
-import { ls, esc, svg, toast, rupiah } from "./util.js";
+import { ls, esc, svg, toast, rupiah, normPhone } from "./util.js";
+import { db, F } from "./firebase.js";
 
 const MAX = 60;
 const kunci = n => `tubi-${n}:${S.user?.uid || "-"}`;
@@ -38,21 +39,48 @@ async function siapkanNative() {
   try {
     await ln.createChannel({ id: CH_SUARA, name: "Pesanan & chat", description: "Pesanan baru, status pesanan, pembayaran, dan chat", importance: 5, visibility: 1, sound: "tubi.ogg", vibration: true, lights: true, lightColor: "#C8232C" });
     await ln.createChannel({ id: CH_SENYAP, name: "Pesanan & chat (tanpa suara)", importance: 3, visibility: 1, vibration: true });
+    // Tombol langsung di notifikasi HP: balas (ketik di notifikasi), WhatsApp, terima pembayaran
+    const balas = { id: "balas", title: "Balas", input: true, inputButtonTitle: "Kirim", inputPlaceholder: "Tulis balasan…" };
+    await ln.registerActionTypes({ types: [
+      { id: "pesanan", actions: [balas, { id: "wa", title: "WhatsApp" }, { id: "lihat", title: "Lihat" }] },
+      { id: "bukti", actions: [{ id: "terima", title: "Terima pembayaran" }, { id: "lihat", title: "Lihat bukti" }] },
+      { id: "chat", actions: [balas, { id: "wa", title: "WhatsApp" }] },
+      { id: "pesanan-nowa", actions: [balas, { id: "lihat", title: "Lihat" }] },
+      { id: "chat-nowa", actions: [balas] },
+      { id: "balasan", actions: [balas] }
+    ] });
     izinNative = (await ln.checkPermissions()).display;
     // Pertama kali dibuka: langsung minta izin notifikasi (Android 13+ menampilkan dialog izin)
     if (izinNative === "prompt" || izinNative === "prompt-with-rationale") izinNative = (await ln.requestPermissions()).display;
-    ln.addListener("localNotificationActionPerformed", e => { const h = e?.notification?.extra?.href; if (h) go(h); });
+    ln.addListener("localNotificationActionPerformed", e => aksiNotif(e).catch(err => console.warn("aksi notifikasi", err)));
     emit("notif");
   } catch (e) { console.warn("notifikasi native", e); }
 }
 if (native()) setTimeout(siapkanNative, 1500);
+// Tombol di notifikasi ditekan (aplikasi masih berjalan di latar belakang)
+async function aksiNotif(e) {
+  const n = e?.notification || {}, x = n.extra || {}, a = e?.actionId;
+  const tutup = () => LN()?.cancel({ notifications: [{ id: n.id }] }).catch(() => {});
+  if (a === "wa" && x.phone) { tutup(); window.open("https://wa.me/" + x.phone, "_system"); return; }
+  if (a === "balas") {
+    const teks = String(e.inputValue || "").trim(); if (!teks) return;
+    const { sendMsg } = await import("./chat.js");
+    await sendMsg(S.isAdmin ? x.uid : S.user?.uid, S.isAdmin ? "admin" : "user", { text: teks });
+    tutup(); return;
+  }
+  if (a === "terima" && x.order && S.isAdmin) {
+    await F.updateDoc(F.doc(db, "orders", x.order), { "payment.status": "paid", "payment.note": "", "payment.paidAt": Date.now(), updatedAt: F.serverTimestamp() });
+    tutup(); sysShow({ title: `Pembayaran ${short(x.order)} diterima`, body: "Pelanggan sudah diberi tahu." }, true); return;
+  }
+  if (x.href) go(x.href);   // ketuk notifikasi / "Lihat"
+}
 const sysOk = () => native() ? izinNative === "granted" : "Notification" in window && Notification.permission === "granted";
 let nomor = Date.now() % 100000;
 async function sysShow(n, paksa) {
   if (!sysOk() || (!paksa && ls.get("sysnotif", true) === false)) return false;
   if (native()) {
     try {
-      await LN().schedule({ notifications: [{ id: ++nomor, title: n.title, body: n.body || "", largeBody: n.body || "", channelId: ls.get("sound", true) === false ? CH_SENYAP : CH_SUARA, smallIcon: "ic_stat_tubi", iconColor: "#C8232C", extra: { href: n.href || "" }, group: "tubi" }] });
+      await LN().schedule({ notifications: [{ id: ++nomor, title: n.title, body: n.body || "", largeBody: n.body || "", channelId: ls.get("sound", true) === false ? CH_SENYAP : CH_SUARA, smallIcon: "ic_stat_tubi", iconColor: "#C8232C", extra: { href: n.href || "", ...(n.ext || {}) }, ...(n.aksi ? { actionTypeId: n.aksi } : {}), group: "tubi" }] });
       return true;
     } catch { return false; }
   }
@@ -98,8 +126,8 @@ export function cekPesanan() {
   S.orders.forEach(o => {
     const a = lama[o.id], b = baru[o.id], k = short(o.id);
     if (S.isAdmin) {
-      if (!a && b.s === "menunggu") tambah({ id: "new-" + o.id, icon: "receipt", tone: "red", title: `Pesanan baru ${k}`, body: `${o.customerName || "Pelanggan"} · ${rupiah(o.total)} · ${o.payment?.via || (o.payment?.method === "transfer" ? "Transfer" : "COD")}`, href: "/admin/orders" });
-      if (a && b.b && a.b !== b.b && b.p !== "paid") tambah({ id: `proof-${o.id}-${b.b}`, icon: "coin", tone: "teal", kind: "proof", order: o.id, title: `Bukti pembayaran masuk ${k}`, body: `${o.customerName || "Pelanggan"} · ${o.payment?.via || "Transfer"} · ${rupiah(o.total)}`, href: "/admin/orders" });
+      if (!a && b.s === "menunggu") tambah({ aksi: o.phone ? "pesanan" : "pesanan-nowa", ext: { order: o.id, uid: o.userId || "", phone: normPhone(o.phone) }, id: "new-" + o.id, icon: "receipt", tone: "red", title: `Pesanan baru ${k}`, body: `${o.customerName || "Pelanggan"} · ${rupiah(o.total)} · ${o.payment?.via || (o.payment?.method === "transfer" ? "Transfer" : "COD")}`, href: "/admin/orders" });
+      if (a && b.b && a.b !== b.b && b.p !== "paid") tambah({ aksi: "bukti", ext: { order: o.id }, id: `proof-${o.id}-${b.b}`, icon: "coin", tone: "teal", kind: "proof", order: o.id, title: `Bukti pembayaran masuk ${k}`, body: `${o.customerName || "Pelanggan"} · ${o.payment?.via || "Transfer"} · ${rupiah(o.total)}`, href: "/admin/orders" });
       if (a && a.s !== "dibatalkan" && b.s === "dibatalkan") tambah({ id: "cancel-" + o.id, icon: "x", tone: "gray", title: `Pesanan dibatalkan ${k}`, body: o.customerName || "", href: "/admin/orders" }, true);
     } else {
       if (a && a.s !== b.s && CLIENT_TXT[b.s] && !abaikanNotif.has(o.id + ":" + b.s)) { const [ic, t, d] = CLIENT_TXT[b.s]; tambah({ id: `st-${o.id}-${b.s}`, icon: ic, tone: b.s === "dibatalkan" ? "gray" : "red", title: `${t} ${k}`, body: d, href: "/orders" }); }
@@ -115,11 +143,11 @@ export function cekChat() {
     S.chats.forEach(c => baru[c.id] = +c.unreadAdmin || 0); simpan("chat", baru);
     if (!lama) return;
     S.chats.forEach(c => { if ((baru[c.id] || 0) > (lama[c.id] || 0) && c.lastFrom === "user")
-      tambah({ id: `chat-${c.id}-${c.updatedAt?.seconds || Date.now()}`, icon: "chat", tone: "teal", title: `Pesan baru dari ${c.name || "Pelanggan"}`, body: String(c.lastMessage || "").slice(0, 90), href: "/admin/chat" }, location.hash === "#/admin/chat"); });
+      tambah({ aksi: c.phone ? "chat" : "chat-nowa", ext: { uid: c.id, phone: normPhone(c.phone) }, id: `chat-${c.id}-${c.updatedAt?.seconds || Date.now()}`, icon: "chat", tone: "teal", title: `Pesan baru dari ${c.name || "Pelanggan"}`, body: String(c.lastMessage || "").slice(0, 90), href: "/admin/chat" }, location.hash === "#/admin/chat"); });
   } else {
     const lama = muat("chat", null), n = +S.chatMeta?.unreadUser || 0; simpan("chat", n);
     if (lama === null) return;
-    if (n > lama && S.chatMeta?.lastFrom === "admin") tambah({ id: `chat-${S.chatMeta?.updatedAt?.seconds || Date.now()}`, icon: "chat", tone: "teal", title: "Balasan dari Admin Tubi", body: String(S.chatMeta?.lastMessage || "").slice(0, 90), href: "/chat" }, location.hash === "#/chat");
+    if (n > lama && S.chatMeta?.lastFrom === "admin") tambah({ aksi: "balasan", id: `chat-${S.chatMeta?.updatedAt?.seconds || Date.now()}`, icon: "chat", tone: "teal", title: "Balasan dari Admin Tubi", body: String(S.chatMeta?.lastMessage || "").slice(0, 90), href: "/chat" }, location.hash === "#/chat");
   }
 }
 export function cekLaporan() {
