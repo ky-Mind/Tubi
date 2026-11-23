@@ -264,6 +264,7 @@ const orderCard = o => {
   <div class="row wrap">${payChip(o)}${o.location?.lat ? `<a class="chip" target="_blank" rel="noopener" href="${esc(mapsView(o))}">${svg("pin", 14)} Lokasi terkirim</a>` : ""}</div>
   <div class="row wrap"><span class="ord-tot">Total pesanan: <b>${rupiah(o.total)}</b></span><span class="sp"></span>
   ${needProof ? `<button class="btn sm pri" data-act="paynow" data-id="${o.id}">${o.paymentProof ? "Lihat pembayaran" : "Bayar sekarang"}</button>` : ""}
+  <button class="btn sm ghost" data-act="ochatadmin" data-id="${o.id}">${svg("chat", 15)} Chat admin</button>
   ${st === "menunggu" ? `<button class="btn sm danger" data-act="cancel" data-id="${o.id}">Batalkan</button>` : ""}
   ${st === "selesai" ? (o.review ? `<span class="chip">★ ${o.review.rating}</span>` : `<button class="btn sm" data-act="rate" data-id="${o.id}">Beri ulasan</button>`) : ""}
   <button class="btn sm" data-act="reorder" data-id="${o.id}">Pesan lagi</button></div></div>`;
@@ -326,7 +327,11 @@ export function chat() {
   ${live("msgs", ["msgs", "errors"], () => `<div class="msgs">${S.errors.msgs ? `<div class="alert">Chat ditolak Firestore. Publish <code>firestore.rules</code> terbaru.</div>` : msgsHtml("user")}</div>`, () => { toEnd(); if (S.user && +S.chatMeta?.unreadUser > 0 && (location.hash.slice(1) === "/chat")) markRead(S.user.uid, "user"); })}
   ${chatForm()}</div>`;
 }
-export const afterChat = () => { toEnd(); if (S.user && +S.chatMeta?.unreadUser > 0) markRead(S.user.uid, "user"); };
+export const afterChat = () => {
+  toEnd(); if (S.user && +S.chatMeta?.unreadUser > 0) markRead(S.user.uid, "user");
+  setTimeout(() => { const t = window.__drafChat, ta = document.querySelector('form[data-form="chat"] textarea'); if (!t || !ta) return; window.__drafChat = ""; ta.value = t; ta.dispatchEvent(new Event("input", { bubbles: true })); ta.focus(); ta.setSelectionRange(t.length, t.length); }, 250);
+};
+actions.ochatadmin = el => { window.__drafChat = `Halo admin, tentang pesanan #${String(el.dataset.id).slice(0, 6).toUpperCase()}: `; go("/chat"); };
 
 // ===== Akun & pengaturan =====
 const loginCard = (t, d) => `<div class="card" style="max-width:460px;margin:30px auto;text-align:center;display:grid;gap:12px;justify-items:center"><img src="./tubi-icon.png" style="width:72px;border-radius:20px" alt=""><h2>${t}</h2><p class="muted">${d}</p><button class="btn pri" data-act="login">Masuk dengan Google</button></div>`;

@@ -26,7 +26,7 @@ export default {
     const { pathname } = new URL(req.url);
     const lokal = env.APP_ENV !== "production";
     if (pathname === "/qr" && lokal) return new Response(HALAMAN_QR, { headers: { "Content-Type": "text/html; charset=utf-8" } });
-    if (pathname === "/" || (pathname === "/qr.json" && lokal)) return ctx.exports.Gateway.getByName("utama").fetch(req);
+    if (pathname === "/" || pathname === "/segera" || (pathname === "/qr.json" && lokal)) return ctx.exports.Gateway.getByName("utama").fetch(req);
     return new Response("Tidak ditemukan", { status: 404 });
   },
   // Cron tiap menit: bangunkan Durable Object dan pastikan alarm detaknya hidup

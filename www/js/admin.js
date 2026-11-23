@@ -12,7 +12,7 @@ import { PROVIDERS, prov, provOf, badge, nomorOf, atasNamaOf, appName } from "./
 
 const pic = p => img(p) ? `<img src="${esc(img(p))}" alt="" ${imgStyle(p)}>` : `<span class="noimg">${svg("image", 26)}</span>`;
 const path = () => location.hash.slice(1) || "/";
-export const TITLES = { "/admin": "Dashboard", "/admin/orders": "Pesanan", "/admin/chat": "Chat Pelanggan", "/admin/products": "Produk", "/admin/reports": "Omzet & Laporan", "/admin/settings": "Pengaturan", "/admin/more": "Menu lainnya" };
+export const TITLES = { "/admin": "Dashboard", "/admin/orders": "Pesanan", "/admin/chat": "Chat", "/admin/products": "Produk", "/admin/reports": "Laporan", "/admin/settings": "Pengaturan", "/admin/more": "Menu lainnya" };
 const pending = () => S.orders.filter(o => statusOf(o.status) === "menunggu").length;
 const unreadChats = () => S.chats.reduce((a, c) => a + (+c.unreadAdmin || 0), 0);
 // Status "offline" bergantung pada waktu sinyal terakhir, jadi semua tampilan status digambar ulang tiap 30 detik
@@ -112,7 +112,7 @@ const orderCard = o => {
   <div class="addr"><div class="row" style="align-items:flex-start"><span class="addr-ic">${svg("pin", 18)}</span><div class="sp" style="min-width:0"><div class="row wrap" style="gap:6px"><b>Alamat pengantaran</b>${locChip(o)}</div><div>${esc(o.address || "-")}</div>${o.note ? `<div class="oc-note">${svg("note", 15)} ${esc(o.note)}</div>` : ""}</div></div>
     <div class="row wrap" style="margin-top:10px"><a class="btn alt sm" target="_blank" rel="noopener" href="${esc(mapsDir(o))}">${svg("send", 15)} Navigasi</a><button class="btn sm" data-act="omap" data-id="${o.id}">${svg("pin", 15)} Lihat peta</button><button class="btn sm" data-act="copy" data-t="${esc(o.address || "")}">Salin alamat</button>${ph ? `<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${ph}">${svg("wa", 15)} WhatsApp</a>` : ""}</div></div>
   ${payReview(o)}
-  <div class="oc-act"><div class="row wrap"><button class="btn sm ghost" data-act="print" data-id="${o.id}">${svg("print", 15)} Struk</button><button class="btn sm ghost" data-act="oedit" data-id="${o.id}">${svg("edit", 15)} Edit</button>
+  <div class="oc-act"><div class="row wrap">${o.userId ? `<button class="btn sm" data-act="ochat" data-id="${o.id}">${svg("chat", 15)} Chat</button>` : ""}<button class="btn sm ghost" data-act="print" data-id="${o.id}">${svg("print", 15)} Struk</button><button class="btn sm ghost" data-act="oedit" data-id="${o.id}">${svg("edit", 15)} Edit</button>
     ${["menunggu", "diproses", "siap"].includes(st) ? `<button class="btn sm ghost danger" data-act="ostatus" data-id="${o.id}" data-s="dibatalkan">Batalkan</button>` : ""}<button class="btn sm ghost danger" data-act="odel" data-id="${o.id}" aria-label="Hapus pesanan">${svg("trash", 15)}</button></div>
     ${nx ? `<button class="btn s-${nx[0]}" data-act="ostatus" data-id="${o.id}" data-s="${nx[0]}">${svg("check", 16)} ${nx[1]}</button>` : ""}</div></div>`;
 };
@@ -127,6 +127,16 @@ export function orders() {
   ${live("olist", ["orders", "errors"], olistHtml)}`;
 }
 actions.osearch = t => { OQ = t.value; repaint("olist"); };
+// Draf pesan yang diisi otomatis saat membuka chat dari kartu pesanan
+const isiDraf = () => setTimeout(() => { const t = window.__drafChat, ta = document.querySelector('form[data-form="chat"] textarea'); if (!t || !ta) return; window.__drafChat = ""; ta.value = t; ta.dispatchEvent(new Event("input", { bubbles: true })); ta.focus(); ta.setSelectionRange(t.length, t.length); }, 250);
+// Chat dengan pemesan langsung dari kartu pesanan
+actions.ochat = async el => {
+  const o = S.orders.find(x => x.id === el.dataset.id); if (!o?.userId) return;
+  if (!S.chats.some(c => c.id === o.userId))
+    await F.setDoc(F.doc(db, "chats", o.userId), { uid: o.userId, name: o.customerName || o.recipientName || "Pelanggan", email: o.email || "", phone: o.phone || "" }, { merge: true });
+  window.__drafChat = `Halo ${o.customerName || "kak"}, terkait pesanan #${o.id.slice(0, 6).toUpperCase()}: `;
+  go("/admin/chat/" + o.userId);
+};
 // Tautan dalam dari notifikasi admin
 export function bukaPesanan(id) {
   const coba = n => {
@@ -137,7 +147,7 @@ export function bukaPesanan(id) {
   coba(0);
 }
 export function bukaChat(uid) {
-  const coba = n => { if (S.chats.some(c => c.id === uid)) actions.thread({ dataset: { id: uid } }); else if (n < 40) setTimeout(() => coba(n + 1), 150); };
+  const coba = n => { if (S.chats.some(c => c.id === uid)) { actions.thread({ dataset: { id: uid } }); isiDraf(); } else if (n < 40) setTimeout(() => coba(n + 1), 150); };
   coba(0);
 }
 actions.ofilter = el => { OF = el.dataset.f; OU = false; repaint("otabs"); repaint("olist"); };
@@ -344,9 +354,21 @@ document.addEventListener("drop", e => { if (seretDari < 0) return; const b = e.
 document.addEventListener("dragend", () => { seretDari = -1; $$(".sb.seret,.sb.atas").forEach(x => x.classList.remove("seret", "atas")); });
 
 // ===== Chat =====
+// Dokumen chat tanpa nama (mis. admin membalas setelah data pelanggan terhapus): ambil nama dari profil pelanggan.
+const profilChat = new Map();
+const namaChat = c => {
+  if (!c) return "Pelanggan";
+  if (c.name) return c.name;
+  const p = profilChat.get(c.id);
+  if (p === undefined) {
+    profilChat.set(c.id, null);
+    F.getDoc(F.doc(db, "users", c.id)).then(d => { const u = d.exists() ? d.data() : null; profilChat.set(c.id, u ? (u.displayName || u.recipientName || u.email || "Pelanggan") : "Pelanggan (akun dihapus)"); emit("chats"); }).catch(() => profilChat.set(c.id, "Pelanggan"));
+  }
+  return p || "Pelanggan";
+};
 actions.chatdibaca = async () => { const { tandaiChatDibaca } = await import("./notif.js"); await tandaiChatDibaca(); toast("Semua chat ditandai dibaca"); };
 export function chat() {
-  const list = () => S.chats.length ? `${S.chats.some(c => +c.unreadAdmin > 0) ? `<div class="threads-top"><button class="btn sm ghost" data-act="chatdibaca">${svg("check", 15)} Tandai semua dibaca</button></div>` : ""}<div class="threads">${S.chats.map(c => `<button class="thread ${S.openChat === c.id ? "on" : ""}" data-act="thread" data-id="${c.id}"><span class="av">${c.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : initial(c.name)}</span><div class="mid"><b>${esc(c.name || "Pelanggan")}</b><small class="muted">${c.lastFrom === "admin" ? "Anda: " : ""}${esc(c.lastMessage || "")}</small></div>${+c.unreadAdmin ? `<span class="badge" style="position:static">${c.unreadAdmin}</span>` : ""}</button>`).join("")}</div>` : `<div class="empty">Belum ada chat dari pelanggan.</div>`;
+  const list = () => S.chats.length ? `${S.chats.some(c => +c.unreadAdmin > 0) ? `<div class="threads-top"><button class="btn sm ghost" data-act="chatdibaca">${svg("check", 15)} Tandai semua dibaca</button></div>` : ""}<div class="threads">${S.chats.map(c => `<button class="thread ${S.openChat === c.id ? "on" : ""}" data-act="thread" data-id="${c.id}"><span class="av">${c.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : initial(namaChat(c))}</span><div class="mid"><b>${esc(namaChat(c))}</b><small class="muted">${c.lastFrom === "admin" ? "Anda: " : ""}${esc(c.lastMessage || "")}</small></div>${+c.unreadAdmin ? `<span class="badge" style="position:static">${c.unreadAdmin}</span>` : ""}</button>`).join("")}</div>` : `<div class="empty">Belum ada chat dari pelanggan.</div>`;
   return `<div class="chat-split ${S.openChat ? "open" : ""}" id="csplit"><div class="threads-box card" style="padding:8px;align-self:start;max-height:calc(100vh - 150px);overflow:auto">${live("threads", ["chats", "errors"], () => S.errors.chats ? `<div class="alert">Chat ditolak Firestore. Publish rules.</div>` : list())}</div>
   <div class="chat-box chat adm">${live("chead", ["openchat", "chats"], head)}${live("cmsgs", ["openchat", "msgs"], () => S.openChat ? `<div class="msgs">${msgsHtml("admin")}</div>` : `<div class="m-empty" style="flex:1">${svg("chat", 34)}<b>Pilih percakapan</b><span>Pilih pelanggan di daftar untuk mulai membalas.</span></div>`, () => { toEnd(); const c = S.chats.find(x => x.id === S.openChat); if (c && +c.unreadAdmin > 0) markRead(c.id, "admin"); })}
   <div id="cformbox" class="${S.openChat ? "" : "hidden"}">${chatForm()}</div></div></div>`;
@@ -354,7 +376,7 @@ export function chat() {
 // Kepala, daftar pesan, dan kotak tulis dipisah: pesan baru tidak menghapus teks / lampiran yang sedang ditulis.
 function head() {
   const c = S.chats.find(x => x.id === S.openChat); if (!S.openChat) return "";
-  return `<div class="chat-head"><button class="icon-btn only-m" data-act="chatback" aria-label="Kembali">${svg("back")}</button><span class="av">${c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : initial(c?.name)}</span><div style="min-width:0"><b>${esc(c?.name || "Pelanggan")}</b><div class="muted xs">${esc(c?.email || "")}${c?.phone ? " · " + esc(hpLokal(c.phone)) : ""}</div></div><span class="sp"></span>${c?.phone ? `<a class="icon-btn" target="_blank" rel="noopener" href="https://wa.me/${normPhone(c.phone)}" aria-label="WhatsApp pelanggan">${svg("wa", 18)}</a>` : ""}</div>`;
+  return `<div class="chat-head"><button class="icon-btn only-m" data-act="chatback" aria-label="Kembali">${svg("back")}</button><span class="av">${c?.photoURL ? `<img src="${esc(c.photoURL)}" alt="">` : initial(namaChat(c))}</span><div style="min-width:0"><b>${esc(namaChat(c))}</b><div class="muted xs">${esc(c?.email || "")}${c?.phone ? " · " + esc(hpLokal(c.phone)) : ""}</div></div><span class="sp"></span>${c?.phone ? `<a class="icon-btn" target="_blank" rel="noopener" href="https://wa.me/${normPhone(c.phone)}" aria-label="WhatsApp pelanggan">${svg("wa", 18)}</a>` : ""}</div>`;
 }
 actions.thread = el => { resetCompose(); openThread(el.dataset.id); markRead(el.dataset.id, "admin"); $("#csplit")?.classList.add("open"); $("#cformbox")?.classList.remove("hidden"); emit("openchat"); repaint("threads"); };
 actions.chatback = () => { openThread(null); $("#csplit")?.classList.remove("open"); $("#cformbox")?.classList.add("hidden"); emit("openchat"); repaint("threads"); };
@@ -379,7 +401,7 @@ function reportHtml() {
   <div class="kpis"><div class="kpi hl"><span class="l">Hari ini</span><b>${rupiah(sum(t0))}</b><small class="muted">${cnt(t0)} pesanan</small></div><div class="kpi"><span class="l">Kemarin</span><b>${rupiah(sum(y0, t0))}</b><small class="muted">${cnt(y0, t0)} pesanan</small></div><div class="kpi"><span class="l">7 hari terakhir</span><b>${rupiah(sum(dayStart(new Date(), -6)))}</b><small class="muted">${cnt(dayStart(new Date(), -6))} pesanan</small></div><div class="kpi"><span class="l">Bulan ini</span><b>${rupiah(sum(m0))}</b><small class="muted">${cnt(m0)} pesanan</small></div></div>
   <div class="kpis" style="margin-top:12px"><div class="kpi"><span class="l">Total omzet</span><b>${rupiah(tot)}</b><small class="muted">termasuk ongkir & pajak</small></div><div class="kpi"><span class="l">Pendapatan bersih produk</span><b>${rupiah(netTot)}</b><small class="muted">harga produk − diskon</small></div><div class="kpi"><span class="l">Pesanan selesai</span><b>${done.length}</b></div><div class="kpi"><span class="l">Rata-rata / pesanan</span><b>${rupiah(done.length ? tot / done.length : 0)}</b></div></div>
   <div class="two" style="margin-top:16px"><div class="card"><div class="row wrap"><h3 style="margin:0" class="sp">Omzet harian</h3><div class="seg"><button class="${RP === 7 ? "on" : ""}" data-act="rperiod" data-n="7">7 hari</button><button class="${RP === 14 ? "on" : ""}" data-act="rperiod" data-n="14">14 hari</button><button class="${RP === 30 ? "on" : ""}" data-act="rperiod" data-n="30">30 hari</button></div></div>
-    <div class="bars ${RP > 14 ? "dense" : ""}">${days.map(d => `<div title="${fmt(d.d)} — ${rupiah(d.v)} (${d.n} pesanan)"><b class="bw"><i style="height:${Math.max(3, d.v / mx * 100)}%"></i></b><span>${RP > 14 ? d.d.getDate() : d.d.toLocaleDateString("id-ID", { weekday: "short" })}</span></div>`).join("")}</div>
+    <div class="bars ${RP > 7 ? "dense" : ""}">${days.map(d => `<div title="${fmt(d.d)} — ${rupiah(d.v)} (${d.n} pesanan)" class="${d.v ? "isi" : ""}"><b class="bw">${d.v ? `<em>${ringkasRp(d.v)}</em>` : ""}<i style="height:${d.v ? Math.max(6, d.v / mx * 100) : 2}%"></i></b><span>${RP > 7 ? d.d.getDate() : d.d.toLocaleDateString("id-ID", { weekday: "short" })}</span></div>`).join("")}</div>
     <div class="tbl" style="margin-top:10px;max-height:240px;overflow:auto">${[...days].reverse().map(d => `<div class="r"><div class="mid"><b>${fmt(d.d)}</b></div><span class="muted sm">${d.n} pesanan</span><b>${rupiah(d.v)}</b></div>`).join("")}</div></div>
   <div class="col"><div class="card"><h3>Menu terlaris</h3>${tl.length ? `<div class="tbl">${tl.map(([n, q], i) => `<div class="r"><b>${i + 1}</b><div class="mid"><b>${esc(n)}</b></div><span class="chip">${q} terjual</span></div>`).join("")}</div>` : `<div class="empty">Belum ada pesanan selesai.</div>`}</div>
   <div class="card"><h3>Metode pembayaran</h3><div class="tbl"><div class="r"><div class="mid"><b>Bayar di tempat (COD)</b></div><b>${rupiah(pay.cod)}</b></div><div class="r"><div class="mid"><b>Transfer / QRIS</b></div><b>${rupiah(pay.transfer)}</b></div></div></div>
@@ -394,6 +416,8 @@ actions.csv = () => {
   const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + rows.join("\n")], { type: "text/csv;charset=utf-8" })); a.download = `laporan-tubi-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast("CSV diunduh ✓");
 };
 
+// Rupiah ringkas untuk label grafik: 15.300 → 15,3rb, 1.250.000 → 1,25jt
+const ringkasRp = v => v >= 1e6 ? (v / 1e6).toFixed(v >= 1e7 ? 0 : 2).replace(/\.?0+$/, "").replace(".", ",") + "jt" : v >= 1e3 ? (v / 1e3).toFixed(v >= 1e4 ? 0 : 1).replace(/\.0$/, "").replace(".", ",") + "rb" : String(Math.round(v));
 // ===== Pengaturan =====
 export function waBody(mini) {
   const w = S.wa, st = waState();
