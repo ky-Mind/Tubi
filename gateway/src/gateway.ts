@@ -81,6 +81,19 @@ export class Gateway extends DurableObject {
     if (this.st.state === "starting" && !this.sock && (await this.ctx.storage.get("diam"))) this.st.state = "idle";
     const jalur = new URL(req.url).pathname;
     // Dari cron tiap menit: bila detak terakhir sudah lewat 90 detik, alarm dianggap macet → jadwalkan ulang sekarang
+    // Dicolek aplikasi Tubi tepat setelah ada pesan / pesanan / perubahan status → periksa Firestore SEKARANG,
+    // supaya notifikasi HP dan WhatsApp terkirim seketika (tidak menunggu detak 30 detik). Aman dipanggil siapa saja:
+    // hanya memicu pemeriksaan, dibatasi paling sering sekali per 1,5 detik.
+    if (jalur === "/segera") {
+      const sekarang = Date.now();
+      const tunggu = Math.max(0, 1_500 - (sekarang - (this.colekTerakhir || 0)));
+      if (this.sedangSegera) this.colekLagi = true;                       // sedang memeriksa → ulangi sekali lagi sesudahnya
+      else if (!this.colekTerjadwal) {                                    // belum ada jadwal → periksa sekarang / sesaat lagi
+        this.colekTerjadwal = true;
+        this.ctx.waitUntil(tidur(tunggu).then(() => { this.colekTerjadwal = false; this.colekTerakhir = Date.now(); return this.periksaSegera(); }));
+      }
+      return new Response("ok", { headers: { "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" } });
+    }
     if (jalur === "/detak") {
       if (Date.now() - (this.detakTerakhir || 0) > 90_000) { this.sedangDetak = false; await this.ctx.storage.setAlarm(Date.now() + 500); }
       return Response.json({ ok: true, detak: this.detakTerakhir || 0 });
@@ -102,6 +115,21 @@ export class Gateway extends DurableObject {
     try { await Promise.race([this.detak(), tidur(100_000)]); }
     catch (e) { console.error("detak gagal:", e?.message || e); }
     finally { await this.ctx.storage.setAlarm(Date.now() + (diam && !this.sock ? DETAK_DIAM_MS : DETAK_MS)); }
+  }
+
+  async periksaSegera() {
+    if (!this.db) return;
+    if (this.sedangSegera) { this.colekLagi = true; return; }
+    this.sedangSegera = true;
+    try {
+      do {
+        this.colekLagi = false;
+        if (Date.now() - this.terakhirPengaturan > SEGAR_PENGATURAN_MS) await this.muatPengaturan();
+        await this.periksaFirestore();
+        if (this.colekLagi) await tidur(800);   // ada colekan baru selama memeriksa → periksa sekali lagi
+      } while (this.colekLagi);
+    } catch (e) { console.error("periksa segera:", e?.message || e); }
+    finally { this.sedangSegera = false; }
   }
 
   async detak() {
