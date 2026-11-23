@@ -133,4 +133,13 @@ toTop.className = "to-top"; toTop.type = "button"; toTop.setAttribute("aria-labe
 toTop.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
 toTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
 document.body.appendChild(toTop);
-addEventListener("scroll", () => toTop.classList.toggle("show", scrollY > 600), { passive: true });
+// Supaya tidak menghalangi isi halaman: hanya muncul saat menggulir KE ATAS di halaman panjang, hilang sendiri setelah
+// 2,5 detik tanpa gerakan, dan tidak muncul di halaman chat / checkout / pembayaran atau saat panel terbuka.
+let yLalu = scrollY, sembunyiT = 0;
+const halamanTanpaPanah = () => /^\/(chat|checkout|pay)|^\/admin\/chat/.test((location.hash || "#/").slice(1)) || document.body.classList.contains("locked");
+addEventListener("scroll", () => {
+  const y = scrollY, naik = y < yLalu - 4, turun = y > yLalu + 4; if (naik || turun) yLalu = y;
+  if (y <= 900 || turun || halamanTanpaPanah()) { toTop.classList.remove("show"); return; }
+  if (naik) { toTop.classList.add("show"); clearTimeout(sembunyiT); sembunyiT = setTimeout(() => toTop.classList.remove("show"), 2500); }
+}, { passive: true });
+addEventListener("hashchange", () => toTop.classList.remove("show"));

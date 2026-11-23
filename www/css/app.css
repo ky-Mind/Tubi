@@ -1030,3 +1030,27 @@ textarea.terisi{box-shadow:0 0 0 3px #1d9bf055;transition:box-shadow .3s}
 .ptg-bawah .muted{color:#fff9;text-align:center;margin:0}
 .foto-tb{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}.foto-tb .btn{gap:6px}.foto-tb [hidden]{display:none}
 .sb-kepala{display:grid;gap:8px}.sb-kepala input{font:800 15px ui-monospace,Menlo,monospace}
+/* v27: grafik omzet tidak meluber */
+.bars>div{min-width:0}
+.bars .bw{flex-direction:column;align-items:center;justify-content:flex-end;position:relative}
+.bars .bw em{font-style:normal;font-size:10px;font-weight:800;color:var(--red);white-space:nowrap;margin-bottom:3px;line-height:1}
+.bars span{white-space:nowrap;overflow:hidden;max-width:100%;text-align:center}
+.bars>div:not(.isi) i{background:var(--line,#ecdfcf)}
+.bars.dense .bw em{font-size:8.5px}
+/* v27: kartu pesanan admin rapi di HP */
+.oc-h>.sp{flex:1 1 170px}
+.oc-h>.row.wrap{flex:0 1 auto;margin-left:auto}
+.oc-h .muted.xs{line-height:1.45}
+.a-top h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media(max-width:759px){
+  .oc-act .row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;gap:6px}
+  .oc-act .row .btn{justify-content:center;padding-left:6px;padding-right:6px;min-width:0;white-space:nowrap}
+  .oc-h>.row.wrap{margin-left:52px;justify-content:flex-start!important}
+}
+@media(max-width:759px){.row.wrap>.search-in.sp{flex:1 1 100%}}
+/* v27: tombol kembali ke atas kecil & tidak menghalangi */
+.to-top{width:40px;height:40px;right:12px;bottom:calc(var(--nav) + 14px + env(safe-area-inset-bottom));background:color-mix(in srgb,var(--red) 88%,transparent);box-shadow:0 6px 16px rgba(200,35,44,.32)}
+.to-top svg{width:18px;height:18px}
+body:has(.cartbar:not([hidden]):not(.hide)) .to-top{bottom:calc(var(--nav) + 86px + env(safe-area-inset-bottom))}
+body[data-page="/chat"] .to-top,body[data-page="/checkout"] .to-top,body[data-page="/pay"] .to-top,body[data-page="/admin/chat"] .to-top,body.locked .to-top{display:none}
+@media(min-width:760px){.to-top{bottom:24px;right:24px}}
