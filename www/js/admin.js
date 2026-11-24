@@ -183,7 +183,7 @@ forms.opissue = async (f, fd) => {
 actions.odel = async el => { const o = S.orders.find(x => x.id === el.dataset.id); if (await confirmBox("Hapus pesanan ini?", `Pesanan #${o.id.slice(0, 6).toUpperCase()} (${o.customerName || ""}) akan dihapus permanen dari laporan juga.`, "Hapus permanen")) { await F.deleteDoc(F.doc(db, "orders", o.id)); toast("Pesanan dihapus."); } };
 actions.oclean = async () => {
   const l = S.orders.filter(o => ["selesai", "dibatalkan"].includes(statusOf(o.status)));
-  if (!await confirmBox(`Hapus ${l.length} pesanan selesai/dibatalkan?`, "Pesanan selesai yang dihapus juga hilang dari laporan omzet. Pertimbangkan Ekspor CSV di halaman Laporan dulu.", "Hapus semua")) return;
+  if (!await confirmBox(`Hapus ${l.length} pesanan selesai/dibatalkan?`, "Pesanan selesai yang dihapus juga hilang dari laporan omzet. Pertimbangkan Ekspor PDF di halaman Laporan dulu.", "Hapus semua")) return;
   for (const o of l) await F.deleteDoc(F.doc(db, "orders", o.id)); toast(`${l.length} pesanan dihapus.`);
 };
 actions.oedit = el => {
@@ -397,7 +397,7 @@ function reportHtml() {
   const mx = Math.max(1, ...days.map(d => d.v)), top = {}, pay = { cod: 0, transfer: 0 };
   done.forEach(o => { (o.items || []).forEach(i => top[i.name] = (top[i.name] || 0) + i.qty); pay[o.payment?.method === "transfer" ? "transfer" : "cod"] += +o.total || 0; });
   const tl = Object.entries(top).sort((a, b) => b[1] - a[1]).slice(0, 6), fmt = d => d.toLocaleDateString("id-ID", { weekday: "short", day: "numeric", month: "short" });
-  return `<div class="row wrap" style="margin-bottom:12px"><span class="muted sm sp">Hanya pesanan berstatus <b>Selesai</b> yang dihitung sebagai pendapatan.</span><button class="btn sm" data-act="csv">${svg("download", 15)} Ekspor CSV</button></div>
+  return `<div class="row wrap" style="margin-bottom:12px"><span class="muted sm sp">Hanya pesanan berstatus <b>Selesai</b> yang dihitung sebagai pendapatan.</span><button class="btn sm" data-act="pdf">${svg("download", 15)} Ekspor PDF</button></div>
   <div class="kpis"><div class="kpi hl"><span class="l">Hari ini</span><b>${rupiah(sum(t0))}</b><small class="muted">${cnt(t0)} pesanan</small></div><div class="kpi"><span class="l">Kemarin</span><b>${rupiah(sum(y0, t0))}</b><small class="muted">${cnt(y0, t0)} pesanan</small></div><div class="kpi"><span class="l">7 hari terakhir</span><b>${rupiah(sum(dayStart(new Date(), -6)))}</b><small class="muted">${cnt(dayStart(new Date(), -6))} pesanan</small></div><div class="kpi"><span class="l">Bulan ini</span><b>${rupiah(sum(m0))}</b><small class="muted">${cnt(m0)} pesanan</small></div></div>
   <div class="kpis" style="margin-top:12px"><div class="kpi"><span class="l">Total omzet</span><b>${rupiah(tot)}</b><small class="muted">termasuk ongkir & pajak</small></div><div class="kpi"><span class="l">Pendapatan bersih produk</span><b>${rupiah(netTot)}</b><small class="muted">harga produk − diskon</small></div><div class="kpi"><span class="l">Pesanan selesai</span><b>${done.length}</b></div><div class="kpi"><span class="l">Rata-rata / pesanan</span><b>${rupiah(done.length ? tot / done.length : 0)}</b></div></div>
   <div class="two" style="margin-top:16px"><div class="card"><div class="row wrap"><h3 style="margin:0" class="sp">Omzet harian</h3><div class="seg"><button class="${RP === 7 ? "on" : ""}" data-act="rperiod" data-n="7">7 hari</button><button class="${RP === 14 ? "on" : ""}" data-act="rperiod" data-n="14">14 hari</button><button class="${RP === 30 ? "on" : ""}" data-act="rperiod" data-n="30">30 hari</button></div></div>
@@ -408,12 +408,60 @@ function reportHtml() {
   <div class="card"><h3>Status pesanan</h3><div class="row wrap">${STATUSES.map(s => `<span class="chip st-${s}">${STATUS_LABEL[s]}: ${S.orders.filter(o => statusOf(o.status) === s).length}</span>`).join("")}</div></div></div></div>`;
 }
 actions.rperiod = el => { RP = +el.dataset.n; repaint("rep"); };
-actions.csv = () => {
+// Ekspor laporan omzet sebagai PDF (jsPDF dimuat saat dibutuhkan). Di aplikasi Android berkasnya disimpan ke folder
+// Download lalu langsung dibuka; di browser diunduh biasa.
+const muatSkrip = src => new Promise((ok, gagal) => { if (document.querySelector(`script[src="${src}"]`)) return ok(); const t = document.createElement("script"); t.src = src; t.onload = ok; t.onerror = () => gagal(new Error("Gagal memuat pembuat PDF. Periksa internet lalu coba lagi.")); document.head.appendChild(t); });
+const latin = v => String(v ?? "").replace(/[\u2212\u2013\u2014]/g, "-").replace(/[\u2018\u2019]/g, "'").replace(/[\u201c\u201d]/g, '"').replace(/[^\x00-\xff]/g, "").trim();
+actions.pdf = async () => {
   const done = S.orders.filter(o => statusOf(o.status) === "selesai").sort((a, b) => secs(a.createdAt) - secs(b.createdAt));
   if (!done.length) throw new Error("Belum ada pesanan selesai untuk diekspor.");
-  const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
-  const rows = [["Tanggal", "ID", "Pelanggan", "Telepon", "Item", "Subtotal", "Diskon", "Ongkir", "Pajak", "Total", "Metode bayar"].map(q).join(",")].concat(done.map(o => [new Date(secs(o.createdAt) * 1000).toLocaleString("id-ID"), o.id.slice(0, 6).toUpperCase(), o.customerName, o.phone, (o.items || []).map(i => `${i.qty}x ${i.name}`).join("; "), o.subtotal ?? "", o.discount ?? 0, o.deliveryFee ?? 0, o.tax ?? 0, o.total, o.payment?.method === "transfer" ? "Transfer" : "COD"].map(q).join(",")));
-  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["\ufeff" + rows.join("\n")], { type: "text/csv;charset=utf-8" })); a.download = `laporan-tubi-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast("CSV diunduh ✓");
+  toast("Menyiapkan PDF…");
+  await muatSkrip("js/vendor/jspdf.umd.min.js"); await muatSkrip("js/vendor/jspdf.plugin.autotable.min.js");
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: "mm", format: "a4" }), W = doc.internal.pageSize.getWidth(), MERAH = [200, 35, 44];
+  const tgl = d => d.toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  const t0 = dayStart(), y0 = dayStart(new Date(), -1), w0 = dayStart(new Date(), -6), m0 = (() => { const d = new Date(); d.setDate(1); d.setHours(0, 0, 0, 0); return d / 1000; })();
+  const di = (a, b = Infinity) => done.filter(o => secs(o.createdAt) >= a && secs(o.createdAt) < b);
+  const jml = l => l.reduce((s, o) => s + (+o.total || 0), 0), tot = jml(done), netTot = done.reduce((s, o) => s + net(o), 0);
+  // Kepala
+  doc.setFillColor(...MERAH); doc.rect(0, 0, W, 26, "F");
+  doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text("Laporan Omzet Tubi", 14, 13);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.text(`Dibuat ${tgl(new Date())} pukul ${new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}`, 14, 20);
+  doc.text(`Periode: ${tgl(new Date(secs(done[0].createdAt) * 1000))} - ${tgl(new Date(secs(done[done.length - 1].createdAt) * 1000))}`, W - 14, 20, { align: "right" });
+  doc.setTextColor(60); doc.setFontSize(9); doc.text("Hanya pesanan berstatus Selesai yang dihitung sebagai pendapatan.", 14, 33);
+  const gaya = { theme: "grid", headStyles: { fillColor: MERAH, textColor: 255, fontStyle: "bold" }, styles: { fontSize: 9, cellPadding: 2 }, margin: { left: 14, right: 14 } };
+  const kol = cs => ({ columnStyles: cs, didParseCell: d => { const c = cs[d.column.index]; if (d.section === "head" && c?.halign) d.cell.styles.halign = c.halign; } });   // judul kolom ikut rata kolomnya
+  const judul = (t, y) => { doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(30); doc.text(t, 14, y); return y + 3; };
+  const bawah = () => doc.lastAutoTable.finalY + 9;
+  // Ringkasan
+  doc.autoTable({ ...gaya, startY: judul("Ringkasan", 42), head: [["Keterangan", "Pesanan", "Omzet"]], ...kol({ 1: { halign: "center" }, 2: { halign: "right" } }),
+    body: [["Hari ini", di(t0).length, rupiah(jml(di(t0)))], ["Kemarin", di(y0, t0).length, rupiah(jml(di(y0, t0)))], ["7 hari terakhir", di(w0).length, rupiah(jml(di(w0)))], ["Bulan ini", di(m0).length, rupiah(jml(di(m0)))],
+      [{ content: "Total omzet (termasuk ongkir & pajak)", styles: { fontStyle: "bold" } }, { content: done.length, styles: { fontStyle: "bold" } }, { content: rupiah(tot), styles: { fontStyle: "bold" } }],
+      ["Pendapatan bersih produk (harga produk - diskon)", "", rupiah(netTot)], ["Rata-rata per pesanan", "", rupiah(done.length ? tot / done.length : 0)]] });
+  // Omzet harian (sesuai pilihan 7/14/30 hari di layar)
+  const hari = [...Array(RP)].map((_, i) => { const s = dayStart(new Date(), -(RP - 1 - i)); return { d: new Date(s * 1000), l: di(s, s + 86400) }; }).reverse();
+  doc.autoTable({ ...gaya, startY: judul(`Omzet harian (${RP} hari terakhir)`, bawah()), head: [["Tanggal", "Pesanan", "Omzet"]], ...kol({ 1: { halign: "center" }, 2: { halign: "right" } }),
+    body: hari.map(h => [h.d.toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" }), h.l.length, rupiah(jml(h.l))]) });
+  // Menu terlaris & metode bayar
+  const top = {}, pay = { cod: [0, 0], transfer: [0, 0] };
+  done.forEach(o => { (o.items || []).forEach(i => top[i.name] = (top[i.name] || 0) + (+i.qty || 0)); const m = pay[o.payment?.method === "transfer" ? "transfer" : "cod"]; m[0]++; m[1] += +o.total || 0; });
+  const tl = Object.entries(top).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  doc.autoTable({ ...gaya, startY: judul("Menu terlaris", bawah()), head: [["#", "Menu", "Terjual"]], ...kol({ 0: { halign: "center", cellWidth: 10 }, 2: { halign: "center" } }), body: tl.map(([n, q], i) => [i + 1, latin(n), q]) });
+  doc.autoTable({ ...gaya, startY: judul("Metode pembayaran", bawah()), head: [["Metode", "Pesanan", "Omzet"]], ...kol({ 1: { halign: "center" }, 2: { halign: "right" } }),
+    body: [["Bayar di tempat (COD)", pay.cod[0], rupiah(pay.cod[1])], ["Transfer / QRIS", pay.transfer[0], rupiah(pay.transfer[1])]] });
+  // Rincian semua pesanan selesai (halaman baru, mendatar agar kolom muat)
+  doc.addPage("a4", "landscape");
+  doc.autoTable({ ...gaya, styles: { fontSize: 8, cellPadding: 1.6 }, startY: judul(`Rincian pesanan selesai (${done.length})`, 16),
+    head: [["Tanggal", "ID", "Pelanggan", "Telepon", "Item", "Subtotal", "Diskon", "Ongkir", "Pajak", "Total", "Bayar"]],
+    ...kol({ 4: { cellWidth: 70 }, 5: { halign: "right" }, 6: { halign: "right" }, 7: { halign: "right" }, 8: { halign: "right" }, 9: { halign: "right", fontStyle: "bold" } }),
+    body: done.map(o => [new Date(secs(o.createdAt) * 1000).toLocaleString("id-ID", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }), o.id.slice(0, 6).toUpperCase(), latin(o.customerName), latin(o.phone), latin((o.items || []).map(i => `${i.qty}x ${i.name}`).join(", ")),
+      o.subtotal != null ? rupiah(o.subtotal) : "-", rupiah(o.discount || 0), rupiah(o.deliveryFee || 0), rupiah(o.tax || 0), rupiah(o.total), o.payment?.method === "transfer" ? "Transfer" : "COD"]),
+    foot: [[{ content: "Total", colSpan: 9, styles: { halign: "right" } }, { content: rupiah(tot), styles: { halign: "right" } }, ""]], footStyles: { fillColor: [245, 245, 245], textColor: 30, fontStyle: "bold" } });
+  // Nomor halaman
+  const n = doc.getNumberOfPages();
+  for (let i = 1; i <= n; i++) { doc.setPage(i); const w = doc.internal.pageSize.getWidth(), h = doc.internal.pageSize.getHeight(); doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(140); doc.text(`Tubi - Laporan Omzet - halaman ${i} dari ${n}`, w / 2, h - 6, { align: "center" }); }
+  const nama = `laporan-omzet-tubi-${new Date().toISOString().slice(0, 10)}.pdf`, B = window.Capacitor?.isNativePlatform?.() && window.Capacitor?.Plugins?.Berkas;
+  if (B) { const r = await B.simpan({ nama, base64: doc.output("datauristring").split(",")[1], mime: "application/pdf" }); toast(r.download ? "PDF tersimpan di folder Download ✓" : "PDF siap ✓"); }
+  else { doc.save(nama); toast("PDF diunduh ✓"); }
 };
 
 // Rupiah ringkas untuk label grafik: 15.300 → 15,3rb, 1.250.000 → 1,25jt
@@ -585,7 +633,7 @@ actions.diag = async () => {
   await t("Status gateway WhatsApp", async () => { const s = await F.getDoc(F.doc(db, "waGateway", "status")); if (!s.exists()) throw new Error("belum ada dokumen status — gateway belum pernah jalan / beda project"); const d = s.data(); if (waState() === "offline") throw new Error(`terakhir ${d.state}, ${ago(d.updatedAt)} — gateway tidak aktif`); return `${d.state}, update ${ago(d.updatedAt)}`; }, "jalankan gateway");
 };
 export function more() {
-  return `<div class="col"><a class="menu-item" href="#/admin/reports"><span class="mi-ic">${svg("chart", 20)}</span><span class="mi-tx"><b>Omzet & Laporan</b><small class="muted">Pendapatan harian, menu terlaris, ekspor CSV</small></span><span class="mi-ch">›</span></a>
+  return `<div class="col"><a class="menu-item" href="#/admin/reports"><span class="mi-ic">${svg("chart", 20)}</span><span class="mi-tx"><b>Omzet & Laporan</b><small class="muted">Pendapatan harian, menu terlaris, ekspor PDF</small></span><span class="mi-ch">›</span></a>
   <div class="lbl" style="margin:8px 4px 0">Pengaturan</div><div class="menu-list">${live("mgrp", ["wa", "bt", "settings", "admins", "bugs"], groupList)}</div>
   <div class="lbl" style="margin:8px 4px 0">Lainnya</div><div class="menu-list"><a class="menu-item" href="#/"><span class="mi-ic">${svg("store", 20)}</span><span class="mi-tx"><b>Lihat toko</b><small class="muted">Tampilan yang dilihat pelanggan</small></span><span class="mi-ch">›</span></a>
   <button class="menu-item" data-act="themetoggle"><span class="mi-ic">${svg("moon", 20)}</span><span class="mi-tx"><b>Mode gelap / terang</b></span></button><button class="menu-item danger" data-act="logout"><span class="mi-ic">${svg("logout", 20)}</span><span class="mi-tx"><b>Keluar</b></span></button></div></div>`;

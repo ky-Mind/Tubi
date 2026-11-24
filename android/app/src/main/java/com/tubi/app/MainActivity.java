@@ -36,6 +36,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BukaAplikasiPlugin.class);
         registerPlugin(PembaruanPlugin.class);
         registerPlugin(PrinterPlugin.class);
+        registerPlugin(BerkasPlugin.class);
         super.onCreate(savedInstanceState);
         TubiPesan.siapkanKanal(this);
         if (savedInstanceState == null) tampilkanPembuka();
