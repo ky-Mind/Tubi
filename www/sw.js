@@ -1,4 +1,4 @@
-const CACHE = "tubi-v27";
+const CACHE = "tubi-v28";
 self.addEventListener("install", e => { self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 // Network-first: selalu ambil versi terbaru; cache hanya cadangan saat offline.
