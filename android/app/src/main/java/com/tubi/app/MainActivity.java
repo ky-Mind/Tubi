@@ -36,8 +36,10 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BukaAplikasiPlugin.class);
         registerPlugin(PembaruanPlugin.class);
         registerPlugin(PrinterPlugin.class);
+        registerPlugin(BerkasPlugin.class);
         super.onCreate(savedInstanceState);
         TubiPesan.siapkanKanal(this);
+        if (savedInstanceState == null) tampilkanPembuka();
 
         // Tombol kembali Android: tanya dulu ke aplikasi web (tutup panel, mundur satu halaman, atau
         // "tekan sekali lagi untuk keluar"). Aplikasi hanya keluar bila web menjawab false.
@@ -119,6 +121,50 @@ public class MainActivity extends BridgeActivity {
             Intent i = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName()));
             startActivity(i);
         } catch (Exception ignored) {}
+    }
+
+    // ---------- Layar pembuka gaya KyMind (sama dengan Kurama): logo Tubi di tengah, "KyMind" di bawah ----------
+    private android.view.View pembuka;
+    private long pembukaMulai;
+
+    private void tampilkanPembuka() {
+        float dp = getResources().getDisplayMetrics().density;
+        pembukaMulai = android.os.SystemClock.uptimeMillis();
+        android.widget.FrameLayout f = new android.widget.FrameLayout(this);
+        f.setBackgroundColor(0xFFC8232C);
+        f.setClickable(true);
+        android.widget.ImageView logo = new android.widget.ImageView(this);
+        logo.setImageResource(R.mipmap.ic_launcher_foreground);
+        int u = Math.round(240 * dp);   /* sama dengan ikon layar pembuka sistem (240dp) agar tidak melompat */
+        f.addView(logo, new android.widget.FrameLayout.LayoutParams(u, u, android.view.Gravity.CENTER));
+        logo.setScaleX(.9f); logo.setScaleY(.9f);
+        logo.animate().scaleX(1f).scaleY(1f).setDuration(600).start();
+        android.widget.TextView t = KyMind.teks(this, true);
+        t.setTextColor(0xFFFFFFFF);
+        f.addView(t, KyMind.posisi(this));
+        addContentView(f, new android.view.ViewGroup.LayoutParams(-1, -1));
+        pembuka = f;
+        tungguHalaman(0);
+    }
+
+    /** Tutup setelah halaman web selesai dimuat (minimal ±1,5 detik, paling lama 8 detik) */
+    private void tungguHalaman(int ke) {
+        utama.postDelayed(() -> {
+            WebView web = getBridge() != null ? getBridge().getWebView() : null;
+            boolean siap = web != null && web.getProgress() >= 100;
+            if (!siap && ke < 50) { tungguHalaman(ke + 1); return; }
+            tutupPembuka();
+        }, 150);
+    }
+
+    private void tutupPembuka() {
+        android.view.View p = pembuka;
+        if (p == null) return;
+        pembuka = null;
+        long sisa = 1500 - (android.os.SystemClock.uptimeMillis() - pembukaMulai);
+        p.animate().alpha(0f).setStartDelay(Math.max(80, sisa)).setDuration(300).withEndAction(() -> {
+            if (p.getParent() instanceof android.view.ViewGroup) ((android.view.ViewGroup) p.getParent()).removeView(p);
+        }).start();
     }
 
     // Header Tubi berwarna merah sampai ke balik status bar → ikon jam/baterai dibuat putih.

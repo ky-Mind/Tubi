@@ -9,7 +9,7 @@ actions.sidebar = () => { ls.set("sideoff", !sideOff()); applySide(); };
 
 let items = [], sel = 0;
 const NAVS = [["/admin", "Dashboard", "beranda ringkasan home"], ["/admin/orders", "Pesanan", "order transaksi antar"], ["/admin/chat", "Chat pelanggan", "pesan balas"], ["/admin/products", "Produk", "menu katalog barang stok"],
-  ["/admin/reports", "Omzet & laporan", "pendapatan keuntungan penjualan csv"], ["/admin/settings", "Pengaturan", "toko ongkir voucher pembayaran tampilan hero"]];
+  ["/admin/reports", "Omzet & laporan", "pendapatan keuntungan penjualan pdf ekspor"], ["/admin/settings", "Pengaturan", "toko ongkir voucher pembayaran tampilan hero"]];
 function build() {
   const out = NAVS.map(([h, l, k]) => ({ g: "Buka halaman", l, k, run: () => go(h) }));
   out.push({ g: "Aksi", l: "Tambah produk baru", k: "produk tambah menu baru", run: () => { go("/admin/products"); setTimeout(() => actions.pform({ dataset: {} }), 150); } },
